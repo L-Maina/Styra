@@ -207,6 +207,14 @@ class ApiClient {
     });
   }
 
+  async resendOTP(phone: string) {
+    return this.request('/auth/resend-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+      noRetry: true,
+    });
+  }
+
   async forgotPassword(email: string) {
     return this.request('/auth/forgot-password', {
       method: 'POST',

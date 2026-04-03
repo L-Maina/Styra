@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { verifyOTP } from '@/lib/auth';
+import { verifyOTP as verifyOTPFromDB } from '@/lib/auth';
 import { otpVerifySchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { rateLimit, authRateLimitConfig } from '@/lib/rate-limit';
@@ -15,15 +15,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = otpVerifySchema.parse(body);
 
-    const isValid = await verifyOTP(validated.phone, validated.code);
-    if (!isValid) {
-      return errorResponse('Invalid or expired OTP', 400);
+    // verifyOTPFromDB expects (code, purpose) — NOT (phone, code)
+    const result = await verifyOTPFromDB(validated.code, 'phone_verification');
+    if (!result) {
+      return errorResponse('Invalid or expired verification code. Please try again.', 400);
     }
 
-    await db.user.update({
-      where: { phone: validated.phone },
-      data: { phoneVerified: new Date() },
-    });
+    // Mark user as verified (using isVerified field — phoneVerified column doesn't exist)
+    if (result.userId) {
+      await db.user.update({
+        where: { id: result.userId },
+        data: { isVerified: true },
+      });
+    }
 
     return successResponse({ message: 'Phone number verified successfully' });
   } catch (error) {

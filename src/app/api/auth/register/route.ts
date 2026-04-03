@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { hashPassword, generateToken } from '@/lib/auth';
+import { hashPassword, generateToken, createOTP } from '@/lib/auth';
 import { registerSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 
@@ -43,6 +43,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Generate OTP for phone verification
+    let otpCode: string | null = null;
+    if (validated.data.phone) {
+      otpCode = await createOTP(user.id, email, validated.data.phone, 'phone_verification');
+    }
+
     const token = generateToken({
       userId: user.id,
       email: user.email,
@@ -56,6 +62,9 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        // Return OTP code so the frontend can show it to the user
+        // (no SMS provider configured — user enters it manually)
+        otpCode,
       },
       201
     );

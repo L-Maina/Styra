@@ -16,6 +16,7 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
+  Copy,
 } from 'lucide-react';
 import { 
   GlassCard, 
@@ -399,9 +400,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setIsLoading(true);
 
     try {
-      // Register API creates user, sets session cookie, and sends OTP automatically
+      // Register API creates user, sets session cookie, and generates OTP
       const response = await api.register({ email, password, name, phone });
-      registeredUserData.current = response.data as { id: string; email: string; name: string; role: string };
+      const regData = response.data as { id: string; email: string; name: string; role: string; otpCode?: string };
+      registeredUserData.current = regData;
+
+      // If OTP code is returned (no SMS provider), auto-fill it
+      if (regData.otpCode) {
+        const digits = regData.otpCode.split('');
+        setOtp(digits);
+        toast.success(`Your verification code is: ${regData.otpCode}`);
+      }
 
       setIsOtpSent(true);
       setOtpTimer(60);
@@ -412,7 +421,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         inputRefs.current[0]?.focus();
       }, 100);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to send verification code. Please try again.';
+      const message = err instanceof Error ? err.message : 'Failed to create account. Please try again.';
       setError(message);
     } finally {
       setIsLoading(false);
@@ -420,9 +429,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   };
 
   // Handle resend OTP
-  // TODO: Add dedicated resend OTP endpoint — currently no backend support
   const handleResendOtp = async () => {
-    if (!canResend) return;
+    if (!canResend || !phone) return;
 
     setOtp(['', '', '', '', '', '']);
     setOtpError('');
@@ -430,9 +438,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setIsLoading(true);
 
     try {
-      // TODO: Replace with api.resendOTP(phone) when endpoint is available
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success('Verification code resent!');
+      const response = await api.resendOTP(phone);
+      const data = response.data as { otpCode?: string; alreadyVerified?: boolean };
+
+      if (data?.alreadyVerified) {
+        toast.success('Phone number is already verified!');
+        return;
+      }
+
+      // Auto-fill the new OTP code
+      if (data?.otpCode) {
+        const digits = data.otpCode.split('');
+        setOtp(digits);
+        toast.success(`New verification code: ${data.otpCode}`);
+      } else {
+        toast.success('New verification code sent!');
+      }
+
       inputRefs.current[0]?.focus();
     } catch {
       setOtpError('Failed to resend code. Please try again.');
@@ -929,6 +951,26 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   </p>
                   <p className="text-sm font-medium">{formatPhoneForDisplay(phone)}</p>
                 </div>
+
+                {/* OTP code display — shown when OTP is returned by API (no SMS provider) */}
+                {otp.every(d => d !== '') && isOtpSent && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center justify-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 mb-4"
+                  >
+                    <span className="text-sm font-medium text-primary">Your code:</span>
+                    <span className="text-lg font-mono font-bold tracking-widest text-primary">{otp.join('')}</span>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(otp.join('')); toast.success('Code copied!'); }}
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                      aria-label="Copy verification code"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </motion.div>
+                )}
 
                 {/* OTP Input */}
                 <div 
