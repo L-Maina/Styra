@@ -181,6 +181,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
 
   // ---- Navigation ----
   const [activeSection, setActiveSection] = useState<SectionId>(initialTab as SectionId);
+
+  // Sync activeSection when initialTab prop changes (e.g. from profile dropdown navigation)
+  useEffect(() => {
+    if (initialTab && initialTab !== activeSection) {
+      setActiveSection(initialTab as SectionId);
+    }
+  }, [initialTab]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -435,16 +442,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
     if (!rejectTarget || !rejectReason.trim()) { toast.error('Please provide a rejection reason'); return; }
     setIsProcessing(true);
     try {
-      await api.updateBusinessStatus(rejectTarget, 'REJECTED', rejectReason);
-      setDisplayBusinesses(prev => prev.map(b =>
-        b.id === rejectTarget ? { ...b, verificationStatus: 'REJECTED' } : b
-      ));
+      if (rejectType === 'business') {
+        await api.updateBusinessStatus(rejectTarget, 'REJECTED', rejectReason);
+        setDisplayBusinesses(prev => prev.map(b =>
+          b.id === rejectTarget ? { ...b, verificationStatus: 'REJECTED' } : b
+        ));
+        toast.success('Business rejected');
+      } else {
+        // Reject listing — update status via listings API
+        await api.request(`/admin/listings/${rejectTarget}`, {
+          method: 'PUT',
+          body: JSON.stringify({ status: 'REJECTED', rejectionReason: rejectReason }),
+        });
+        setDisplayListings(prev => prev.map(l =>
+          l.id === rejectTarget ? { ...l, status: 'REJECTED' as any } : l
+        ));
+        toast.success('Listing rejected');
+      }
       setShowRejectModal(false);
       setRejectTarget(null);
       setRejectReason('');
-      toast.success('Business rejected');
     } catch (err) {
-      console.error('Failed to reject business:', err);
+      console.error(`Failed to reject ${rejectType}:`, err);
     } finally {
       setIsProcessing(false);
     }
@@ -517,7 +536,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
     try {
       await api.request('/admin/tickets', {
         method: 'PUT',
-        body: JSON.stringify({ ticketId: selectedTicketId, reply: ticketReply, status: 'IN_PROGRESS' }),
+        body: JSON.stringify({ ticketId: selectedTicketId, reply: ticketReply, adminName: user?.name || 'Admin', status: 'IN_PROGRESS' }),
       });
       setDisplayTickets(prev => prev.map(t =>
         t.id === selectedTicketId ? { ...t, status: 'IN_PROGRESS' } : t
@@ -1244,7 +1263,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             </div>
             <div className="p-4 rounded-xl bg-muted/30">
               <p className="text-xs text-muted-foreground">Listing Revenue</p>
-              <p className="text-lg font-bold">{fmtCurrency(0)}</p>
+              <p className="text-lg font-bold">{fmtCurrency(overviewData?.listingRevenue || 0)}</p>
               <p className="text-xs text-muted-foreground mt-1">Featured & premium</p>
             </div>
           </div>

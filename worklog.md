@@ -783,3 +783,29 @@ Note: The roles at lines 213-215 (`isAdmin`, `hasDualRoles`, `isOnlyCustomer`, `
 - **Lint**: Clean (0 errors)
 - **Dev server**: Compiles successfully, no runtime errors
 - All new sections follow existing patterns (GlassCard, GlassButton, GlassInput, GlassBadge, GlassModal, fmtDate, fmtCurrency, statusColor, api.request, toast)
+
+---
+Task ID: PROFILE-DROPDOWN-DB-FIXES
+Agent: Main Agent
+Task: Fix admin profile dropdown navigation, close-on-outside-click, DB connection, and admin dashboard bugs
+
+Work Log:
+- **Fixed profile dropdown tabs not navigating**: Added `useEffect` in AdminDashboard to sync `activeSection` state when `initialTab` prop changes (e.g. clicking "User Management" in profile dropdown now switches to Users tab)
+- **Fixed dropdown not closing on outside click**: Added document-level `mousedown` event handler with `useRef` for profile, notifications, and messages dropdowns. Removed old invisible backdrop `<div>` approach which had z-index stacking context issues.
+- **Fixed DB connection**: Changed `.env` DATABASE_URL from `file:` (SQLite) to `postgresql://` (Supabase) — schema specifies PostgreSQL provider but env pointed to SQLite file, causing Prisma validation errors
+- **Verified DB connectivity**: Confirmed admin user exists, all 48 tables present in Supabase PostgreSQL via direct Prisma query test
+- **Fixed Bug 1 (Overview missing totalDisputes)**: Added `totalDisputes` to admin overview API response using `db.dispute.count()` 
+- **Fixed Bug 2 (Payment field name mismatch)**: Changed API response from `customerName`/`createdAt` to `userName`/`date` to match frontend type definitions
+- **Fixed Bug 3 (Listing rejection broken)**: Reject modal always called `handleRejectBusiness` even for listings. Now differentiates by `rejectType` and calls correct API endpoint
+- **Fixed Bug 4 (Ticket reply not saved)**: Added `adminName: user?.name` field to ticket reply API call — backend required `adminName` to store the reply text
+- **Fixed Bug 5 (Hardcoded listing revenue)**: Added `listingRevenue` to overview API (aggregated from active PremiumListings), replaced hardcoded `fmtCurrency(0)` with dynamic value
+- **Created `/api/articles/[id]/route.ts`**: New route for GET/PUT/DELETE single article by ID (AdminDashboard sends requests to `/articles/{id}` but no dynamic route existed)
+- **Created `/api/admin/listings/[id]/route.ts`**: New route for GET/PUT/DELETE single premium listing by ID (needed for listing rejection fix)
+
+Stage Summary:
+- **Profile dropdown**: Tabs now navigate correctly between admin sections, dropdown closes on outside click
+- **DB**: Connected to Supabase PostgreSQL, all 48 tables verified, admin user confirmed
+- **Admin dashboard**: 5 bugs fixed, 2 new API routes created
+- **Files modified**: AdminDashboard.tsx, Navbar.tsx, overview/route.ts, .env
+- **Files created**: api/articles/[id]/route.ts, api/admin/listings/[id]/route.ts
+- **Lint**: Clean (0 errors)

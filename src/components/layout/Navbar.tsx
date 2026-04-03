@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, createContext, useContext, useEffect } from 'react';
+import React, { useState, createContext, useContext, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -199,6 +199,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
+
+  // Refs for click-outside detection
+  const profileRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
   
   // Get currency from store
   const { currency: currentCurrency, setCurrency } = useCurrency();
@@ -225,6 +230,26 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
       setNotifications(propNotifications);
     }
   }, [propNotifications]);
+
+  // Click-outside handler to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      
+      if (isProfileOpen && profileRef.current && !profileRef.current.contains(target)) {
+        setIsProfileOpen(false);
+      }
+      if (isNotificationsOpen && notificationsRef.current && !notificationsRef.current.contains(target)) {
+        setIsNotificationsOpen(false);
+      }
+      if (isMessagesOpen && messagesRef.current && !messagesRef.current.contains(target)) {
+        setIsMessagesOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isProfileOpen, isNotificationsOpen, isMessagesOpen]);
   
   // Settings state
   const [settings, setSettings] = useState({
@@ -481,7 +506,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
               {isAuthenticated ? (
                 <>
                   {/* Notifications */}
-                  <div className="relative">
+                  <div className="relative" ref={notificationsRef}>
                     <button 
                       onClick={() => {
                         setIsNotificationsOpen(!isNotificationsOpen);
@@ -582,7 +607,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
 
                   {/* Messages */}
                   {!isAdmin && (
-                    <div className="relative">
+                    <div className="relative" ref={messagesRef}>
                       <button 
                         onClick={() => {
                           setIsMessagesOpen(!isMessagesOpen);
@@ -679,7 +704,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                   )}
 
                   {/* Profile Dropdown */}
-                  <div className="relative">
+                  <div className="relative" ref={profileRef}>
                     <button
                       onClick={() => {
                         setIsProfileOpen(!isProfileOpen);
@@ -701,14 +726,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
 
                     <AnimatePresence>
                       {isProfileOpen && (
-                        <>
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-40"
-                            onClick={() => setIsProfileOpen(false)}
-                          />
                           <motion.div
                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -925,7 +942,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                               />
                             </div>
                           </motion.div>
-                        </>
                       )}
                     </AnimatePresence>
                   </div>
