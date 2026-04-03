@@ -48,10 +48,17 @@ export async function POST() {
     }
 
     // Find a working connection
-    for (const url of urls) {
+    const attemptResults: { label: string; maskedUrl: string; error: string }[] = [];
+
+    for (let i = 0; i < urls.length; i++) {
+      const url = urls[i];
+      const label = i === 0 ? 'DATABASE_URL' : 'DIRECT_URL';
+      const maskedUrl = url
+        .replace(/:\/\/([^:]+):([^@]+)@/, '://$1:***@')
+        .substring(0, 100);
+
       try {
-        const maskedUrl = url.replace(/:\/\/[^:]+:[^@]+@/, '://***:***@');
-        console.log(`[db-setup] Trying: ${maskedUrl}`);
+        console.log(`[db-setup] Trying ${label}: ${maskedUrl}`);
 
         client = new PrismaClient({
           datasources: { db: { url } },
@@ -59,11 +66,13 @@ export async function POST() {
         });
 
         await client.$queryRaw`SELECT 1 as ok`;
-        usedUrl = url.includes('pooler') ? 'pooler (DATABASE_URL)' : 'direct (DIRECT_URL)';
-        console.log(`[db-setup] Connected via ${usedUrl}`);
+        usedUrl = label;
+        console.log(`[db-setup] Connected via ${label}`);
         break;
       } catch (err) {
-        console.error(`[db-setup] Failed: ${err instanceof Error ? err.message : String(err)}`);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error(`[db-setup] ${label} failed: ${errMsg}`);
+        attemptResults.push({ label, maskedUrl, error: errMsg.substring(0, 300) });
         if (client) {
           try { await client.$disconnect(); } catch { /* ignore */ }
           client = null;
@@ -75,8 +84,15 @@ export async function POST() {
       return NextResponse.json(
         {
           success: false,
-          error: 'Cannot connect to database with either DATABASE_URL or DIRECT_URL.',
-          fix: 'Check your DATABASE_URL. Get the Session mode connection string from Supabase Dashboard → Settings → Database → Connection string → Connection Pooling.',
+          error: 'Cannot connect to database with any URL.',
+          attempts: attemptResults,
+          envCheck: {
+            hasDatabaseUrl: !!process.env.DATABASE_URL,
+            hasDirectUrl: !!process.env.DIRECT_URL,
+            databaseUrlPrefix: process.env.DATABASE_URL?.replace(/:\/\/[^:]+:[^@]+@/, '://$1:***@').substring(0, 100) || 'NOT SET',
+            directUrlPrefix: process.env.DIRECT_URL?.replace(/:\/\/[^:]+:[^@]+@/, '://$1:***@').substring(0, 100) || 'NOT SET',
+          },
+          fix: 'Visit /api/health for detailed diagnostics on your connection strings.',
         },
         { status: 503 }
       );
