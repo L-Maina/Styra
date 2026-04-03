@@ -96,7 +96,12 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
     if (error.message === 'Forbidden') {
       return errorResponse('You do not have permission to perform this action', 403);
     }
-    // SECURITY: Do not expose internal error messages to client
+    // Provide a safe but descriptive error message
+    // Prisma init errors (missing DATABASE_URL, invalid connection) surface as generic Error
+    const msg = error.message || '';
+    if (msg.includes('DATABASE_URL') || msg.includes('prisma') || msg.includes('connection') || msg.includes('ECONNREFUSED') || msg.includes('connect')) {
+      return errorResponse('Database connection error. Check server logs.', 500);
+    }
     return errorResponse('An error occurred', 400);
   }
 
