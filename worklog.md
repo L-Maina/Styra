@@ -653,3 +653,30 @@ Stage Summary:
 - Root cause of "An error occurred": Error details were hidden in `details` field, frontend only read `error` field
 - Most likely actual error on Vercel: DATABASE_URL environment variable not set in Vercel Dashboard
 - User should: (1) Set env vars in Vercel Dashboard, (2) Visit /api/health for diagnostics, (3) Try registration again
+---
+Task ID: ADMIN-SETUP-PRODUCTION
+Agent: Main Agent
+Task: Create production setup endpoint and admin access documentation
+
+Work Log:
+- Created `/api/setup` endpoint (POST) that creates admin user + demo data in Supabase production DB
+  - Idempotent: uses `findUnique` before create, skips existing records
+  - Creates 3 users: admin, business owner, customer (all with password123)
+  - Creates 3 demo businesses with 9 services and 6 staff (skips if any exist)
+  - Returns credentials and login instructions in response
+  - Supports optional SETUP_SECRET env var for security
+- Updated `prisma/seed.ts` to be idempotent (uses upsert instead of create)
+- Added `db:seed` script to package.json
+- Updated DEPLOY.md with 3 setup methods:
+  - Option A: POST to /api/setup (easiest)
+  - Option B: Run seed script locally with Supabase DATABASE_URL
+  - Option C: Supabase SQL Editor SQL (uses pgcrypto bcrypt)
+- Added Step 5 to DEPLOY.md: Access the Admin Dashboard with clear login flow
+- Added test accounts table to DEPLOY.md
+
+Stage Summary:
+- Admin setup: 3 methods available (API endpoint, seed script, SQL Editor)
+- Admin credentials: admin@styra.app / password123
+- Login flow: Sign In → app auto-detects admin role → redirects to Admin Dashboard
+- Files created: src/app/api/setup/route.ts
+- Files modified: prisma/seed.ts (idempotent upsert), package.json (db:seed), DEPLOY.md

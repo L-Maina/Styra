@@ -84,23 +84,95 @@ After setting vars, **redeploy**:
 
 ---
 
-## Step 4: Create Admin User
+## Step 4: Seed Admin User & Demo Data
 
-After the DB schema is pushed, create an admin account. Run this SQL in the **Supabase SQL Editor**:
+After deploying, you need to create the admin user in your Supabase database. You have **two options**:
 
-```sql
--- Hash 'password123' with bcrypt — update with your own hash
-INSERT INTO "User" (id, email, "name", role, "isVerified")
-VALUES (
-  'admin-001',
-  'admin@styra.app',
-  'Styra Admin',
-  'ADMIN',
-  true
-);
+### Option A: Use the Setup API Endpoint (Easiest)
+
+After deploying to Vercel, visit your app URL and send a POST request:
+
+```bash
+# Replace YOUR_APP_URL with your Vercel URL
+curl -X POST https://YOUR_APP_URL/api/setup
 ```
 
-Then set a password via your auth flow or Supabase dashboard.
+Or open it in your browser's developer console:
+```js
+fetch('/api/setup', { method: 'POST' }).then(r => r.json()).then(console.log)
+```
+
+This creates:
+- **Admin user**: `admin@styra.app` / `password123`
+- **Business owner**: `jane@styleshop.co.ke` / `password123`
+- **Customer**: `john@example.com` / `password123`
+- 3 demo businesses with services and staff
+
+> **Security note**: This endpoint is idempotent (safe to run multiple times). After setup, consider deleting `src/app/api/setup/route.ts` and redeploying.
+
+### Option B: Run Seed Script Locally
+
+```bash
+# Set your Supabase connection string
+export DATABASE_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres"
+
+# Run the seed
+cd Styra
+npx tsx prisma/seed.ts
+```
+
+### Option C: Supabase SQL Editor
+
+Run this SQL in the **Supabase SQL Editor** (Dashboard → SQL Editor → New Query):
+
+```sql
+-- Enable pgcrypto for bcrypt
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Create admin user with bcrypt-hashed password ('password123')
+INSERT INTO "User" (id, email, "name", password, role, "isVerified", "isActive", "createdAt", "updatedAt")
+VALUES (
+  gen_random_uuid(),
+  'admin@styra.app',
+  'Admin User',
+  crypt('password123', gen_salt('bf')),
+  'admin',
+  true,
+  true,
+  NOW(),
+  NOW()
+)
+ON CONFLICT (email) DO NOTHING;
+```
+
+> **Change the password**: Replace `'password123'` with your desired password.
+
+---
+
+## Step 5: Access the Admin Dashboard
+
+1. Go to your deployed app URL
+2. Click **Sign In** in the navigation bar
+3. Enter `admin@styra.app` as the email
+4. Enter `password123` as the password
+5. Click **Sign In**
+
+You'll be **automatically redirected to the Admin Dashboard**. The app detects the `admin` role and routes you there directly.
+
+### What the Admin Dashboard includes:
+- **Overview**: Platform stats (users, bookings, revenue)
+- **Users**: Manage all user accounts (view, ban, promote)
+- **Businesses**: Approve/reject business listings
+- **Disputes**: Resolve booking disputes
+- **Monitoring**: Security alerts and system health
+- **Analytics**: Platform performance metrics
+
+### Other Test Accounts:
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@styra.app | password123 |
+| Business Owner | jane@styleshop.co.ke | password123 |
+| Customer | john@example.com | password123 |
 
 ---
 
