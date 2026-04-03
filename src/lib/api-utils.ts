@@ -123,6 +123,16 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
       );
     }
 
+    // Supabase pooler: Tenant or user not found
+    if (msg.includes('Tenant or user not found')) {
+      return errorResponse(
+        'Database connection error: Supabase pooler cannot find your project. ' +
+        'Check that DATABASE_URL uses the Connection Pooling URL (Session mode) with correct project-ref. ' +
+        'Visit /api/health for detailed diagnostics.',
+        500
+      );
+    }
+
     // Authentication failed (wrong password in connection URL)
     if (msg.includes('authentication failed') || msg.includes('password authentication')) {
       return errorResponse(

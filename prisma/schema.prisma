@@ -4,10 +4,18 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL") // Supabase PostgreSQL connection string
-  // NOTE: directUrl removed — not needed at runtime.
-  // If you need to run migrations, set DATABASE_URL to the direct connection (port 5432)
-  // and run: npx prisma db push
+  url       = env("DATABASE_URL")       // Connection pooler URL (Session mode, port 6543)
+  directUrl = env("DIRECT_URL")          // Direct connection URL (port 5432) for migrations
+  //
+  // Supabase provides TWO connection strings:
+  //   1. Connection Pooling (Supavisor) → set as DATABASE_URL (Session mode preferred)
+  //      Format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+  //   2. Direct connection → set as DIRECT_URL
+  //      Format: postgresql://postgres:[password]@aws-0-[region].supabase.co:5432/postgres
+  //
+  // In Vercel Dashboard → Settings → Environment Variables:
+  //   DATABASE_URL  = Session-mode pooler string (from Supabase → Settings → Database → Connection string → Connection Pooling → Session mode)
+  //   DIRECT_URL    = Direct connection string (from Supabase → Settings → Database → Connection string → URI)
 }
 
 // ============================================================
