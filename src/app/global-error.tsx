@@ -1,8 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
-
-// Global error boundary — catches errors in the root layout
 export default function GlobalError({
   error,
   reset,
@@ -10,35 +7,33 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    // Log the full error to console for Vercel function logs
-    console.error('[Global Error Boundary]', error.message, error.stack);
-  }, [error]);
-
   return (
     <html lang="en">
-      <body className="bg-background text-foreground font-sans antialiased min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-lg w-full text-center space-y-6">
-          <div className="w-16 h-16 mx-auto rounded-full bg-destructive/10 flex items-center justify-center">
-            <svg className="w-8 h-8 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+      <body className="bg-background text-foreground min-h-screen flex items-center justify-center p-4">
+        <div className="max-w-lg w-full space-y-6">
+          <div className="text-center space-y-2">
+            <div className="text-6xl">⚠️</div>
+            <h1 className="text-2xl font-bold text-foreground">Application Error</h1>
+            <p className="text-muted-foreground">
+              A critical error occurred during rendering.
+            </p>
           </div>
-          <h1 className="text-2xl font-bold">Application Error</h1>
-          <p className="text-muted-foreground">Something went wrong loading the application.</p>
-          <div className="bg-muted rounded-lg p-4 text-left text-sm font-mono break-all max-h-48 overflow-auto">
-            <p className="text-destructive font-medium">{error.message}</p>
-            {error.digest && <p className="text-muted-foreground mt-2">Digest: {error.digest}</p>}
-            {error.stack && (
-              <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap">{error.stack.slice(0, 500)}</pre>
+
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+            <p className="text-sm font-mono text-destructive/80 break-all">{error.message}</p>
+            {error.digest && (
+              <p className="text-xs text-muted-foreground mt-2">Digest: {error.digest}</p>
             )}
           </div>
-          <button
-            onClick={reset}
-            className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
-          >
-            Try Again
-          </button>
+
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={reset}
+              className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </body>
     </html>

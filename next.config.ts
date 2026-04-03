@@ -7,6 +7,23 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+
+  // IMPORTANT: Tell Turbopack NOT to bundle these Node.js packages.
+  // Without this, Turbopack tries to bundle them into client chunks,
+  // which breaks because they use native bindings or server-only APIs.
+  serverExternalPackages: [
+    'pg',
+    'pg-native',
+    'pusher',
+    'cloudinary',
+    '@supabase/supabase-js',
+    'bcryptjs',
+    'ioredis',
+    'jsonwebtoken',
+    'stripe',
+    'sharp',
+  ],
+
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com" },

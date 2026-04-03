@@ -2,15 +2,29 @@ import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { db } from '@/lib/db';
-import pusher from 'pusher';
+import Pusher from 'pusher';
 
-const pusherServer = new pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
-  useTLS: true,
-});
+// Lazy initialization — only create Pusher when the endpoint is actually called
+function getPusherServer() {
+  const appId = process.env.PUSHER_APP_ID;
+  const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
+  const secret = process.env.PUSHER_SECRET;
+  const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2';
+
+  if (!appId || !key || !secret) {
+    throw new Error(
+      'Pusher is not configured. Set PUSHER_APP_ID, NEXT_PUBLIC_PUSHER_KEY, and PUSHER_SECRET.'
+    );
+  }
+
+  return new Pusher({
+    appId,
+    key,
+    secret,
+    cluster,
+    useTLS: true,
+  });
+}
 
 // Pusher authentication endpoint
 export async function POST(request: NextRequest) {
@@ -24,6 +38,9 @@ export async function POST(request: NextRequest) {
     if (!socketId || !channel) {
       return errorResponse('Missing socket_id or channel_name', 400);
     }
+
+    // Lazy init pusher server
+    const pusherServer = getPusherServer();
 
     // Validate that user can access this channel
     const isUserChannel = channel.startsWith(`user-${user.id}`);
@@ -48,7 +65,7 @@ export async function POST(request: NextRequest) {
           where: { id: conversation.businessId },
           select: { ownerId: true },
         });
-        authorized = conversation.customerId === user.id || 
+        authorized = conversation.customerId === user.id ||
                       (business && business.ownerId === user.id) ||
                       user.role === 'ADMIN';
       }

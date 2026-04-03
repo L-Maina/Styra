@@ -2,40 +2,73 @@
 
 import { useEffect } from 'react';
 
-export default function Error({
-  error,
-  reset,
-}: {
+interface ErrorBoundaryProps {
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+}
+
+export default function GlobalErrorBoundary({ error, reset }: ErrorBoundaryProps) {
   useEffect(() => {
-    console.error('[Error Boundary]', error.message, error.stack);
+    // Log the full error to console for debugging
+    console.error('[ERROR BOUNDARY] Caught error:', error);
+    console.error('[ERROR BOUNDARY] Error message:', error.message);
+    console.error('[ERROR BOUNDARY] Error stack:', error.stack);
   }, [error]);
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center p-4">
-      <div className="max-w-lg w-full text-center space-y-6">
-        <div className="w-16 h-16 mx-auto rounded-full bg-destructive/10 flex items-center justify-center">
-          <svg className="w-8 h-8 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-bold">Something Went Wrong</h2>
-        <div className="bg-muted rounded-lg p-4 text-left text-sm font-mono break-all max-h-48 overflow-auto">
-          <p className="text-destructive font-medium">{error.message}</p>
-          {error.digest && <p className="text-muted-foreground mt-2">Digest: {error.digest}</p>}
+    <html lang="en">
+      <body className="bg-background text-foreground min-h-screen flex items-center justify-center p-4">
+        <div className="max-w-lg w-full space-y-6">
+          <div className="text-center space-y-2">
+            <div className="text-6xl">⚠️</div>
+            <h1 className="text-2xl font-bold text-foreground">Something went wrong</h1>
+            <p className="text-muted-foreground">
+              An unexpected error occurred. This has been logged for debugging.
+            </p>
+          </div>
+
+          {/* Show the actual error for debugging */}
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 space-y-2">
+            <p className="text-sm font-medium text-destructive">Error Details:</p>
+            <p className="text-sm font-mono text-destructive/80 break-all">{error.message}</p>
+            {error.digest && (
+              <p className="text-xs text-muted-foreground">Digest: {error.digest}</p>
+            )}
+          </div>
+
           {error.stack && (
-            <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap">{error.stack.slice(0, 500)}</pre>
+            <details className="bg-muted/50 rounded-lg p-4">
+              <summary className="text-sm font-medium cursor-pointer hover:text-foreground">
+                Technical Details (Stack Trace)
+              </summary>
+              <pre className="mt-2 text-xs text-muted-foreground overflow-x-auto whitespace-pre-wrap">
+                {error.stack}
+              </pre>
+            </details>
           )}
+
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={reset}
+              className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => {
+                // Clear all client state and reload
+                if (typeof window !== 'undefined') {
+                  localStorage.clear();
+                  window.location.href = '/';
+                }
+              }}
+              className="px-6 py-3 rounded-lg border border-border hover:bg-muted font-medium transition-colors"
+            >
+              Clear Cache & Reload
+            </button>
+          </div>
         </div>
-        <button
-          onClick={reset}
-          className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
-    </div>
+      </body>
+    </html>
   );
 }
