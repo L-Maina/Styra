@@ -575,3 +575,29 @@ Stage Summary:
 - Admin cannot book services, make payments, submit reviews, or access customer/business dashboards
 - Server compiles successfully with dynamic AdminDashboard import (200 OK)
 - Lint passes clean
+
+---
+## Task ID: VERCEL-URL-PARSE-FIX
+### Agent: Main Agent
+### Task: Fix "cannot be parsed as URL" client-side crash on Vercel deployment
+
+### Work Log:
+- Investigated browser console error: `"" cannot be parsed as a URL` occurring in Turbopack runtime chunks
+- Error stack trace showed the crash originates from Turbopack's module resolution (`turbopack-72d0aa83c225071f.js`) trying to resolve a module with an empty-string path
+- Root cause: Turbopack was bundling Node.js-specific packages (pg, cloudinary, pusher, supabase-js, etc.) into client-side chunks, which broke module resolution and produced empty-string URLs
+- Secondary causes: Multiple files doing `new URL()` at module load time without checking for empty env vars
+
+### Fixes Applied:
+1. **next.config.ts**: Added `serverExternalPackages` for 10 native/server-only packages (pg, pg-native, pusher, cloudinary, @supabase/supabase-js, bcryptjs, ioredis, jsonwebtoken, stripe, sharp) to prevent Turbopack from bundling them into client chunks
+2. **src/lib/db.ts**: Converted from eager singleton to lazy Proxy-based singleton. `new URL()` no longer runs at module load time. Added guard for empty DATABASE_URL. Only appends PgBouncer params for PostgreSQL URLs (not SQLite).
+3. **src/lib/supabase.ts**: Converted from eager `createClient()` to lazy Proxy-based singleton with null-safe init. Removed non-null assertions on potentially missing env vars. All functions now check if client is initialized before use.
+4. **src/app/api/pusher/auth/route.ts**: Removed module-level `new pusher({...})` with non-null assertions. Replaced with lazy `getPusherServer()` function that validates env vars before creating instance.
+5. **src/i18n/request.ts**: Deleted unused file that imported `next-intl/server` without the `createNextIntlPlugin` configured in next.config.ts.
+6. **src/app/error.tsx**: Added error boundary that displays full error message, stack trace, and action buttons (Try Again, Clear Cache & Reload) for better debugging on Vercel.
+7. **src/app/global-error.tsx**: Added root error boundary for unhandled errors that bypass the layout.
+
+### Stage Summary:
+- **Root cause**: Missing `serverExternalPackages` in next.config.ts caused Turbopack to bundle Node.js packages into client chunks, breaking module resolution
+- **Commit**: 7e8f8f7
+- **Files modified**: 7 (next.config.ts, db.ts, supabase.ts, pusher/auth/route.ts, i18n/request.ts deleted, error.tsx, global-error.tsx)
+- **Lint**: 0 errors

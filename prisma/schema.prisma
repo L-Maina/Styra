@@ -4,8 +4,10 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")       // Connection pooler (port 6543) for runtime
-  directUrl = env("DIRECT_DATABASE_URL") // Direct connection (port 5432) for migrations only
+  url       = env("DATABASE_URL") // Supabase PostgreSQL connection string
+  // NOTE: directUrl removed — not needed at runtime.
+  // If you need to run migrations, set DATABASE_URL to the direct connection (port 5432)
+  // and run: npx prisma db push
 }
 
 // ============================================================

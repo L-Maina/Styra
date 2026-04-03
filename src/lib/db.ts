@@ -7,56 +7,33 @@ const globalForPrisma = globalThis as unknown as {
 /**
  * Create a PrismaClient optimized for Supabase + Vercel serverless.
  *
- * Supabase uses PgBouncer (transaction-mode pooler) on port 6543.
- * Vercel serverless functions are ephemeral — each cold start creates a new instance.
- * We must limit Prisma's connection pool to avoid exhausting PgBouncer.
- * The pooler manages real DB connections; Prisma just needs a small pool.
+ * Supabase connection string format:
+ *   postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+ *
+ * IMPORTANT: Use the pooler URL (port 6543) from Supabase → Settings → Database.
+ * Do NOT append pgbouncer=true or connection_limit params — Supabase handles this.
  */
 function createPrismaClient() {
-  // Build the connection URL with pooler-friendly parameters
   const databaseUrl = process.env.DATABASE_URL;
 
   if (!databaseUrl) {
-    // In development, fall back to local SQLite
     if (process.env.NODE_ENV !== 'production') {
+      // In local dev, let Prisma use the .env DATABASE_URL (may be SQLite)
       return new PrismaClient({
         log: ['query', 'warn', 'error'],
       });
     }
-    // In production, DATABASE_URL MUST be set — fail clearly
     throw new Error(
-      '[FATAL] DATABASE_URL environment variable is not set. ' +
-      'Please add it in Vercel Dashboard → Settings → Environment Variables.'
+      '[FATAL] DATABASE_URL is not set. ' +
+      'Go to Vercel Dashboard → Settings → Environment Variables → Add DATABASE_URL. ' +
+      'Get it from Supabase → Settings → Database → Connection string (URI).'
     );
   }
 
-  // Only append pooler params for PostgreSQL URLs (not SQLite)
-  let finalUrl = databaseUrl;
-  if (databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://')) {
-    try {
-      const url = new URL(databaseUrl);
-      if (!url.searchParams.has('connection_limit')) {
-        url.searchParams.set('connection_limit', '1');
-      }
-      if (!url.searchParams.has('pool_timeout')) {
-        url.searchParams.set('pool_timeout', '10');
-      }
-      if (!url.searchParams.has('pgbouncer')) {
-        url.searchParams.set('pgbouncer', 'true');
-      }
-      finalUrl = url.toString();
-    } catch {
-      // If URL parsing fails, use the raw URL
-      finalUrl = databaseUrl;
-    }
-  }
-
+  // Use the DATABASE_URL as-is — don't modify it.
+  // Supabase pooler URLs already have the correct params.
+  // Appending extra params (pgbouncer=true, connection_limit=1) can break the connection.
   return new PrismaClient({
-    datasources: {
-      db: {
-        url: finalUrl,
-      },
-    },
     log:
       process.env.NODE_ENV === 'production'
         ? ['error']
@@ -64,8 +41,7 @@ function createPrismaClient() {
   });
 }
 
-// Lazy singleton: only create the client when first accessed.
-// This avoids crashes during Next.js build or when DATABASE_URL is missing.
+// Lazy singleton
 let _prisma: PrismaClient | undefined;
 
 function getPrisma(): PrismaClient {
@@ -74,8 +50,7 @@ function getPrisma(): PrismaClient {
   return _prisma;
 }
 
-// Export a proxy so the client is created lazily on first use, not at module load time.
-// This prevents new URL() crashes during SSR if DATABASE_URL is somehow unavailable.
+// Proxy-based lazy export — PrismaClient is only created when first accessed
 export const db: PrismaClient = new Proxy({} as PrismaClient, {
   get(_target, prop, receiver) {
     const client = getPrisma();
@@ -87,7 +62,7 @@ export const db: PrismaClient = new Proxy({} as PrismaClient, {
   },
 });
 
-// In development, cache on globalThis to survive HMR re-renders
+// Cache in dev for HMR
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   globalForPrisma.prisma = getPrisma();
 }

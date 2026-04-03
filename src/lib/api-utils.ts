@@ -54,11 +54,10 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
     );
   }
 
-  // Log error details for debugging (Vercel captures console.error in function logs)
+  // Log error details
   const errorType = error instanceof Error ? error.constructor.name : typeof error;
   const errorMessage = error instanceof Error ? error.message : 'unknown';
   console.error(`[API Error] Type: ${errorType}, Message: ${errorMessage}`);
-  // Log stack in non-production for deeper debugging
   if (process.env.NODE_ENV !== 'production' && error instanceof Error && error.stack) {
     console.error(`[API Error Stack] ${error.stack}`);
   }
@@ -69,7 +68,7 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
     return errorResponse(messages.join(', '), 400);
   }
 
-  // Prisma errors
+  // Prisma errors — detect specific issues and give actionable messages
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
       case 'P2002':
@@ -79,7 +78,6 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
       case 'P2003':
         return errorResponse('Invalid reference to related record', 400);
       default:
-        // SECURITY: Do not expose Prisma error codes or messages to client
         return errorResponse('A database error occurred', 500);
     }
   }
@@ -88,36 +86,64 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
     return errorResponse('Invalid data provided', 400);
   }
 
-  // Custom errors (used by auth middleware)
+  // Generic errors — detect common database issues
   if (error instanceof Error) {
-    if (error.message === 'Unauthorized') {
+    const msg = error.message;
+
+    if (msg === 'Unauthorized') {
       return errorResponse('Authentication required', 401);
     }
-    if (error.message === 'Forbidden') {
+    if (msg === 'Forbidden') {
       return errorResponse('You do not have permission to perform this action', 403);
     }
-    // Provide a safe but descriptive error message
-    // Prisma init errors (missing DATABASE_URL, invalid connection) surface as generic Error
-    const msg = error.message || '';
-    if (msg.includes('DATABASE_URL') || msg.includes('prisma') || msg.includes('connection') || msg.includes('ECONNREFUSED') || msg.includes('connect')) {
-      return errorResponse('Database connection error. Check server logs.', 500);
+
+    // DATABASE_URL not set
+    if (msg.includes('DATABASE_URL')) {
+      return errorResponse(
+        'Database not configured. Set DATABASE_URL in Vercel environment variables.',
+        500
+      );
     }
+
+    // Connection refused / timeout
+    if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('connect')) {
+      return errorResponse(
+        'Cannot connect to database. Check your DATABASE_URL.',
+        500
+      );
+    }
+
+    // Missing table — most common issue when Supabase tables aren't created yet
+    if (msg.includes('relation') && msg.includes('does not exist')) {
+      const tableMatch = msg.match(/relation "(\w+)"/);
+      const tableName = tableMatch ? tableMatch[1] : 'unknown';
+      return errorResponse(
+        `Database table "${tableName}" does not exist. Run database setup: POST /api/db-setup`,
+        500
+      );
+    }
+
+    // Authentication failed (wrong password in connection URL)
+    if (msg.includes('authentication failed') || msg.includes('password authentication')) {
+      return errorResponse(
+        'Database authentication failed. Check your DATABASE_URL credentials.',
+        500
+      );
+    }
+
+    // Database does not exist
+    if (msg.includes('database') && msg.includes('does not exist')) {
+      return errorResponse(
+        'Database does not exist. Create it in Supabase Dashboard, then set DATABASE_URL.',
+        500
+      );
+    }
+
     return errorResponse('An error occurred', 400);
   }
 
   return errorResponse('An unexpected error occurred', 500);
 }
-
-// Rate limiting uses lib/rate-limit.ts with Redis (ioredis) as primary store.
-// Falls back to in-memory when Redis is unavailable.
-// CSRF protection is handled centrally in middleware.ts for all state-changing API routes.
-// Audit logging uses lib/audit-log.ts — fire-and-forget to Prisma SecurityAuditLog.
-//
-// For per-route rate limiting, import from @/lib/rate-limit:
-//   import { rateLimit, authRateLimitConfig } from '@/lib/rate-limit';
-//   const limiter = rateLimit(authRateLimitConfig);
-//   const response = await limiter(request);
-//   if (response) return response;
 
 // Input sanitization
 export function sanitizeInput(input: string): string {
@@ -150,7 +176,7 @@ export function calculateDistance(
   lat2: number,
   lon2: number
 ): number {
-  const R = 6371; // Earth's radius in km
+  const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -163,6 +189,5 @@ export function calculateDistance(
   return R * c;
 }
 
-// Parse pagination params — re-exported from query-optimization for backward compatibility
-// Handles NaN gracefully (e.g., ?page=abc defaults to page 1)
+// Parse pagination params
 export { parsePagination } from './query-optimization';
