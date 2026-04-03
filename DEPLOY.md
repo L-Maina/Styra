@@ -130,14 +130,13 @@ Run this SQL in the **Supabase SQL Editor** (Dashboard → SQL Editor → New Qu
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Create admin user with bcrypt-hashed password ('password123')
-INSERT INTO "User" (id, email, "name", password, role, "isVerified", "isActive", "createdAt", "updatedAt")
+INSERT INTO "User" (id, email, "name", password, role, "isVerified", "createdAt", "updatedAt")
 VALUES (
   gen_random_uuid(),
   'admin@styra.app',
   'Admin User',
   crypt('password123', gen_salt('bf')),
   'admin',
-  true,
   true,
   NOW(),
   NOW()
