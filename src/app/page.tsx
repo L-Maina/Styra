@@ -23,6 +23,7 @@ const AdminDashboard = dynamic(
 );
 import { AuthPage } from '@/components/auth/AuthPage';
 import { AuthPromptModal } from '@/components/auth/AuthPromptModal';
+import { ForgotPasswordPage } from '@/components/auth/ForgotPasswordPage';
 import { ProviderOnboarding } from '@/components/onboarding/ProviderOnboarding';
 import { ChatPage } from '@/components/chat/ChatPage';
 import { PaymentCheckout } from '@/components/payment/PaymentSystem';
@@ -1023,50 +1024,7 @@ export default function HomePage() {
 
       case 'forgot-password':
         return (
-          <motion.div
-            key="forgot-password"
-            variants={pageVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            className="min-h-screen flex items-center justify-center py-12 px-4"
-          >
-            <div className="w-full max-w-md">
-              <div className="glass-card p-8 rounded-2xl">
-                <div className="text-center mb-6">
-                  <h1 className="text-2xl font-bold mb-2">Reset Password</h1>
-                  <p className="text-muted-foreground">Enter your email and we'll send you a reset link</p>
-                </div>
-                <form className="space-y-4" onSubmit={(e) => {
-                  e.preventDefault();
-                  alert('Password reset link sent! Check your email.');
-                  navigate('login');
-                }}>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Email</label>
-                    <input
-                      type="email"
-                      placeholder="Enter your email"
-                      required
-                      className="w-full h-10 px-3 rounded-lg border border-input bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm text-sm text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full h-12 px-6 rounded-lg gradient-bg text-white font-medium"
-                  >
-                    Send Reset Link
-                  </button>
-                </form>
-                <button
-                  onClick={() => navigate('login')}
-                  className="w-full mt-4 text-sm text-primary hover:underline"
-                >
-                  Back to Sign In
-                </button>
-              </div>
-            </div>
-          </motion.div>
+          <ForgotPasswordPage key="forgot-password" onBack={() => navigate('login')} />
         );
 
       default:

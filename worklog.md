@@ -716,3 +716,70 @@ Stage Summary:
 - All hardcoded values removed
 - 2 new API endpoints created
 - Lint: 0 errors
+
+---
+## Task ID: 1 - Navbar Profile Dropdown & Settings Panel Fixes
+### Work Task
+Fix profile dropdown navigation, settings persistence, admin links, and case-insensitive role checks in Navbar component.
+
+### Work Summary
+
+**Fix 1: Settings panel now persists name/phone to backend**
+- `handleSaveSettings()` was synchronous and only saved currency locally
+- Converted to `async` function
+- Added `api.updateProfile()` call (from `@/lib/api-client`) to PATCH `/api/users` with name and phone when changed
+- Added error handling with user-friendly messages: success vs. partial failure (currency updated but profile failed)
+- Added `import { api } from '@/lib/api-client'` at top of file
+
+**Fix 2: Added missing admin links to profile dropdown (desktop + mobile)**
+Desktop admin section (line ~866) — added 3 new MenuItems:
+- Revenue (DollarSign icon) → `handleNavigate('admin-dashboard', 'revenue')`
+- Content (FileText icon) → `handleNavigate('admin-dashboard', 'content')`
+- Notifications (Bell icon) → `handleNavigate('admin-dashboard', 'overview')`
+
+Mobile admin section (line ~1372) — added same 3 new MobileMenuItems:
+- Revenue, Content, Notifications with proper `setIsProfileOpen(false)` + `handleNavigate()` pattern
+
+**Fix 3: Case-insensitive role checks (defense-in-depth)**
+4 locations changed from `user?.roles?.includes('BUSINESS_OWNER')` / `user?.role === 'BUSINESS_OWNER'` to case-insensitive:
+- Desktop "Become a Provider" check (line ~822): `!(user?.roles || []).some((r: string) => r.toUpperCase() === 'BUSINESS_OWNER')`
+- Mobile "Become a Provider" check (line ~1335): same pattern
+- Settings panel title (line ~1517): `(user?.role || '').toUpperCase() === 'BUSINESS_OWNER'`
+- Settings Privacy section visibility (line ~1561): `(user?.role || '').toUpperCase() !== 'BUSINESS_OWNER'`
+
+Note: The roles at lines 213-215 (`isAdmin`, `hasDualRoles`, `isOnlyCustomer`, `isOnlyProvider`) still use `.includes('ADMIN')` etc. because these are normalized to uppercase on login by the RBAC engine (src/lib/rbac.ts `normalizeRole()`). These could be made case-insensitive too but would be redundant since the RBAC engine guarantees uppercase.
+
+**Fix 4: Profile dropdown navigation verified working**
+- `handleNavigate()` already closes all dropdowns (profile, notifications, messages, mobile menu, settings) — confirmed at line ~253
+- Desktop MenuItems call `handleNavigate()` directly — works correctly
+- Mobile MobileMenuItems call `setIsProfileOpen(false)` then `handleNavigate()` — works correctly (redundant close is harmless)
+
+### Files Modified
+- `src/components/layout/Navbar.tsx` — 8 targeted edits (import, handleSaveSettings, desktop admin links, mobile admin links, 4 case-insensitive checks)
+
+### Verification
+- `npm run lint`: 0 errors
+- Dev server: compiles cleanly, no runtime errors
+
+---
+## Task ID: 2 - Admin Dashboard Blog CRUD & Advertisements
+### Agent: Main Agent
+### Task: Add Blog Article CRUD UI to Content section and Advertisements management section to AdminDashboard
+
+### Work Log:
+- **SectionId type**: Added `'advertisements'` to the SectionId union type (line 30)
+- **State variables**: Added article CRUD states (showArticleModal, editingArticle, articleForm) and advertisement states (displayAds, showAdModal, editingAd, adForm) near existing modal/data states
+- **fetchSectionData**: Added `'advertisements'` case that fetches from `/admin/advertisements` and populates `displayAds`; verified existing `'content'` case correctly fetches from `/articles?admin=true`
+- **Sidebar**: Added `{ id: 'advertisements', label: 'Advertisements', icon: Megaphone, count: overviewData?.pending.ads }` to Operations group
+- **Main content dispatch**: Added `{activeSection === 'advertisements' && renderAdvertisements()}` alongside existing section renders
+- **Action handlers**: Added `generateSlug()`, `openArticleModal()`, `handleSaveArticle()` (POST/PUT), `handleDeleteArticle()` (DELETE with confirm), `openAdModal()`, `handleSaveAd()` (POST/PUT), `handleAdStatusChange()` (approve/reject)
+- **renderContent()**: Added "Create Article" button, Actions column with Edit and Delete buttons per article row, sticky table headers, max-height scroll for long lists
+- **renderAdvertisements()**: New function with stats cards (Total Ads, Pending, Approved, Total Budget), table with Business/Package/Budget/Duration/Status/Created/Actions columns, Approve/Reject buttons for pending ads, Edit button, Create Ad button
+- **Modals**: Added Article Create/Edit modal (title with auto-slug, excerpt, content textarea, category select, tags, isFeatured toggle, isPublished toggle) and Advertisement Create/Edit modal (businessName, contactEmail, contactPhone, package select, duration, budget, notes)
+- Megaphone icon was already imported — no import changes needed
+
+### Stage Summary:
+- **File modified**: `src/components/admin/AdminDashboard.tsx` (2241 → 2706 lines, +465 lines)
+- **Lint**: Clean (0 errors)
+- **Dev server**: Compiles successfully, no runtime errors
+- All new sections follow existing patterns (GlassCard, GlassButton, GlassInput, GlassBadge, GlassModal, fmtDate, fmtCurrency, statusColor, api.request, toast)

@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { ThemeToggleDropdown } from '@/components/theme/ThemeToggle';
 import { BrandLogo } from '@/components/ui/brand-logo';
+import { api } from '@/lib/api-client';
 import type { Notification, Conversation } from '@/types';
 
 // Currency Context - now uses Zustand store for persistence
@@ -283,9 +284,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
     }
   };
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     setCurrency(settings.currency);
-    setSaveMessage('Settings saved successfully! Currency updated across the app.');
+    // Persist name and phone to backend
+    try {
+      const nameChanged = settings.name && settings.name !== user?.name;
+      const phoneChanged = settings.phone && settings.phone !== user?.phone;
+      if (nameChanged || phoneChanged) {
+        const updates: { name?: string; phone?: string } = {};
+        if (nameChanged) updates.name = settings.name;
+        if (phoneChanged) updates.phone = settings.phone;
+        await api.updateProfile(updates);
+      }
+      setSaveMessage('Settings saved successfully!');
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      setSaveMessage('Currency updated. Failed to save profile changes to server.');
+    }
     setTimeout(() => setSaveMessage(null), 3000);
   };
 
@@ -804,7 +819,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                                     onClick={() => handleNavigate('disputes')}
                                   />
                                   <div className="border-t border-border/50 my-1" />
-                                  {!user?.roles?.includes('BUSINESS_OWNER') && (
+                                  {!(user?.roles || []).some((r: string) => r.toUpperCase() === 'BUSINESS_OWNER') && (
                                     <MenuItem
                                       icon={Briefcase}
                                       label="Become a Provider"
@@ -860,6 +875,21 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                                     icon={Users}
                                     label="User Management"
                                     onClick={() => handleNavigate('admin-dashboard', 'users')}
+                                  />
+                                  <MenuItem
+                                    icon={DollarSign}
+                                    label="Revenue"
+                                    onClick={() => handleNavigate('admin-dashboard', 'revenue')}
+                                  />
+                                  <MenuItem
+                                    icon={FileText}
+                                    label="Content"
+                                    onClick={() => handleNavigate('admin-dashboard', 'content')}
+                                  />
+                                  <MenuItem
+                                    icon={Bell}
+                                    label="Notifications"
+                                    onClick={() => handleNavigate('admin-dashboard', 'overview')}
                                   />
                                   <MenuItem
                                     icon={AlertCircle}
@@ -1302,7 +1332,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                             handleNavigate('customer-dashboard', 'overview');
                           }}
                         />
-                        {!user?.roles?.includes('BUSINESS_OWNER') && (
+                        {!(user?.roles || []).some((r: string) => r.toUpperCase() === 'BUSINESS_OWNER') && (
                           <MobileMenuItem
                             icon={Briefcase}
                             label="Become a Provider"
@@ -1355,6 +1385,30 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                           onClick={() => {
                             setIsProfileOpen(false);
                             handleNavigate('admin-dashboard', 'users');
+                          }}
+                        />
+                        <MobileMenuItem
+                          icon={DollarSign}
+                          label="Revenue"
+                          onClick={() => {
+                            setIsProfileOpen(false);
+                            handleNavigate('admin-dashboard', 'revenue');
+                          }}
+                        />
+                        <MobileMenuItem
+                          icon={FileText}
+                          label="Content"
+                          onClick={() => {
+                            setIsProfileOpen(false);
+                            handleNavigate('admin-dashboard', 'content');
+                          }}
+                        />
+                        <MobileMenuItem
+                          icon={Bell}
+                          label="Notifications"
+                          onClick={() => {
+                            setIsProfileOpen(false);
+                            handleNavigate('admin-dashboard', 'overview');
                           }}
                         />
                       </>
@@ -1460,7 +1514,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                   <div className="flex items-center gap-2 mb-4">
                     <User className="h-5 w-5 text-primary" />
                     <h3 className="font-semibold">
-                      {user?.role === 'BUSINESS_OWNER' ? 'Personal Information' : 'Profile Information'}
+                      {(user?.role || '').toUpperCase() === 'BUSINESS_OWNER' ? 'Personal Information' : 'Profile Information'}
                     </h3>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -1504,7 +1558,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                 </div>
 
                 {/* Privacy Section */}
-                {user?.role !== 'BUSINESS_OWNER' && (
+                {(user?.role || '').toUpperCase() !== 'BUSINESS_OWNER' && (
                   <div className="p-4 rounded-xl bg-muted/30">
                     <div className="flex items-center gap-2 mb-4">
                       <Shield className="h-5 w-5 text-primary" />

@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 // ============================================
 
 type SectionId = 'overview' | 'revenue' | 'users' | 'businesses' | 'bookings' |
-  'listings' | 'disputes-reports' | 'claims-support' | 'content' | 'settings';
+  'listings' | 'disputes-reports' | 'claims-support' | 'content' | 'advertisements' | 'settings';
 
 interface AdminUser {
   id: string; email: string; name: string; phone?: string; role: string;
@@ -195,6 +195,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   const [displayTickets, setDisplayTickets] = useState<AdminTicket[]>([]);
   const [displayClaims, setDisplayClaims] = useState<AdminClaim[]>([]);
   const [displayArticles, setDisplayArticles] = useState<AdminArticle[]>([]);
+  const [displayAds, setDisplayAds] = useState<any[]>([]);
   const [displayPageContent, setDisplayPageContent] = useState<PageContent[]>([]);
   const [settings, setSettings] = useState<PlatformSettings>({
     platformFee: 15, minWithdrawal: 50, maintenanceMode: false,
@@ -248,6 +249,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   const [editingPage, setEditingPage] = useState<PageContent | null>(null);
   const [contentEditTitle, setContentEditTitle] = useState('');
   const [contentEditBody, setContentEditBody] = useState('');
+
+  const [showArticleModal, setShowArticleModal] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<AdminArticle | null>(null);
+  const [articleForm, setArticleForm] = useState({ title: '', slug: '', excerpt: '', content: '', category: '', tags: '', isFeatured: false, isPublished: false });
+
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [editingAd, setEditingAd] = useState<any>(null);
+  const [adForm, setAdForm] = useState({ businessName: '', contactEmail: '', contactPhone: '', package: 'BASIC', duration: 30, budget: 0, notes: '', status: 'PENDING' });
 
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
@@ -342,6 +351,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
           ]);
           setDisplayArticles(articleRes.data?.articles || []);
           setDisplayPageContent(pageRes.data?.pages || []);
+          break;
+        }
+        case 'advertisements': {
+          const adRes = await api.request<Record<string, any>>('/admin/advertisements');
+          setDisplayAds(adRes.data?.advertisements || []);
           break;
         }
         case 'settings': {
@@ -617,6 +631,159 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
     }
   };
 
+  // ---- Article CRUD handlers ----
+
+  const generateSlug = (title: string) =>
+    title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  const openArticleModal = (article?: AdminArticle) => {
+    if (article) {
+      setEditingArticle(article);
+      setArticleForm({
+        title: article.title || '',
+        slug: article.slug || '',
+        excerpt: article.excerpt || '',
+        content: (article as any).content || '',
+        category: article.category || '',
+        tags: (article as any).tags || '',
+        isFeatured: (article as any).isFeatured || false,
+        isPublished: article.status === 'PUBLISHED',
+      });
+    } else {
+      setEditingArticle(null);
+      setArticleForm({ title: '', slug: '', excerpt: '', content: '', category: '', tags: '', isFeatured: false, isPublished: false });
+    }
+    setShowArticleModal(true);
+  };
+
+  const handleSaveArticle = async () => {
+    if (!articleForm.title.trim()) { toast.error('Title is required'); return; }
+    setIsProcessing(true);
+    try {
+      const slug = editingArticle ? articleForm.slug : generateSlug(articleForm.title);
+      if (editingArticle) {
+        await api.request(`/articles/${editingArticle.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            title: articleForm.title,
+            slug,
+            excerpt: articleForm.excerpt,
+            content: articleForm.content,
+            category: articleForm.category,
+            tags: articleForm.tags,
+            isFeatured: articleForm.isFeatured,
+            isPublished: articleForm.isPublished,
+          }),
+        });
+        toast.success('Article updated');
+      } else {
+        await api.request('/articles', {
+          method: 'POST',
+          body: JSON.stringify({
+            title: articleForm.title,
+            slug,
+            excerpt: articleForm.excerpt,
+            content: articleForm.content,
+            category: articleForm.category,
+            tags: articleForm.tags,
+            isFeatured: articleForm.isFeatured,
+            isPublished: articleForm.isPublished,
+          }),
+        });
+        toast.success('Article created');
+      }
+      setShowArticleModal(false);
+      setEditingArticle(null);
+      fetchSectionData('content');
+    } catch (err) {
+      console.error('Failed to save article:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteArticle = async (articleId: string) => {
+    if (!confirm('Are you sure you want to delete this article?')) return;
+    setIsProcessing(true);
+    try {
+      await api.request(`/articles/${articleId}`, { method: 'DELETE' });
+      setDisplayArticles(prev => prev.filter(a => a.id !== articleId));
+      toast.success('Article deleted');
+    } catch (err) {
+      console.error('Failed to delete article:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ---- Ad handlers ----
+
+  const openAdModal = (ad?: any) => {
+    if (ad) {
+      setEditingAd(ad);
+      setAdForm({
+        businessName: ad.businessName || '',
+        contactEmail: ad.contactEmail || '',
+        contactPhone: ad.contactPhone || '',
+        package: ad.package || 'BASIC',
+        duration: ad.duration || 30,
+        budget: ad.budget || 0,
+        notes: ad.notes || '',
+        status: ad.status || 'PENDING',
+      });
+    } else {
+      setEditingAd(null);
+      setAdForm({ businessName: '', contactEmail: '', contactPhone: '', package: 'BASIC', duration: 30, budget: 0, notes: '', status: 'PENDING' });
+    }
+    setShowAdModal(true);
+  };
+
+  const handleSaveAd = async () => {
+    if (!adForm.businessName.trim()) { toast.error('Business name is required'); return; }
+    if (!adForm.contactEmail.trim()) { toast.error('Contact email is required'); return; }
+    setIsProcessing(true);
+    try {
+      if (editingAd) {
+        await api.request('/admin/advertisements', {
+          method: 'PUT',
+          body: JSON.stringify({ advertisementId: editingAd.id, ...adForm }),
+        });
+        toast.success('Advertisement updated');
+      } else {
+        await api.request('/admin/advertisements', {
+          method: 'POST',
+          body: JSON.stringify(adForm),
+        });
+        toast.success('Advertisement created');
+      }
+      setShowAdModal(false);
+      setEditingAd(null);
+      fetchSectionData('advertisements');
+    } catch (err) {
+      console.error('Failed to save advertisement:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAdStatusChange = async (adId: string, status: string) => {
+    setIsProcessing(true);
+    try {
+      await api.request('/admin/advertisements', {
+        method: 'PUT',
+        body: JSON.stringify({ advertisementId: adId, status }),
+      });
+      setDisplayAds(prev => prev.map(ad =>
+        ad.id === adId ? { ...ad, status } : ad
+      ));
+      toast.success(`Advertisement ${status.toLowerCase()}`);
+    } catch (err) {
+      console.error('Failed to update advertisement status:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // ---- Sidebar configuration ----
 
   const sidebarGroups = [
@@ -642,6 +809,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         { id: 'disputes-reports' as SectionId, label: 'Disputes & Reports', icon: Gavel, count: (overviewData?.pending.disputes || 0) + (overviewData?.pending.reports || 0) },
         { id: 'claims-support' as SectionId, label: 'Claims & Support', icon: LifeBuoy, count: (overviewData?.pending.claims || 0) + (overviewData?.pending.tickets || 0) },
         { id: 'content' as SectionId, label: 'Content', icon: BookOpen },
+        { id: 'advertisements' as SectionId, label: 'Advertisements', icon: Megaphone, count: overviewData?.pending.ads },
         { id: 'settings' as SectionId, label: 'Settings', icon: Settings },
       ],
     },
@@ -847,6 +1015,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                 {activeSection === 'disputes-reports' && renderDisputesReports()}
                 {activeSection === 'claims-support' && renderClaimsSupport()}
                 {activeSection === 'content' && renderContent()}
+                {activeSection === 'advertisements' && renderAdvertisements()}
                 {activeSection === 'settings' && renderSettings()}
               </>
             )}
@@ -1838,16 +2007,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
 
       {/* Blog Articles */}
       <div>
-        <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Newspaper className="h-5 w-5 text-primary" /> Blog Articles
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Newspaper className="h-5 w-5 text-primary" /> Blog Articles
+          </h2>
+          <GlassButton variant="primary" size="sm" onClick={() => openArticleModal()}>
+            <Plus className="h-4 w-4" /> Create Article
+          </GlassButton>
+        </div>
         <GlassCard className="p-6" hover={false}>
           {isLoading && !dataFetched['content'] ? (
             <TableSkeleton />
           ) : displayArticles.length > 0 ? (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 bg-card/90 backdrop-blur-sm">
                   <tr className="text-left text-muted-foreground border-b border-white/10">
                     <th className="pb-3 font-medium">Title</th>
                     <th className="pb-3 font-medium">Author</th>
@@ -1855,6 +2029,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                     <th className="pb-3 font-medium">Status</th>
                     <th className="pb-3 font-medium">Views</th>
                     <th className="pb-3 font-medium">Updated</th>
+                    <th className="pb-3 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -1869,6 +2044,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                       <td className="py-3 pr-4"><GlassBadge variant={statusColor(a.status)}>{a.status}</GlassBadge></td>
                       <td className="py-3 pr-4 text-muted-foreground">{a.views ?? 0}</td>
                       <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(a.updatedAt)}</td>
+                      <td className="py-3 pr-4">
+                        <div className="flex items-center gap-1">
+                          <GlassButton size="icon" variant="ghost" onClick={() => openArticleModal(a)} title="Edit">
+                            <Edit className="h-3.5 w-3.5" />
+                          </GlassButton>
+                          <GlassButton size="icon" variant="ghost" onClick={() => handleDeleteArticle(a.id)} title="Delete" className="hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </GlassButton>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1879,6 +2064,107 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
           )}
         </GlassCard>
       </div>
+    </div>
+  );
+
+  // ============================================
+  // SECTION: ADVERTISEMENTS
+  // ============================================
+
+  const renderAdvertisements = () => (
+    <div className="space-y-6">
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Ads', value: displayAds.length, icon: Megaphone, color: 'purple' },
+          { label: 'Pending', value: displayAds.filter(a => a.status === 'PENDING').length, icon: Clock, color: 'yellow' },
+          { label: 'Approved', value: displayAds.filter(a => a.status === 'APPROVED').length, icon: CheckCircle, color: 'green' },
+          { label: 'Total Budget', value: fmtCurrency(displayAds.reduce((s, a) => s + (a.budget || 0), 0)), icon: DollarSign, color: 'emerald', isText: true },
+        ].map((stat) => (
+          <GlassCard key={stat.label} className="p-4" hover={false}>
+            <div className="flex items-center gap-3">
+              <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', `bg-${stat.color}-500/20`)}>
+                <stat.icon className={cn('h-5 w-5', `text-${stat.color}-500`)} />
+              </div>
+              <div className="min-w-0">
+                <p className={cn('font-bold truncate', stat.isText ? 'text-lg' : 'text-2xl')}>{stat.value}</p>
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+              </div>
+            </div>
+          </GlassCard>
+        ))}
+      </div>
+
+      {/* Ads Table */}
+      <GlassCard className="p-6" hover={false}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Megaphone className="h-5 w-5 text-primary" /> All Advertisements
+          </h3>
+          <GlassButton variant="primary" size="sm" onClick={() => openAdModal()}>
+            <Plus className="h-4 w-4" /> Create Ad
+          </GlassButton>
+        </div>
+        {isLoading && !dataFetched['advertisements'] ? (
+          <TableSkeleton />
+        ) : displayAds.length > 0 ? (
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-card/90 backdrop-blur-sm">
+                <tr className="text-left text-muted-foreground border-b border-white/10">
+                  <th className="pb-3 font-medium">Business</th>
+                  <th className="pb-3 font-medium">Package</th>
+                  <th className="pb-3 font-medium">Budget</th>
+                  <th className="pb-3 font-medium">Duration</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium">Created</th>
+                  <th className="pb-3 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {displayAds.map((ad) => (
+                  <tr key={ad.id} className="hover:bg-muted/20">
+                    <td className="py-3 pr-4">
+                      <p className="font-medium">{ad.businessName || 'N/A'}</p>
+                      <p className="text-xs text-muted-foreground">{ad.contactEmail || ''}</p>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <GlassBadge variant={ad.package === 'PREMIUM' ? 'default' : ad.package === 'STANDARD' ? 'warning' : 'default'}>
+                        {ad.package || 'BASIC'}
+                      </GlassBadge>
+                    </td>
+                    <td className="py-3 pr-4 text-muted-foreground">{fmtCurrency(ad.budget)}</td>
+                    <td className="py-3 pr-4 text-muted-foreground">{ad.duration || 0} days</td>
+                    <td className="py-3 pr-4">
+                      <GlassBadge variant={statusColor(ad.status)}>{ad.status}</GlassBadge>
+                    </td>
+                    <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(ad.createdAt)}</td>
+                    <td className="py-3 pr-4">
+                      <div className="flex items-center gap-1">
+                        {ad.status === 'PENDING' && (
+                          <>
+                            <GlassButton size="icon" variant="ghost" onClick={() => handleAdStatusChange(ad.id, 'APPROVED')} title="Approve" className="hover:text-green-500">
+                              <Check className="h-3.5 w-3.5" />
+                            </GlassButton>
+                            <GlassButton size="icon" variant="ghost" onClick={() => handleAdStatusChange(ad.id, 'REJECTED')} title="Reject" className="hover:text-destructive">
+                              <X className="h-3.5 w-3.5" />
+                            </GlassButton>
+                          </>
+                        )}
+                        <GlassButton size="icon" variant="ghost" onClick={() => openAdModal(ad)} title="Edit">
+                          <Edit className="h-3.5 w-3.5" />
+                        </GlassButton>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={Megaphone} title="No advertisements found" description="No advertisements have been submitted yet." />
+        )}
+      </GlassCard>
     </div>
   );
 
@@ -2231,6 +2517,186 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             <GlassButton variant="ghost" onClick={() => setShowContentModal(false)}>Cancel</GlassButton>
             <GlassButton variant="primary" onClick={handleSavePageContent} disabled={isProcessing || !contentEditTitle.trim()}>
               <Save className="h-3 w-3" /> Save Content
+            </GlassButton>
+          </div>
+        </div>
+      </GlassModal>
+
+      {/* Article Create/Edit Modal */}
+      <GlassModal isOpen={showArticleModal} onClose={() => setShowArticleModal(false)} title={editingArticle ? 'Edit Article' : 'Create Article'} size="xl">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Title *</label>
+            <GlassInput
+              value={articleForm.title}
+              onChange={(e) => {
+                const title = e.target.value;
+                setArticleForm(f => ({
+                  ...f,
+                  title,
+                  slug: editingArticle ? f.slug : generateSlug(title),
+                }));
+              }}
+              placeholder="Article title"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Slug</label>
+            <GlassInput
+              value={articleForm.slug}
+              onChange={(e) => setArticleForm(f => ({ ...f, slug: e.target.value }))}
+              placeholder="auto-generated-from-title"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Excerpt</label>
+            <textarea
+              className="w-full h-20 rounded-xl border border-border bg-background/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+              value={articleForm.excerpt}
+              onChange={(e) => setArticleForm(f => ({ ...f, excerpt: e.target.value }))}
+              placeholder="Brief summary..."
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Content</label>
+            <textarea
+              className="w-full h-48 rounded-xl border border-border bg-background/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+              value={articleForm.content}
+              onChange={(e) => setArticleForm(f => ({ ...f, content: e.target.value }))}
+              placeholder="Article body..."
+            />
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Category</label>
+              <select
+                value={articleForm.category}
+                onChange={(e) => setArticleForm(f => ({ ...f, category: e.target.value }))}
+                className="w-full h-10 px-3 rounded-xl border border-border bg-background/50 text-sm text-foreground"
+              >
+                <option value="">Select category</option>
+                <option value="Grooming Tips">Grooming Tips</option>
+                <option value="Style Guide">Style Guide</option>
+                <option value="Trends">Trends</option>
+                <option value="Business">Business</option>
+                <option value="Platform Updates">Platform Updates</option>
+                <option value="General">General</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Tags (comma-separated)</label>
+              <GlassInput
+                value={articleForm.tags}
+                onChange={(e) => setArticleForm(f => ({ ...f, tags: e.target.value }))}
+                placeholder="grooming, style, tips"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={articleForm.isFeatured}
+                onChange={(e) => setArticleForm(f => ({ ...f, isFeatured: e.target.checked }))}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary/50"
+              />
+              <span className="text-sm">Featured Article</span>
+              <Star className="h-3.5 w-3.5 text-yellow-500" />
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={articleForm.isPublished}
+                onChange={(e) => setArticleForm(f => ({ ...f, isPublished: e.target.checked }))}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary/50"
+              />
+              <span className="text-sm">Published</span>
+            </label>
+          </div>
+          <div className="flex justify-end gap-3 pt-2 border-t border-white/10">
+            <GlassButton variant="ghost" onClick={() => setShowArticleModal(false)}>Cancel</GlassButton>
+            <GlassButton variant="primary" onClick={handleSaveArticle} disabled={isProcessing || !articleForm.title.trim()}>
+              {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+              {editingArticle ? 'Update Article' : 'Create Article'}
+            </GlassButton>
+          </div>
+        </div>
+      </GlassModal>
+
+      {/* Advertisement Create/Edit Modal */}
+      <GlassModal isOpen={showAdModal} onClose={() => setShowAdModal(false)} title={editingAd ? 'Edit Advertisement' : 'Create Advertisement'} size="md">
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Business Name *</label>
+            <GlassInput
+              value={adForm.businessName}
+              onChange={(e) => setAdForm(f => ({ ...f, businessName: e.target.value }))}
+              placeholder="Business name"
+            />
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Contact Email *</label>
+              <GlassInput
+                type="email"
+                value={adForm.contactEmail}
+                onChange={(e) => setAdForm(f => ({ ...f, contactEmail: e.target.value }))}
+                placeholder="email@example.com"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Contact Phone</label>
+              <GlassInput
+                value={adForm.contactPhone}
+                onChange={(e) => setAdForm(f => ({ ...f, contactPhone: e.target.value }))}
+                placeholder="+254 700 000 000"
+              />
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Package</label>
+              <select
+                value={adForm.package}
+                onChange={(e) => setAdForm(f => ({ ...f, package: e.target.value }))}
+                className="w-full h-10 px-3 rounded-xl border border-border bg-background/50 text-sm text-foreground"
+              >
+                <option value="BASIC">Basic</option>
+                <option value="STANDARD">Standard</option>
+                <option value="PREMIUM">Premium</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Duration (days)</label>
+              <GlassInput
+                type="number"
+                value={adForm.duration}
+                onChange={(e) => setAdForm(f => ({ ...f, duration: Number(e.target.value) }))}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Budget (KSh)</label>
+            <GlassInput
+              type="number"
+              value={adForm.budget}
+              onChange={(e) => setAdForm(f => ({ ...f, budget: Number(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Notes</label>
+            <textarea
+              className="w-full h-20 rounded-xl border border-border bg-background/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+              value={adForm.notes}
+              onChange={(e) => setAdForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Additional notes..."
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2 border-t border-white/10">
+            <GlassButton variant="ghost" onClick={() => setShowAdModal(false)}>Cancel</GlassButton>
+            <GlassButton variant="primary" onClick={handleSaveAd} disabled={isProcessing || !adForm.businessName.trim() || !adForm.contactEmail.trim()}>
+              {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+              {editingAd ? 'Update Ad' : 'Create Ad'}
             </GlassButton>
           </div>
         </div>
