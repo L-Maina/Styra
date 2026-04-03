@@ -625,3 +625,31 @@ Stage Summary:
 - The /api/health endpoint now provides detailed diagnostics about what is wrong with the connection string
 - Commit: cf752c4 pushed to master
 
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Diagnose and fix "An error occurred" on account registration
+
+Work Log:
+- Tested Supabase database connection from sandbox: SUCCESS (PostgreSQL 17.6 on port 6543)
+- Verified all 48 tables exist in the Supabase database (eleawsreutavapbzzvwr project)
+- Tested Prisma user creation (findUnique + create) against Supabase: SUCCESS
+- Diagnosed the "An error occurred" message: it was a generic fallback in `handleApiError` that hid the actual error message
+  - `handleApiError` line 249 returned `{error: "An error occurred", details: "actual error msg"}`
+  - `api-client.ts` line 128 only read `data.error` (which was "An error occurred")
+  - The real error was in `data.details` but frontend never showed it
+- Fixed `src/lib/api-utils.ts`: Generic fallback now returns the actual error message in the `error` field
+- Fixed `src/lib/api-client.ts`: Reads `data.details` as fallback when `data.error` is generic
+- Verified middleware is clean (no CSRF blocking)
+- Verified `pg` module is installed for db-setup
+- Verified `postinstall` script runs `prisma generate` for Vercel builds
+- Pushed fix to GitHub
+
+Stage Summary:
+- Database connection from sandbox: WORKING ✅
+- All 48 tables in Supabase: PRESENT ✅
+- Prisma user creation: WORKING ✅
+- Root cause of "An error occurred": Error details were hidden in `details` field, frontend only read `error` field
+- Most likely actual error on Vercel: DATABASE_URL environment variable not set in Vercel Dashboard
+- User should: (1) Set env vars in Vercel Dashboard, (2) Visit /api/health for diagnostics, (3) Try registration again
