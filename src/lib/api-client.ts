@@ -125,8 +125,10 @@ class ApiClient {
         }
 
         if (!response.ok || !data.success) {
-          const error = data.error || 'An error occurred';
-          toast.error(error);
+          // Show details (if available) as the main message for better debugging
+          const error = data.details || data.error || 'An error occurred';
+          const toastMsg = data.error || error; // Toast shows the error field, not details
+          toast.error(toastMsg);
           throw new Error(error);
         }
 

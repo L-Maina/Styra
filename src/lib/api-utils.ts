@@ -246,7 +246,9 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
       );
     }
 
-    return errorResponse('An error occurred', 400, msg);
+    // Include the actual error message in the error field so the frontend can show it
+    const userMessage = msg.length > 200 ? msg.substring(0, 200) + '...' : msg;
+    return errorResponse(userMessage, 400);
   }
 
   return errorResponse('An unexpected error occurred', 500);
