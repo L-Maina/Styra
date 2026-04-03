@@ -1,0 +1,665 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================
+   STYRA BRAND — PREMIUM DESIGN SYSTEM
+   Signature Liquid Glass Identity
+   ============================================ */
+:root {
+  /* Brand Colors */
+  --primary: #6C4EFF;
+  --secondary: #3ABEFF;
+  --primary-light: #7A6CFF;
+  --secondary-light: #6FE3FF;
+
+  /* Signature Gradient (matches logo EXACTLY) */
+  --styra-gradient: linear-gradient(135deg, #6C4EFF 0%, #7A6CFF 25%, #3ABEFF 60%, #6FE3FF 100%);
+
+  /* Liquid Glass Variables */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-bg-hover: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-hover: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 0 12px rgba(108, 78, 255, 0.12), 0 0 24px rgba(58, 190, 255, 0.08);
+  --glass-shadow-hover: 0 0 18px rgba(108, 78, 255, 0.2), 0 0 36px rgba(58, 190, 255, 0.12);
+  --glass-blur: blur(16px);
+  --glass-blur-heavy: blur(24px);
+
+  /* Premium Radius Scale */
+  --radius-sm: 0.5rem;
+  --radius: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+
+  /* Base Theme — Dark Premium */
+  --background: #0B0B0F;
+  --foreground: #FFFFFF;
+  --card: rgba(31, 41, 55, 0.6);
+  --card-foreground: #FFFFFF;
+  --popover: rgba(31, 41, 55, 0.8);
+  --popover-foreground: #FFFFFF;
+  --primary-foreground: #ffffff;
+  --secondary-foreground: #E5E7EB;
+  --muted: rgba(255, 255, 255, 0.08);
+  --muted-foreground: #94A3B8;
+  --accent: rgba(108, 78, 255, 0.15);
+  --accent-foreground: #FFFFFF;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #6C4EFF;
+  --surface: #1F2937;
+
+  /* Chart Colors */
+  --chart-1: #6C4EFF;
+  --chart-2: #3ABEFF;
+  --chart-3: #10B981;
+  --chart-4: #F59E0B;
+  --chart-5: #EF4444;
+
+  /* Sidebar */
+  --sidebar: rgba(11, 11, 15, 0.95);
+  --sidebar-foreground: #E5E7EB;
+  --sidebar-primary: #6C4EFF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: rgba(108, 78, 255, 0.15);
+  --sidebar-accent-foreground: #A78BFA;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #6C4EFF;
+}
+
+/* Light mode overrides */
+.light {
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(148, 163, 184, 0.25);
+  --glass-border-hover: rgba(108, 78, 255, 0.3);
+  --glass-shadow: 0 8px 32px rgba(108, 78, 255, 0.12), 0 0 20px rgba(58, 190, 255, 0.08);
+  --glass-shadow-hover: 0 12px 40px rgba(108, 78, 255, 0.2), 0 0 30px rgba(58, 190, 255, 0.12);
+
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: rgba(255, 255, 255, 0.8);
+  --card-foreground: #0F172A;
+  --popover: rgba(255, 255, 255, 0.95);
+  --popover-foreground: #0F172A;
+  --primary-foreground: #FFFFFF;
+  --secondary-foreground: #0F172A;
+  --muted: rgba(241, 245, 249, 0.8);
+  --muted-foreground: #64748B;
+  --accent: rgba(108, 78, 255, 0.08);
+  --accent-foreground: #0F172A;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(148, 163, 184, 0.2);
+  --input: rgba(148, 163, 184, 0.2);
+  --ring: #6C4EFF;
+  --surface: #F1F5F9;
+
+  --sidebar: rgba(255, 255, 255, 0.9);
+  --sidebar-foreground: #0F172A;
+  --sidebar-accent: rgba(108, 78, 255, 0.1);
+  --sidebar-accent-foreground: #6C4EFF;
+  --sidebar-border: rgba(148, 163, 184, 0.15);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-poppins);
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ============================================
+   SIGNATURE LIQUID GLASS SYSTEM
+   Premium, translucent, slightly reflective
+   ============================================ */
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--glass-shadow);
+  transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out, background 0.3s ease-in-out;
+  color: var(--foreground);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle inner highlight — the glass "reflective" feel */
+.glass-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.glass-card:hover {
+  box-shadow: var(--glass-shadow-hover);
+  border-color: var(--glass-border-hover);
+  background: var(--glass-bg-hover);
+}
+
+/* Gradient-border cards: keep stable on hover to prevent white-out */
+.glass-card.gradient-border:hover {
+  background: var(--glass-bg);
+}
+
+.glass-button {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-button:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Navbar — premium sticky glass */
+.glass-nav {
+  background: rgba(11, 11, 15, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.light .glass-nav {
+  background: rgba(248, 250, 252, 0.8);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* Modal — heavy glass */
+.glass-modal {
+  background: rgba(31, 41, 55, 0.85);
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 0 60px rgba(108, 78, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.light .glass-modal {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset,
+    0 0 40px rgba(108, 78, 255, 0.1);
+}
+
+.glass-modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ============================================
+   SIGNATURE GRADIENT SYSTEM
+   EXACT logo match — 4-stop gradient
+   ============================================ */
+
+.gradient-text {
+  background: var(--styra-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-bg {
+  background: var(--styra-gradient);
+}
+
+.gradient-border {
+  position: relative;
+  background: var(--glass-bg);
+  border-radius: var(--radius-xl);
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: var(--styra-gradient);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ============================================
+   BRAND LOGO STYLING
+   ============================================ */
+
+.brand-logo .styra {
+  color: #FFFFFF;
+  font-weight: 700;
+  font-family: "Poppins", sans-serif;
+}
+
+.light .brand-logo .styra {
+  color: #0F172A;
+}
+
+/* ============================================
+   PREMIUM ANIMATION SYSTEM
+   Smooth, fluid — ease-in-out only
+   ============================================ */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(108, 78, 255, 0.2), 0 0 24px rgba(58, 190, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(108, 78, 255, 0.35), 0 0 40px rgba(58, 190, 255, 0.18);
+  }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s ease-in-out forwards;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.5s ease-in-out forwards;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Skeleton Loader — premium shimmer */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--glass-bg);
+  border-radius: var(--radius);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(108, 78, 255, 0.08),
+    rgba(58, 190, 255, 0.06),
+    transparent
+  );
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* ============================================
+   PREMIUM BUTTON SYSTEM
+   ============================================ */
+
+button {
+  transition: all 0.2s ease-in-out;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* Primary gradient button hover glow */
+.gradient-bg:not(:disabled):hover {
+  filter: brightness(1.15);
+  box-shadow:
+    0 0 20px rgba(108, 78, 255, 0.35),
+    0 0 40px rgba(58, 190, 255, 0.15);
+}
+
+.gradient-bg:not(:disabled):active {
+  filter: brightness(0.95);
+  transform: scale(0.97);
+}
+
+/* Icon buttons */
+button[class*="rounded-full"]:not(:disabled):hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(108, 78, 255, 0.3);
+}
+
+/* ============================================
+   BACKGROUND DEPTH SYSTEM
+   Layered gradient glow blobs behind glass
+   ============================================ */
+
+.bg-depth {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bg-depth::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(108, 78, 255, 0.08) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: glow-pulse 8s ease-in-out infinite;
+}
+
+.bg-depth::after {
+  content: "";
+  position: absolute;
+  bottom: -10%;
+  left: -10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(58, 190, 255, 0.06) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: glow-pulse 10s ease-in-out infinite 3s;
+}
+
+/* Hero Background */
+.hero-pattern {
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(108, 78, 255, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(58, 190, 255, 0.08) 0%, transparent 50%);
+}
+
+.light .hero-pattern {
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(108, 78, 255, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(58, 190, 255, 0.04) 0%, transparent 50%);
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.shadow-glow {
+  box-shadow: 0 0 24px rgba(108, 78, 255, 0.18), 0 0 48px rgba(58, 190, 255, 0.1);
+}
+
+.shadow-glow-sm {
+  box-shadow: 0 0 12px rgba(108, 78, 255, 0.14), 0 0 24px rgba(58, 190, 255, 0.08);
+}
+
+.shadow-glow-intense {
+  box-shadow: 0 0 30px rgba(108, 78, 255, 0.3), 0 0 60px rgba(58, 190, 255, 0.18);
+}
+
+/* ============================================
+   CUSTOM SCROLLBAR — Premium
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(108, 78, 255, 0.25);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(108, 78, 255, 0.45);
+}
+
+/* ============================================
+   MAP STYLES
+   ============================================ */
+
+.map-container {
+  height: 100%;
+  width: 100%;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.map-popup {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 12px;
+  min-width: 200px;
+}
+
+.map-cluster {
+  background: var(--styra-gradient);
+  border-radius: 50%;
+  color: white;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-poppins), sans-serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* ============================================
+   LEAFLET MAP FIXES
+   ============================================ */
+
+.leaflet-container {
+  font-family: inherit !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-content { margin: 0 !important; }
+.leaflet-popup-tip { display: none !important; }
+.leaflet-popup-close-button { display: none !important; }
+
+/* User Location */
+.user-location-marker { background: transparent !important; border: none !important; }
+
+.user-location-pulse {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 122, 255, 0.25);
+  border-radius: 50%;
+  animation: user-location-pulse 2s ease-out infinite;
+}
+
+.user-location-dot {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  background: #007aff;
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.4);
+}
+
+@keyframes user-location-pulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+.apple-map-marker { background: transparent !important; border: none !important; }
+.custom-cluster-icon { background: transparent !important; border: none !important; }
+
+/* ============================================
+   MOBILE SAFE AREA
+   ============================================ */
+
+.safe-area-top { padding-top: env(safe-area-inset-top, 0); }
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+.pb-mobile-nav { padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0)); }
+
+@media (max-width: 640px) {
+  .hide-mobile-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-mobile-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
