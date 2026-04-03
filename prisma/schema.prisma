@@ -95,7 +95,6 @@ model Business {
   advertisements   Advertisement[]
   discountCodes    DiscountCode[]
   escrow           Escrow[]
-  timeSlots        TimeSlot[]
 }
 
 model Service {
@@ -338,7 +337,7 @@ model DiscountCode {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  business Business @relation(fields: [createdBy], references: [id])
+  business Business? @relation(fields: [createdBy], references: [id])
 }
 
 // ── Messaging ──────────────────────────────────────────────
@@ -657,7 +656,8 @@ model SupportTicket {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  replies TicketReply[]
+  user     User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies  TicketReply[]
 }
 
 model TicketReply {
@@ -837,6 +837,8 @@ model Advertisement {
   clicks        Int       @default(0)
   conversions   Int       @default(0)
   createdAt     DateTime  @default(now())
+
+  business Business? @relation(fields: [businessId], references: [id])
 }
 
 model PremiumListing {
