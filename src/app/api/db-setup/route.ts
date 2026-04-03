@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // Read the SQL schema at build time
 const schemaSql = readFileSync(
@@ -17,15 +17,63 @@ const schemaSql = readFileSync(
  * Creates all 48 database tables if they don't exist.
  * This is the easiest way to set up the Supabase database for Styra.
  *
+ * IMPORTANT: This endpoint uses DIRECT_URL (not DATABASE_URL) for DDL operations,
+ * because Supabase's connection pooler (Supavisor) does NOT support CREATE TABLE.
+ * DIRECT_URL must be set as a Vercel environment variable pointing to the direct
+ * connection (port 5432, host db.[project].supabase.co).
+ *
  * Just visit this endpoint once after deploying to Vercel.
  * It's idempotent — safe to run multiple times.
  */
 export async function POST() {
   try {
-    const { db } = await import('@/lib/db');
+    const { PrismaClient } = await import('@prisma/client');
 
-    // Test connection first
-    await db.$queryRaw`SELECT 1 as ok`;
+    // For DDL operations (CREATE TABLE), we need a direct connection,
+    // NOT the Supabase pooler (which only supports query operations).
+    const directUrl = process.env.DIRECT_URL;
+
+    if (!directUrl) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'DIRECT_URL not set. Required for database table creation.',
+          fix: 'Set DIRECT_URL in Vercel Dashboard → Settings → Environment Variables.\n' +
+               'Value: Supabase Direct connection URL (port 5432) from Supabase → Settings → Database → Connection string → URI tab.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Create a separate Prisma client using DIRECT_URL for DDL
+    const ddlClient = new PrismaClient({
+      datasources: {
+        db: {
+          url: directUrl,
+        },
+      },
+      log: ['error'],
+    });
+
+    try {
+      // Test direct connection
+      await ddlClient.$queryRaw`SELECT 1 as ok`;
+    } catch (connError) {
+      const connMsg = connError instanceof Error ? connError.message : 'Unknown connection error';
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Cannot connect to database using DIRECT_URL.',
+          details: connMsg,
+          fix: connMsg.includes('Tenant or user not found')
+            ? 'DIRECT_URL should be the direct connection string (host: db.[project].supabase.co, port: 5432, user: postgres). NOT the pooler URL.'
+            : connMsg.includes('authentication failed')
+            ? 'Wrong password in DIRECT_URL. Get the correct string from Supabase Dashboard.'
+            : 'Check DIRECT_URL format in Vercel environment variables.',
+        },
+        { status: 503 }
+      );
+    }
 
     // Split SQL into individual statements and execute them
     // Filter out empty lines and comments
@@ -35,33 +83,37 @@ export async function POST() {
       .filter(s => s.length > 0 && !s.startsWith('--'));
 
     let created = 0;
+    let skipped = 0;
     let errors: string[] = [];
 
     for (const stmt of statements) {
       try {
-        await db.$executeRawUnsafe(stmt);
+        await ddlClient.$executeRawUnsafe(stmt);
         created++;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         // Ignore "already exists" errors (expected for idempotent runs)
         if (msg.includes('already exists') || msg.includes('duplicate')) {
-          created++;
+          skipped++;
           continue;
         }
-        errors.push(msg.substring(0, 200));
+        errors.push(`[${stmt.substring(0, 50).replace(/\n/g, ' ')}...] ${msg.substring(0, 150)}`);
       }
     }
 
     // Verify by counting tables
-    const tables = await db.$queryRaw<Array<{ tablename: string }>>`
+    const tables = await ddlClient.$queryRaw<Array<{ tablename: string }>>`
       SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename
     `;
 
+    await ddlClient.$disconnect();
+
     return NextResponse.json({
       success: true,
-      message: `Database setup complete! ${created} statements executed, ${tables.length} tables exist.`,
+      message: `Database setup complete! ${created} created, ${skipped} already existed. ${tables.length} tables total.`,
       details: {
-        statementsExecuted: created,
+        statementsCreated: created,
+        statementsSkipped: skipped,
         totalStatements: statements.length,
         errors: errors.length > 0 ? errors : undefined,
         tablesCreated: tables.map(t => t.tablename),
@@ -75,10 +127,8 @@ export async function POST() {
         success: false,
         error: 'Database setup failed',
         details: errorMessage,
-        hint: errorMessage.includes('DATABASE_URL')
-          ? 'Set DATABASE_URL in Vercel Dashboard → Settings → Environment Variables. Get it from Supabase → Settings → Database → Connection string.'
-          : errorMessage.includes('ECONNREFUSED') || errorMessage.includes('connect')
-          ? 'Could not connect to the database. Check your DATABASE_URL — it should be the Supabase PostgreSQL connection string.'
+        hint: errorMessage.includes('DIRECT_URL')
+          ? 'Set DIRECT_URL in Vercel Dashboard → Settings → Environment Variables. Get it from Supabase → Settings → Database → Connection string → URI tab.'
           : 'Check Vercel function logs for more details.',
       },
       { status: 500 }
@@ -120,9 +170,9 @@ export async function GET() {
       'TimeSlot', 'PageContent', 'BlogArticle', 'PlatformSetting',
     ];
 
-    const existingNames = tables.map(t => t.tablename);
-    const missingTables = expectedTables.filter(t => !existingNames.includes(t));
-    const extraTables = existingNames.filter(t => !expectedTables.includes(t));
+    const existingNames = new Set(tables.map(t => t.tablename));
+    const missingTables = expectedTables.filter(t => !existingNames.has(t));
+    const extraTables = tables.map(t => t.tablename).filter(t => !expectedTables.includes(t));
 
     // Count records in key tables
     let businessCount = 0;
@@ -150,8 +200,9 @@ export async function GET() {
       missingTables: missingTables.length > 0 ? missingTables : undefined,
       extraTables: extraTables.length > 0 ? extraTables : undefined,
       recordCounts: { users: userCount, businesses: businessCount },
+      hasDirectUrl: !!process.env.DIRECT_URL,
       instructions: needsSetup
-        ? `POST to /api/db-setup to create ${missingTables.length} missing tables.`
+        ? `${missingTables.length} tables missing. Run: POST /api/db-setup to create them. (Requires DIRECT_URL env var)`
         : 'Database is fully set up!',
     });
   } catch (error) {
@@ -161,10 +212,10 @@ export async function GET() {
         success: false,
         connected: false,
         error: errorMessage,
-        hint: errorMessage.includes('DATABASE_URL')
-          ? 'DATABASE_URL not set. Add it in Vercel Dashboard → Settings → Environment Variables.'
-          : errorMessage.includes('ECONNREFUSED') || errorMessage.includes('connect')
-          ? 'Cannot reach the database. Check your DATABASE_URL connection string.'
+        hint: errorMessage.includes('Tenant or user not found')
+          ? 'DATABASE_URL has wrong credentials. Use the Session mode pooler URL from Supabase Dashboard (port 6543).'
+          : errorMessage.includes('relation') || errorMessage.includes('does not exist')
+          ? 'Tables not created yet. POST /api/db-setup to create them.'
           : 'Check Vercel function logs.',
       },
       { status: 503 }
