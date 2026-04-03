@@ -55,3 +55,4 @@ server.log
 # uploads
 upload/
 upload/*
+.config
