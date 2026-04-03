@@ -5,22 +5,36 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /**
+ * Build the database URL with pgbouncer=true for Supabase pooler.
+ * This is REQUIRED because Supabase's Supavisor (port 6543) does not
+ * support prepared statements, and Prisma uses them by default.
+ * Adding pgbouncer=true tells Prisma to use simple query protocol.
+ */
+function buildDatabaseUrl(url: string): string {
+  // Only add pgbouncer=true for PostgreSQL URLs going through Supabase pooler
+  if (!url.includes('supabase') && !url.includes('pooler')) {
+    return url;
+  }
+  if (url.includes('pgbouncer=')) {
+    return url; // Already has the param
+  }
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}pgbouncer=true`;
+}
+
+/**
  * Create a PrismaClient optimized for Supabase + Vercel serverless.
  *
  * REQUIRED ENV VARS (set in Vercel Dashboard → Settings → Environment Variables):
  *
- *   DATABASE_URL = Supabase Connection Pooling URL (Session mode)
+ *   DATABASE_URL = Supabase Connection Pooling URL (Session mode, port 6543)
  *     Format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
- *     Get it from: Supabase → Settings → Database → Connection string → Connection Pooling → Session mode
- *
- *   DIRECT_URL = Supabase Direct connection URL (for migrations only)
- *     Format: postgresql://postgres:[password]@aws-0-[region].supabase.co:5432/postgres
- *     Get it from: Supabase → Settings → Database → Connection string → URI
+ *     The ?pgbouncer=true param is auto-appended for Supabase URLs.
  */
 function createPrismaClient() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const rawDatabaseUrl = process.env.DATABASE_URL;
 
-  if (!databaseUrl) {
+  if (!rawDatabaseUrl) {
     if (process.env.NODE_ENV !== 'production') {
       // In local dev, let Prisma use the .env DATABASE_URL (may be SQLite)
       return new PrismaClient({
@@ -34,37 +48,8 @@ function createPrismaClient() {
     );
   }
 
-  // Validate the connection URL format (helpful for debugging)
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      const url = new URL(databaseUrl);
-      const host = url.hostname;
-
-      if (!host.includes('supabase')) {
-        console.warn(
-          `[DB Warning] DATABASE_URL host "${host}" doesn't look like a Supabase URL. ` +
-          'Make sure you\'re using the Supabase Connection Pooling URL (port 6543).'
-        );
-      }
-
-      // Check if user is using direct connection (port 5432) against pooler
-      if (host.includes('pooler.supabase.com') && url.port === '5432') {
-        console.error(
-          `[DB Error] Using port 5432 with pooler.supabase.com — this causes "Tenant or user not found". ` +
-          'Change the port to 6543, or use the Session mode connection string from Supabase.'
-        );
-      }
-
-      // Check if user is using pooled URL format but wrong port
-      if (host.includes('pooler.supabase.com') && !url.port) {
-        console.warn(
-          '[DB Warning] No port specified for pooler URL. Should be port 6543 for Supabase pooler.'
-        );
-      }
-    } catch {
-      console.error(`[DB Error] DATABASE_URL is not a valid URL: "${databaseUrl.substring(0, 30)}..."`);
-    }
-  }
+  // Append pgbouncer=true for Supabase pooler connections
+  const databaseUrl = buildDatabaseUrl(rawDatabaseUrl);
 
   return new PrismaClient({
     log:
