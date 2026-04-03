@@ -54,14 +54,13 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
     );
   }
 
-  // SECURITY: Do NOT log full error objects — they may contain sensitive data
-  // (tokens, passwords, connection strings, internal paths).
-  // Only log a safe error type indicator in production.
-  if (process.env.NODE_ENV === 'development') {
-    // In dev, log error type (not full details) for debugging
-    const errorType = error instanceof Error ? error.constructor.name : typeof error;
-    const errorMessage = error instanceof Error ? error.message : 'unknown';
-    console.error(`[API Error] Type: ${errorType}, Message: ${errorMessage}`);
+  // Log error details for debugging (Vercel captures console.error in function logs)
+  const errorType = error instanceof Error ? error.constructor.name : typeof error;
+  const errorMessage = error instanceof Error ? error.message : 'unknown';
+  console.error(`[API Error] Type: ${errorType}, Message: ${errorMessage}`);
+  // Log stack in non-production for deeper debugging
+  if (process.env.NODE_ENV !== 'production' && error instanceof Error && error.stack) {
+    console.error(`[API Error Stack] ${error.stack}`);
   }
 
   // Zod validation errors
