@@ -46,6 +46,25 @@ export async function getSession(): Promise<any | null> {
   return { ...payload, user };
 }
 
+// Create a session (set JWT cookie)
+export async function createSession(user: { id: string; email: string; role: string; tokenVersion?: number }): Promise<void> {
+  const cookieStore = await cookies();
+  const token = generateToken({ userId: user.id, email: user.email, role: user.role, tokenVersion: user.tokenVersion });
+  cookieStore.set('styra-token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+  });
+}
+
+// Clear the current session (delete JWT cookie)
+export async function clearSession(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete('styra-token');
+}
+
 // Auth middleware helpers - these return user or throw Response
 export async function requireAuth(): Promise<any> {
   const session = await getSession();
