@@ -3,1529 +3,1551 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield,
-  Users,
-  Building2,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Eye,
-  Search,
-  ChevronDown,
-  Mail,
-  Phone,
-  MapPin,
-  AlertTriangle,
-  Check,
-  X,
-  Loader2,
-  Calendar,
-  DollarSign,
-  TrendingUp,
-  Settings,
-  BarChart3,
-  Activity,
-  Bell,
-  Lock,
-  Percent,
-  ToggleLeft,
-  ToggleRight,
-  Download,
-  RefreshCw,
-  MessageSquare,
-  AlertCircle,
-  Star,
-  CreditCard,
-  Package,
-  Crown,
-  Zap,
-  ArrowUpRight,
-  ArrowDownRight,
-  PieChart,
-  LineChart,
-  Ban,
-  UserCheck,
-  FileText,
-  Send,
-  Globe,
-  Newspaper,
-  Megaphone,
-  Flag,
-  UserX,
-  LifeBuoy,
-  ClipboardCheck,
-  Heart,
-  ThumbsUp,
-  Edit,
-  Trash2,
-  Plus,
-  Filter,
-  MoreHorizontal,
-  ShieldCheck,
-  Unlock,
-  Inbox,
-  FileWarning,
-  User,
-  Tag,
+  Shield, Users, Building2, CheckCircle, XCircle, Clock, Eye, Search,
+  ChevronDown, Mail, Phone, MapPin, AlertTriangle, Check, X, Loader2,
+  Calendar, DollarSign, TrendingUp, Settings, BarChart3, Activity, Bell,
+  Lock, Percent, Download, RefreshCw, MessageSquare, AlertCircle, Star,
+  CreditCard, Crown, Zap, ArrowUpRight, PieChart, Ban, UserCheck, FileText,
+  Send, Globe, Newspaper, Flag, UserX, LifeBuoy, ClipboardCheck, Edit,
+  Trash2, Filter, ShieldCheck, Unlock, Inbox, FileWarning, User, Tag,
+  Menu, ChevronLeft, LayoutDashboard, Briefcase, Ticket, BookOpen, Gavel,
+  Megaphone, MessageCircle, Plus, ChevronRight, Save,
 } from 'lucide-react';
 import {
-  GlassCard,
-  GlassButton,
-  GlassInput,
-  GlassBadge,
-  FadeIn,
+  GlassCard, GlassButton, GlassInput, GlassBadge, FadeIn, GlassModal, Skeleton,
 } from '@/components/ui/custom/glass-components';
 import { cn } from '@/lib/utils';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import { useAuthStore, useBusinessStore } from '@/store';
+import { useAuthStore } from '@/store';
 import api from '@/lib/api-client';
 import { toast } from 'sonner';
 
-type TabType = 'overview' | 'pending' | 'approved' | 'rejected' | 'users' | 'analytics' | 'disputes' | 'listings' | 'revenue' | 'settings' | 'articles' | 'advertising' | 'reports' | 'blocked' | 'support' | 'claims' | 'page-content';
+// ============================================
+// TYPE DEFINITIONS
+// ============================================
 
-// ============================================
-// ARTICLE/BLOG TYPES
-// ============================================
-interface Article {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string;
-  content: string;
-  author: string;
-  authorId: string;
-  category: string;
-  tags: string[];
-  status: 'DRAFT' | 'PENDING' | 'PUBLISHED' | 'REJECTED';
-  views: number;
-  likes: number;
-  featuredImage?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt?: Date;
-  adminNotes?: string;
+type SectionId = 'overview' | 'revenue' | 'users' | 'businesses' | 'bookings' |
+  'listings' | 'disputes-reports' | 'claims-support' | 'content' | 'settings';
+
+interface AdminUser {
+  id: string; email: string; name: string; phone?: string; role: string;
+  isVerified: boolean; isBanned: boolean; status: string;
+  totalSpent: number; createdAt: string; updatedAt: string;
+  business?: { id: string; name: string };
 }
 
-// ============================================
-// ADVERTISING/MARKETING TYPES
-// ============================================
-interface AdRequest {
-  id: string;
-  businessName: string;
-  businessId: string;
-  contactEmail: string;
-  contactPhone: string;
-  package: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'CUSTOM';
-  duration: number; // days
-  budget: number;
-  startDate: Date;
-  endDate?: Date;
-  status: 'PENDING' | 'APPROVED' | 'ACTIVE' | 'COMPLETED' | 'REJECTED';
-  impressions: number;
-  clicks: number;
-  conversions: number;
-  notes?: string;
-  createdAt: Date;
-  adminNotes?: string;
+interface AdminBusiness {
+  id: string; name: string; description?: string; category: string;
+  city?: string; rating: number; reviewCount: number;
+  verificationStatus: string; isActive: boolean; createdAt: string;
+  owner: { id: string; name: string; email: string };
+  _count: { services: number; staff: number };
 }
 
-// ============================================
-// REPORT TYPES
-// ============================================
-interface Report {
-  id: string;
-  reporterId: string;
-  reporterName: string;
-  reporterEmail: string;
-  reportedUserId: string;
-  reportedUserName: string;
-  reportedUserEmail: string;
-  type: 'USER' | 'BUSINESS' | 'REVIEW' | 'MESSAGE' | 'OTHER';
-  reason: string;
-  description: string;
-  evidence?: string[]; // URLs to screenshots etc
-  status: 'PENDING' | 'INVESTIGATING' | 'RESOLVED' | 'DISMISSED';
-  createdAt: Date;
-  resolvedAt?: Date;
-  adminNotes?: string;
-  action?: 'WARNING' | 'SUSPENSION' | 'BAN' | 'NO_ACTION';
+interface AdminBooking {
+  id: string; status: string; date: string; time: string; totalPrice: number;
+  customerName?: string; customerEmail?: string; serviceName?: string; staffName?: string;
+  createdAt: string;
+  business: { id: string; name: string; category: string };
+  payments: { id: string; amount: number; status: string; method: string }[];
 }
 
-// ============================================
-// BLOCKED USER TYPES
-// ============================================
-interface BlockedUser {
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  blockedBy: string;
-  blockedAt: Date;
-  reason: string;
-  originalReportId?: string;
-  appealStatus: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
-  appealReason?: string;
-  appealDate?: Date;
-  unblockScheduledAt?: Date;
-  adminNotes?: string;
+interface AdminDispute {
+  id: string; bookingId: string; status: string; reason?: string;
+  description?: string; amount: number; createdAt: string; resolvedAt?: string;
+  resolution?: { type: string; amount: number; notes: string };
+  customerName?: string; providerName?: string;
 }
 
-// ============================================
-// SUPPORT MESSAGE TYPES
-// ============================================
-interface SupportMessage {
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  subject: string;
-  message: string;
-  category: 'GENERAL' | 'TECHNICAL' | 'BILLING' | 'COMPLAINT' | 'FEEDBACK' | 'OTHER';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  status: 'OPEN' | 'IN_PROGRESS' | 'WAITING' | 'RESOLVED' | 'CLOSED';
-  replies: { id: string; from: 'USER' | 'ADMIN'; message: string; createdAt: Date; adminName?: string }[];
-  createdAt: Date;
-  updatedAt: Date;
-  assignedTo?: string;
+interface AdminReport {
+  id: string; reporterId: string; reporterName: string;
+  reportedUserId: string; reportedUserName: string;
+  type: string; reason: string; description: string;
+  status: string; createdAt: string; resolvedAt?: string;
 }
 
-// ============================================
-// PAGE CONTENT TYPES
-// ============================================
+interface AdminTicket {
+  id: string; userId: string; userName: string; userEmail: string;
+  subject: string; message: string; category: string; priority: string;
+  status: string; replies: { id: string; from: string; message: string; createdAt: string }[];
+  createdAt: string; updatedAt: string; assignedTo?: string;
+}
+
+interface AdminClaim {
+  id: string; claimNumber: string; customerId: string; customerName: string;
+  providerId: string; providerName: string; bookingId: string;
+  type: string; description: string; amount: number; currency: string;
+  status: string; createdAt: string; reviewedAt?: string;
+  adminNotes?: string; resolution?: string;
+}
+
+interface AdminListing {
+  id: string; businessName: string; businessId: string; plan: string;
+  price: number; status: string; startDate: string; endDate: string;
+  impressions?: number; clicks?: number; createdAt: string;
+}
+
+interface AdminArticle {
+  id: string; title: string; slug: string; excerpt: string;
+  author: string; category: string; status: string;
+  views: number; likes: number; createdAt: string; updatedAt: string;
+}
+
 interface PageContent {
-  id: string;
-  page: 'about' | 'privacy' | 'terms' | 'safety';
-  title: string;
-  content: string;
-  lastUpdated: Date;
-  updatedBy: string;
+  id: string; page: string; title: string; content: string;
+  updatedAt: string; updatedBy: string;
 }
 
-// ============================================
-// INSURANCE CLAIM TYPES
-// ============================================
-interface InsuranceClaim {
-  id: string;
-  claimNumber: string;
-  customerId: string;
-  customerName: string;
-  customerEmail: string;
-  providerId: string;
-  providerName: string;
-  bookingId: string;
-  type: 'INJURY' | 'DAMAGE' | 'ALLERGIC_REACTION' | 'OTHER';
-  description: string;
-  amount: number;
-  currency: string;
-  status: 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'PAID';
-  documents?: string[];
-  incidentDate: Date;
-  submittedAt: Date;
-  reviewedAt?: Date;
-  reviewedBy?: string;
-  adminNotes?: string;
-  resolution?: string;
+interface OverviewData {
+  overview: {
+    totalUsers: number; totalBusinesses: number; totalBookings: number;
+    totalRevenue: number; totalCommissions: number; totalDisputes: number; revenueGrowth: number;
+  };
+  monthly: { revenue: number; commissions: number; bookings: number };
+  pending: {
+    applications: number; reports: number; disputes: number;
+    listings: number; tickets: number; claims: number; ads: number;
+  };
+  revenueChart: { month: string; revenue: number; commissions: number }[];
+  recentPayments: { id: string; amount: number; status: string; method: string; date: string; userName?: string }[];
+  settings: PlatformSettings;
 }
 
-// Dispute type
-interface Dispute {
-  id: string;
-  bookingId: string;
-  customerId: string;
-  customerName: string;
-  providerId: string;
-  providerName: string;
-  type: string;
-  description: string;
-  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
-  createdAt: Date;
-  amount: number;
-  resolution?: { type: 'FULL_REFUND' | 'PARTIAL_REFUND' | 'NO_ACTION'; amount: number; notes: string };
-  resolvedAt?: Date;
+interface PlatformSettings {
+  platformFee: number; minWithdrawal: number; maintenanceMode: boolean;
+  emailNotifications: boolean; smsNotifications: boolean;
+  autoApproveBusinesses: boolean; requireIdVerification: boolean;
+  featuredListingPrice: number; premiumListingPrice: number;
 }
 
 interface AdminDashboardProps {
-  initialTab?: TabType;
+  initialTab?: string;
 }
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+const fmtDate = (v: string | Date | null | undefined) =>
+  v ? new Date(v).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+
+const fmtDateTime = (v: string | Date | null | undefined) =>
+  v ? new Date(v).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
+
+const fmtCurrency = (v: number | null | undefined) => `KSh ${(v || 0).toLocaleString('en-KE')}`;
+
+const statusColor = (status: string) => {
+  const s = (status || '').toUpperCase();
+  if (['ACTIVE', 'APPROVED', 'COMPLETED', 'RESOLVED', 'PAID', 'PUBLISHED'].includes(s)) return 'success';
+  if (['PENDING', 'IN_PROGRESS', 'UNDER_REVIEW', 'SUBMITTED', 'OPEN'].includes(s)) return 'warning';
+  if (['REJECTED', 'SUSPENDED', 'BANNED', 'CANCELLED', 'FAILED', 'DISMISSED'].includes(s)) return 'destructive';
+  return 'default';
+};
+
+// ============================================
+// LOADING SKELETON
+// ============================================
+
+const TableSkeleton = ({ rows = 5 }: { rows?: number }) => (
+  <div className="space-y-3">
+    {Array.from({ length: rows }).map((_, i) => (
+      <div key={i} className="flex gap-4 items-center">
+        <Skeleton className="h-10 w-10 rounded-full" />
+        <Skeleton className="h-4 flex-1" />
+        <Skeleton className="h-6 w-20 rounded-full" />
+        <Skeleton className="h-4 w-24" />
+      </div>
+    ))}
+  </div>
+);
+
+const EmptyState = ({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string }) => (
+  <div className="flex flex-col items-center justify-center py-12 text-center">
+    <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+      <Icon className="h-8 w-8 text-muted-foreground" />
+    </div>
+    <h3 className="font-semibold mb-1">{title}</h3>
+    <p className="text-sm text-muted-foreground max-w-sm">{description}</p>
+  </div>
+);
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'overview' }) => {
   const { user } = useAuthStore();
-  const { businesses } = useBusinessStore();
-
-  // API applications state (replaces Zustand admin store)
-  const [apiApplications, setApiApplications] = useState<any[]>([]);
-  
-  // CRITICAL: Role-based access control - only ADMIN can access
   const isAdmin = user?.roles?.includes('ADMIN') || user?.role === 'ADMIN';
-  
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [showRejectModal, setShowRejectModal] = useState(false);
+
+  // ---- Navigation ----
+  const [activeSection, setActiveSection] = useState<SectionId>(initialTab as SectionId);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // ---- Data states ----
+  const [overviewData, setOverviewData] = useState<OverviewData | null>(null);
+  const [displayUsers, setDisplayUsers] = useState<AdminUser[]>([]);
+  const [displayBusinesses, setDisplayBusinesses] = useState<AdminBusiness[]>([]);
+  const [displayBookings, setDisplayBookings] = useState<AdminBooking[]>([]);
+  const [displayListings, setDisplayListings] = useState<AdminListing[]>([]);
+  const [displayDisputes, setDisplayDisputes] = useState<AdminDispute[]>([]);
+  const [displayReports, setDisplayReports] = useState<AdminReport[]>([]);
+  const [displayTickets, setDisplayTickets] = useState<AdminTicket[]>([]);
+  const [displayClaims, setDisplayClaims] = useState<AdminClaim[]>([]);
+  const [displayArticles, setDisplayArticles] = useState<AdminArticle[]>([]);
+  const [displayPageContent, setDisplayPageContent] = useState<PageContent[]>([]);
+  const [settings, setSettings] = useState<PlatformSettings>({
+    platformFee: 15, minWithdrawal: 50, maintenanceMode: false,
+    emailNotifications: true, smsNotifications: false,
+    autoApproveBusinesses: false, requireIdVerification: true,
+    featuredListingPrice: 99, premiumListingPrice: 49,
+  });
+
+  // ---- UI states ----
+  const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedDispute, setSelectedDispute] = useState<string | null>(null);
-  const [disputeResponse, setDisputeResponse] = useState('');
+  const [dataFetched, setDataFetched] = useState<Record<string, boolean>>({});
+
+  // ---- Filter states ----
+  const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('');
+  const [bizStatusFilter, setBizStatusFilter] = useState('');
+  const [bizSearch, setBizSearch] = useState('');
+  const [bookingStatusFilter, setBookingStatusFilter] = useState('');
+  const [bookingSearch, setBookingSearch] = useState('');
+  const [disputeFilter, setDisputeFilter] = useState('all');
+  const [reportFilter, setReportFilter] = useState('all');
+  const [ticketStatusFilter, setTicketStatusFilter] = useState('all');
+  const [claimStatusFilter, setClaimStatusFilter] = useState('all');
+
+  // ---- Modal states ----
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectType, setRejectType] = useState<'business' | 'listing'>('business');
+
   const [showDisputeModal, setShowDisputeModal] = useState(false);
-  const [disputes, setDisputes] = useState<Dispute[]>([]);
-  const [premiumListings, setPremiumListings] = useState<any[]>([]);
-  const [showResolveModal, setShowResolveModal] = useState(false);
-  const [resolutionType, setResolutionType] = useState<'FULL_REFUND' | 'PARTIAL_REFUND' | 'NO_ACTION'>('FULL_REFUND');
+  const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>(null);
+  const [disputeResponse, setDisputeResponse] = useState('');
+  const [resolutionType, setResolutionType] = useState('FULL_REFUND');
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [partialRefundAmount, setPartialRefundAmount] = useState(0);
-  const [settingsSaved, setSettingsSaved] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [ticketReply, setTicketReply] = useState('');
+
   const [showUserModal, setShowUserModal] = useState(false);
-  const [selectedListing, setSelectedListing] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
   const [showListingModal, setShowListingModal] = useState(false);
-  const [listingEditData, setListingEditData] = useState({
-    plan: 'FEATURED',
-    price: 99,
-    endDate: '',
-  });
+  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+  const [listingEditData, setListingEditData] = useState({ plan: 'FEATURED', price: 99, endDate: '' });
 
-  // Settings state
-  const [settings, setSettings] = useState({
-    platformFee: 15,
-    minWithdrawal: 50,
-    maintenanceMode: false,
-    emailNotifications: true,
-    smsNotifications: false,
-    autoApprove: false,
-    requireIdVerification: true,
-    featuredListingPrice: 99,
-    premiumListingPrice: 49,
-  });
+  const [showContentModal, setShowContentModal] = useState(false);
+  const [editingPage, setEditingPage] = useState<PageContent | null>(null);
+  const [contentEditTitle, setContentEditTitle] = useState('');
+  const [contentEditBody, setContentEditBody] = useState('');
 
-  // API Data states
-  const [apiUsers, setApiUsers] = useState<any[]>([]);
-  const [apiReports, setApiReports] = useState<Report[]>([]);
-  const [apiBans, setApiBans] = useState<BlockedUser[]>([]);
-  const [apiTickets, setApiTickets] = useState<SupportMessage[]>([]);
-  const [apiClaims, setApiClaims] = useState<InsuranceClaim[]>([]);
-  const [apiArticles, setApiArticles] = useState<Article[]>([]);
-  const [apiAds, setApiAds] = useState<AdRequest[]>([]);
-  const [apiListings, setApiListings] = useState<any[]>([]);
-  const [apiDisputes, setApiDisputes] = useState<Dispute[]>([]);
-  const [apiPageContent, setApiPageContent] = useState<PageContent[]>([]);
-  const [overviewData, setOverviewData] = useState<{
-    overview: { totalUsers: number; totalBusinesses: number; totalBookings: number; totalRevenue: number; totalCommissions: number; revenueGrowth: number };
-    monthly: { revenue: number; commissions: number; bookings: number };
-    pending: { applications: number; reports: number; disputes: number; listings: number; tickets: number; claims: number; ads: number };
-    revenueChart: { month: string; revenue: number }[];
-    settings: typeof settings;
-  } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [dataFetched, setDataFetched] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
+  const [claimNotes, setClaimNotes] = useState('');
+  const [claimAction, setClaimAction] = useState('');
 
-  // Fetch overview data
+  // ---- Data fetching ----
+
   const fetchOverview = useCallback(async () => {
     try {
-      const data = await api.request<Record<string, any>>('/admin/overview');
-      const d = data.data;
-      setOverviewData(d as NonNullable<typeof overviewData>);
-      if (d?.settings) {
-        setSettings({
-          platformFee: data.data.settings.platformFee || 15,
-          minWithdrawal: data.data.settings.minWithdrawal || 50,
-          maintenanceMode: data.data.settings.maintenanceMode || false,
-          emailNotifications: data.data.settings.emailNotifications ?? true,
-          smsNotifications: data.data.settings.smsNotifications || false,
-          autoApprove: data.data.settings.autoApproveBusinesses || false,
-          requireIdVerification: data.data.settings.requireIdVerification ?? true,
-          featuredListingPrice: data.data.settings.featuredListingPrice || 99,
-          premiumListingPrice: data.data.settings.premiumListingPrice || 49,
-        });
+      const res = await api.request<Record<string, any>>('/admin/overview');
+      const d = res.data;
+      if (d) {
+        setOverviewData(d as OverviewData);
+        if (d.settings) {
+          setSettings({
+            platformFee: d.settings.platformFee ?? 15,
+            minWithdrawal: d.settings.minWithdrawal ?? 50,
+            maintenanceMode: d.settings.maintenanceMode ?? false,
+            emailNotifications: d.settings.emailNotifications ?? true,
+            smsNotifications: d.settings.smsNotifications ?? false,
+            autoApproveBusinesses: d.settings.autoApproveBusinesses ?? false,
+            requireIdVerification: d.settings.requireIdVerification ?? true,
+            featuredListingPrice: d.settings.featuredListingPrice ?? 99,
+            premiumListingPrice: d.settings.premiumListingPrice ?? 49,
+          });
+        }
       }
-    } catch (error) {
-      console.error('Failed to fetch overview:', error);
+    } catch (err) {
+      console.error('Failed to fetch overview:', err);
     }
   }, []);
 
-  // Fetch data on mount and when tab changes
-  useEffect(() => {
-    if (!dataFetched) {
-      setIsLoading(true);
-      fetchOverview().finally(() => {
-        setIsLoading(false);
-        setDataFetched(true);
-      });
-    }
-  }, [dataFetched, fetchOverview]);
-
-  // Fetch tab-specific data
-  useEffect(() => {
-    const fetchTabData = async () => {
-      try {
-        switch (activeTab) {
-          case 'users':
-            {
-              const res = await api.request<Record<string, any>>('/admin/users');
-              setApiUsers(res.data?.users || []);
-            }
-            break;
-          case 'reports':
-            {
-              const res = await api.request<Record<string, any>>('/admin/reports');
-              setApiReports(res.data?.reports || []);
-            }
-            break;
-          case 'blocked':
-            {
-              const res = await api.request<Record<string, any>>('/admin/bans');
-              setApiBans(res.data?.bans || []);
-            }
-            break;
-          case 'support':
-            {
-              const res = await api.request<Record<string, any>>('/admin/tickets');
-              setApiTickets(res.data?.tickets || []);
-            }
-            break;
-          case 'claims':
-            {
-              const res = await api.request<Record<string, any>>('/admin/claims');
-              setApiClaims(res.data?.claims || []);
-            }
-            break;
-          case 'articles':
-            {
-              const res = await api.request<Record<string, any>>('/articles', { params: { admin: true } });
-              setApiArticles(res.data?.articles || []);
-            }
-            break;
-          case 'advertising':
-            {
-              const res = await api.request<Record<string, any>>('/admin/advertisements');
-              setApiAds(res.data?.advertisements || []);
-            }
-            break;
-          case 'listings':
-            {
-              const res = await api.request<Record<string, any>>('/admin/listings');
-              setApiListings(res.data?.listings || []);
-            }
-            break;
-          case 'disputes':
-            {
-              const res = await api.request<Record<string, any>>('/admin/disputes');
-              setApiDisputes(res.data?.disputes || []);
-            }
-            break;
-          case 'page-content':
-            {
-              const res = await api.request<Record<string, any>>('/admin/page-content');
-              setApiPageContent(res.data?.pages || []);
-            }
-            break;
-          case 'pending':
-          case 'approved':
-          case 'rejected':
-            {
-              const statusMap: Record<string, string> = { pending: 'PENDING', approved: 'APPROVED', rejected: 'REJECTED' };
-              const res = await api.request<Record<string, any>>('/admin/businesses', { params: { status: statusMap[activeTab] } });
-              setApiApplications(res.data?.data || []);
-            }
-            break;
+  const fetchSectionData = useCallback(async (section: SectionId) => {
+    setIsLoading(true);
+    try {
+      switch (section) {
+        case 'overview':
+          await fetchOverview();
+          break;
+        case 'users': {
+          const params: Record<string, string> = {};
+          if (userSearch) params.search = userSearch;
+          if (userRoleFilter) params.role = userRoleFilter;
+          const res = await api.request<Record<string, any>>('/admin/users', { params });
+          setDisplayUsers(res.data?.users || []);
+          break;
         }
-      } catch (error) {
-        console.error(`Failed to fetch ${activeTab} data:`, error);
+        case 'businesses': {
+          const params: Record<string, string> = {};
+          if (bizStatusFilter) params.status = bizStatusFilter;
+          if (bizSearch) params.query = bizSearch;
+          const res = await api.request<Record<string, any>>('/admin/businesses', { params });
+          setDisplayBusinesses(res.data?.data || []);
+          break;
+        }
+        case 'bookings': {
+          const params: Record<string, string> = {};
+          if (bookingStatusFilter) params.status = bookingStatusFilter;
+          if (bookingSearch) params.search = bookingSearch;
+          const res = await api.request<Record<string, any>>('/admin/bookings', { params });
+          setDisplayBookings(res.data?.bookings || []);
+          break;
+        }
+        case 'listings': {
+          const res = await api.request<Record<string, any>>('/admin/listings');
+          setDisplayListings(res.data?.listings || []);
+          break;
+        }
+        case 'disputes-reports': {
+          const [disputeRes, reportRes] = await Promise.all([
+            api.request<Record<string, any>>('/admin/disputes'),
+            api.request<Record<string, any>>('/admin/reports'),
+          ]);
+          setDisplayDisputes(disputeRes.data?.disputes || []);
+          setDisplayReports(reportRes.data?.reports || []);
+          break;
+        }
+        case 'claims-support': {
+          const [claimRes, ticketRes] = await Promise.all([
+            api.request<Record<string, any>>('/admin/claims'),
+            api.request<Record<string, any>>('/admin/tickets'),
+          ]);
+          setDisplayClaims(claimRes.data?.claims || []);
+          setDisplayTickets(ticketRes.data?.tickets || []);
+          break;
+        }
+        case 'content': {
+          const [articleRes, pageRes] = await Promise.all([
+            api.request<Record<string, any>>('/articles', { params: { admin: true } }),
+            api.request<Record<string, any>>('/admin/page-content'),
+          ]);
+          setDisplayArticles(articleRes.data?.articles || []);
+          setDisplayPageContent(pageRes.data?.pages || []);
+          break;
+        }
+        case 'settings': {
+          await fetchOverview();
+          break;
+        }
+        case 'revenue': {
+          await fetchOverview();
+          break;
+        }
       }
-    };
-
-    if (dataFetched && activeTab !== 'overview' && activeTab !== 'settings') {
-      fetchTabData();
-    }
-  }, [activeTab, dataFetched]);
-
-  // Early return AFTER all hooks
-  if (!user || !isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center py-8 px-4">
-        <GlassCard className="p-8 text-center max-w-md">
-          <Shield className="h-16 w-16 text-primary mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-          <p className="text-muted-foreground mb-4">
-            You need admin privileges to access this dashboard.
-          </p>
-          <GlassButton variant="primary" onClick={() => window.location.href = '/'}>
-            Go to Home
-          </GlassButton>
-        </GlassCard>
-      </div>
-    );
-  }
-
-  // Use API data
-  const displayUsers = apiUsers;
-  const displayReports = apiReports;
-  const displayBans = apiBans;
-  const displayTickets = apiTickets;
-  const displayClaims = apiClaims;
-  const displayArticles = apiArticles;
-  const displayAds = apiAds;
-  const displayListings = apiListings;
-  const displayDisputes = apiDisputes;
-  const displayPageContent = apiPageContent;
-
-  // Handle user suspend/activate
-  const handleToggleUserStatus = async (userId: string) => {
-    setIsProcessing(true);
-    try {
-      const foundUser = displayUsers.find(u => u.id === userId);
-      const action = foundUser?.status === 'ACTIVE' ? 'suspend' : 'activate';
-      
-      await api.request('/admin/users', {
-        method: 'PUT',
-        body: JSON.stringify({ userId, action, reason: 'Admin action', adminId: user?.id || 'admin' }),
-      });
-      
-      setApiUsers(prev => prev.map(u => 
-        u.id === userId 
-          ? { ...u, status: u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' }
-          : u
-      ));
-      toast.success(`User ${action === 'suspend' ? 'suspended' : 'activated'} successfully`);
-    } catch (error) {
-      console.error('Failed to update user status:', error);
+      setDataFetched(prev => ({ ...prev, [section]: true }));
+    } catch (err) {
+      console.error(`Failed to fetch ${section}:`, err);
+      toast.error(`Failed to load ${section} data`);
     } finally {
-      setIsProcessing(false);
+      setIsLoading(false);
     }
-  };
+  }, [fetchOverview, userSearch, userRoleFilter, bizStatusFilter, bizSearch, bookingStatusFilter, bookingSearch]);
 
-  // Handle view user
-  const handleViewUser = (userId: string) => {
-    setSelectedUser(userId);
-    setShowUserModal(true);
-  };
-
-  // Handle view listing details
-  const handleViewListing = (listingId: string) => {
-    setSelectedListing(listingId);
-    setShowListingModal(true);
-  };
-
-  // Handle edit listing
-  const handleEditListing = (listingId: string) => {
-    const listing = premiumListings.find(l => l.id === listingId);
-    if (listing) {
-      setSelectedListing(listingId);
-      setListingEditData({
-        plan: listing.plan,
-        price: listing.price,
-        endDate: listing.endDate.toISOString().split('T')[0],
-      });
-      setShowListingModal(true);
+  // Fetch overview on mount, then fetch section data when section changes
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (!dataFetched['overview']) {
+      fetchOverview();
+      setDataFetched(prev => ({ ...prev, overview: true }));
     }
-  };
+  }, [isAdmin, fetchOverview, dataFetched['overview']]);
 
-  // Handle save listing changes
-  const handleSaveListing = async () => {
-    if (!selectedListing) return;
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchSectionData(activeSection);
+  }, [activeSection, isAdmin]);
+
+  // Re-fetch users when search/filter changes
+  useEffect(() => {
+    if (activeSection === 'users' && dataFetched['users']) {
+      fetchSectionData('users');
+    }
+  }, [userSearch, userRoleFilter]);
+
+  useEffect(() => {
+    if (activeSection === 'businesses' && dataFetched['businesses']) {
+      fetchSectionData('businesses');
+    }
+  }, [bizStatusFilter, bizSearch]);
+
+  useEffect(() => {
+    if (activeSection === 'bookings' && dataFetched['bookings']) {
+      fetchSectionData('bookings');
+    }
+  }, [bookingStatusFilter, bookingSearch]);
+
+  // ---- Action handlers ----
+
+  const handleApproveBusiness = async (id: string) => {
     setIsProcessing(true);
     try {
-      await api.request('/admin/listings', {
-        method: 'PUT',
-        body: JSON.stringify({
-          listingId: selectedListing,
-          plan: listingEditData.plan,
-          price: listingEditData.price,
-          endDate: listingEditData.endDate,
-        }),
-      });
-      setApiListings(prev => prev.map(l =>
-        l.id === selectedListing
-          ? {
-              ...l,
-              plan: listingEditData.plan as 'FEATURED' | 'PREMIUM',
-              price: listingEditData.price,
-              endDate: new Date(listingEditData.endDate),
-            }
-          : l
-      ));
-      setShowListingModal(false);
-      setSelectedListing(null);
-      toast.success('Listing updated successfully');
-    } catch (error) {
-      console.error('Failed to save listing:', error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Handle send dispute response
-  const handleSendDisputeResponse = async () => {
-    if (!selectedDispute || !disputeResponse.trim()) return;
-    setIsProcessing(true);
-    try {
-      await api.request('/admin/disputes', {
-        method: 'PUT',
-        body: JSON.stringify({
-          disputeId: selectedDispute,
-          status: 'IN_PROGRESS',
-          adminMessage: disputeResponse,
-        }),
-      });
-      setApiDisputes(prev => prev.map(d =>
-        d.id === selectedDispute
-          ? { ...d, status: 'IN_PROGRESS' as const }
-          : d
-      ));
-      setShowDisputeModal(false);
-      setDisputeResponse('');
-      setSelectedDispute(null);
-      toast.success('Response sent successfully');
-    } catch (error) {
-      console.error('Failed to send response:', error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Filter applications by status (from API data)
-  const pendingApps = apiApplications.filter((app: any) => app.verificationStatus === 'PENDING');
-  const approvedApps = apiApplications.filter((app: any) => app.verificationStatus === 'APPROVED');
-  const rejectedApps = apiApplications.filter((app: any) => app.verificationStatus === 'REJECTED');
-
-  // Filter by search
-  const filterBySearch = (apps: any[]) => {
-    if (!searchQuery) return apps;
-    const query = searchQuery.toLowerCase();
-    return apps.filter(app => 
-      (app.name || app.businessName || '').toLowerCase().includes(query) ||
-      (app.owner?.name || app.userName || '').toLowerCase().includes(query) ||
-      (app.owner?.email || app.userEmail || '').toLowerCase().includes(query)
-    );
-  };
-
-  // Stats - use API data when available
-  const stats = {
-    totalUsers: overviewData?.overview.totalUsers || displayUsers.length,
-    totalBusinesses: overviewData?.overview.totalBusinesses || businesses.length || 0,
-    pendingApprovals: overviewData?.pending.applications || pendingApps.length,
-    totalRevenue: overviewData?.overview.totalRevenue || 0,
-    activeBookings: overviewData?.monthly.bookings || 0,
-    monthlyGrowth: overviewData?.overview.revenueGrowth || 0,
-    totalTransactions: 0,
-    // TODO: Fetch avg rating from API when available
-    avgRating: 0,
-    openDisputes: overviewData?.pending.disputes || displayDisputes.filter(d => d.status === 'OPEN').length,
-    activeListings: overviewData?.pending.listings || displayListings.filter(l => l.status === 'ACTIVE').length,
-  };
-
-  const handleApprove = async (applicationId: string) => {
-    setIsProcessing(true);
-    try {
-      await api.updateBusinessStatus(applicationId, 'APPROVED');
-      setApiApplications(prev => prev.map(app =>
-        app.id === applicationId
-          ? { ...app, verificationStatus: 'APPROVED' }
-          : app
-      ));
-      setSelectedApplication(null);
+      await api.updateBusinessStatus(id, 'APPROVED');
+      setDisplayBusinesses(prev => prev.map(b => b.id === id ? { ...b, verificationStatus: 'APPROVED' } : b));
       toast.success('Business approved successfully');
-    } catch (error) {
-      console.error('Failed to approve:', error);
+    } catch (err) {
+      console.error('Failed to approve business:', err);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleReject = async () => {
-    if (!selectedApplication || !rejectReason.trim()) return;
-    
+  const openRejectModal = (id: string, type: 'business' | 'listing') => {
+    setRejectTarget(id);
+    setRejectType(type);
+    setRejectReason('');
+    setShowRejectModal(true);
+  };
+
+  const handleRejectBusiness = async () => {
+    if (!rejectTarget || !rejectReason.trim()) { toast.error('Please provide a rejection reason'); return; }
     setIsProcessing(true);
     try {
-      await api.updateBusinessStatus(selectedApplication, 'REJECTED', rejectReason);
-      setApiApplications(prev => prev.map(app =>
-        app.id === selectedApplication
-          ? { ...app, verificationStatus: 'REJECTED', rejectionReason: rejectReason }
-          : app
+      await api.updateBusinessStatus(rejectTarget, 'REJECTED', rejectReason);
+      setDisplayBusinesses(prev => prev.map(b =>
+        b.id === rejectTarget ? { ...b, verificationStatus: 'REJECTED' } : b
       ));
       setShowRejectModal(false);
-      setSelectedApplication(null);
+      setRejectTarget(null);
       setRejectReason('');
       toast.success('Business rejected');
-    } catch (error) {
-      console.error('Failed to reject:', error);
+    } catch (err) {
+      console.error('Failed to reject business:', err);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Handle dispute resolution
-  const handleResolveDispute = async () => {
-    if (!selectedDispute) return;
-    
+  const handleToggleUser = async (userId: string) => {
     setIsProcessing(true);
     try {
-      await api.request('/admin/disputes', {
+      const u = displayUsers.find(u => u.id === userId);
+      const action = u?.status === 'ACTIVE' ? 'suspend' : 'activate';
+      await api.request('/admin/users', {
         method: 'PUT',
-        body: JSON.stringify({
-          disputeId: selectedDispute,
-          status: 'RESOLVED',
-          resolution: {
-            type: resolutionType,
-            amount: resolutionType === 'PARTIAL_REFUND' ? partialRefundAmount : displayDisputes.find(d => d.id === selectedDispute)?.amount || 0,
-            notes: resolutionNotes,
-          },
-        }),
+        body: JSON.stringify({ userId, action, reason: 'Admin action' }),
       });
-      
-      setApiDisputes(prev => prev.map(d => 
-        d.id === selectedDispute 
-          ? { 
-              ...d, 
-              status: 'RESOLVED' as const,
-              resolution: {
-                type: resolutionType,
-                amount: resolutionType === 'PARTIAL_REFUND' ? partialRefundAmount : d.amount,
-                notes: resolutionNotes,
-              }
-            } 
-          : d
+      setDisplayUsers(prev => prev.map(u =>
+        u.id === userId ? { ...u, status: u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' } : u
       ));
-      setShowResolveModal(false);
-      setSelectedDispute(null);
+      toast.success(`User ${action === 'suspend' ? 'suspended' : 'activated'} successfully`);
+    } catch (err) {
+      console.error('Failed to toggle user:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDisputeAction = async (action: 'respond' | 'resolve') => {
+    if (!selectedDisputeId) return;
+    setIsProcessing(true);
+    try {
+      if (action === 'respond') {
+        if (!disputeResponse.trim()) { toast.error('Please enter a message'); setIsProcessing(false); return; }
+        await api.request('/admin/disputes', {
+          method: 'PUT',
+          body: JSON.stringify({ disputeId: selectedDisputeId, status: 'IN_PROGRESS', adminMessage: disputeResponse }),
+        });
+        setDisplayDisputes(prev => prev.map(d =>
+          d.id === selectedDisputeId ? { ...d, status: 'IN_PROGRESS' } : d
+        ));
+        toast.success('Response sent');
+      } else {
+        const dispute = displayDisputes.find(d => d.id === selectedDisputeId);
+        const amount = resolutionType === 'PARTIAL_REFUND' ? partialRefundAmount : (dispute?.amount || 0);
+        await api.request('/admin/disputes', {
+          method: 'PUT',
+          body: JSON.stringify({
+            disputeId: selectedDisputeId, status: 'RESOLVED',
+            resolution: { type: resolutionType, amount, notes: resolutionNotes },
+          }),
+        });
+        setDisplayDisputes(prev => prev.map(d =>
+          d.id === selectedDisputeId ? { ...d, status: 'RESOLVED', resolution: { type: resolutionType, amount, notes: resolutionNotes } } : d
+        ));
+        toast.success('Dispute resolved');
+      }
+      setShowDisputeModal(false);
+      setSelectedDisputeId(null);
+      setDisputeResponse('');
       setResolutionNotes('');
       setPartialRefundAmount(0);
-      toast.success('Dispute resolved successfully');
-    } catch (error) {
-      console.error('Failed to resolve dispute:', error);
+    } catch (err) {
+      console.error('Failed to process dispute:', err);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Handle refund
-  const handleRefund = async (disputeId: string, amount: number) => {
+  const handleTicketReply = async () => {
+    if (!selectedTicketId || !ticketReply.trim()) { toast.error('Please enter a reply'); return; }
     setIsProcessing(true);
     try {
-      await api.request('/admin/disputes', {
+      await api.request('/admin/tickets', {
         method: 'PUT',
-        body: JSON.stringify({
-          disputeId,
-          status: 'RESOLVED',
-          resolution: { type: 'FULL_REFUND', amount, notes: 'Full refund processed' },
-        }),
+        body: JSON.stringify({ ticketId: selectedTicketId, reply: ticketReply, status: 'IN_PROGRESS' }),
       });
-      setApiDisputes(prev => prev.map(d => 
-        d.id === disputeId 
-          ? { ...d, status: 'RESOLVED' as const, resolution: { type: 'FULL_REFUND', amount, notes: 'Full refund processed' } }
-          : d
+      setDisplayTickets(prev => prev.map(t =>
+        t.id === selectedTicketId ? { ...t, status: 'IN_PROGRESS' } : t
       ));
-      toast.success('Full refund processed successfully');
-    } catch (error) {
-      console.error('Failed to process refund:', error);
+      setShowTicketModal(false);
+      setSelectedTicketId(null);
+      setTicketReply('');
+      toast.success('Reply sent');
+    } catch (err) {
+      console.error('Failed to send reply:', err);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Handle listing approval
-  const handleApproveListing = async (listingId: string) => {
+  const handleClaimAction = async () => {
+    if (!selectedClaimId || !claimAction) { toast.error('Please select an action'); return; }
+    setIsProcessing(true);
+    try {
+      await api.request('/admin/claims', {
+        method: 'PUT',
+        body: JSON.stringify({ claimId: selectedClaimId, status: claimAction, adminNotes: claimNotes }),
+      });
+      setDisplayClaims(prev => prev.map(c =>
+        c.id === selectedClaimId ? { ...c, status: claimAction, adminNotes: claimNotes } : c
+      ));
+      setShowClaimModal(false);
+      setSelectedClaimId(null);
+      setClaimNotes('');
+      setClaimAction('');
+      toast.success('Claim updated');
+    } catch (err) {
+      console.error('Failed to update claim:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSaveListing = async () => {
+    if (!selectedListingId) return;
     setIsProcessing(true);
     try {
       await api.request('/admin/listings', {
         method: 'PUT',
-        body: JSON.stringify({ listingId, status: 'ACTIVE' }),
+        body: JSON.stringify({ listingId: selectedListingId, ...listingEditData }),
       });
-      setApiListings(prev => prev.map(l => 
-        l.id === listingId ? { ...l, status: 'ACTIVE' as const } : l
+      setDisplayListings(prev => prev.map(l =>
+        l.id === selectedListingId ? { ...l, ...listingEditData } : l
       ));
-      toast.success('Listing approved successfully');
-    } catch (error) {
-      console.error('Failed to approve listing:', error);
+      setShowListingModal(false);
+      setSelectedListingId(null);
+      toast.success('Listing updated');
+    } catch (err) {
+      console.error('Failed to save listing:', err);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Handle settings save
+  const handleListingAction = async (listingId: string, status: string) => {
+    setIsProcessing(true);
+    try {
+      await api.request('/admin/listings', {
+        method: 'PUT',
+        body: JSON.stringify({ listingId, status }),
+      });
+      setDisplayListings(prev => prev.map(l =>
+        l.id === listingId ? { ...l, status } : l
+      ));
+      toast.success(`Listing ${status.toLowerCase()}`);
+    } catch (err) {
+      console.error('Failed to update listing:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSavePageContent = async () => {
+    if (!editingPage || !contentEditTitle.trim()) return;
+    setIsProcessing(true);
+    try {
+      await api.request('/admin/page-content', {
+        method: 'PUT',
+        body: JSON.stringify({ page: editingPage.page, title: contentEditTitle, content: contentEditBody }),
+      });
+      setDisplayPageContent(prev => prev.map(p =>
+        p.id === editingPage.id ? { ...p, title: contentEditTitle, content: contentEditBody } : p
+      ));
+      setShowContentModal(false);
+      setEditingPage(null);
+      toast.success('Page content saved');
+    } catch (err) {
+      console.error('Failed to save page content:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleSaveSettings = async () => {
     setIsProcessing(true);
     try {
       await api.request('/admin/settings', {
         method: 'PUT',
-        body: JSON.stringify({
-          platformFee: settings.platformFee,
-          minWithdrawal: settings.minWithdrawal,
-          featuredListingPrice: settings.featuredListingPrice,
-          premiumListingPrice: settings.premiumListingPrice,
-          maintenanceMode: settings.maintenanceMode,
-          emailNotifications: settings.emailNotifications,
-          smsNotifications: settings.smsNotifications,
-          autoApproveBusinesses: settings.autoApprove,
-          requireIdVerification: settings.requireIdVerification,
-        }),
+        body: JSON.stringify(settings),
       });
-      setSettingsSaved(true);
-      setTimeout(() => setSettingsSaved(false), 3000);
       toast.success('Settings saved successfully');
-    } catch (error) {
-      console.error('Failed to save settings:', error);
+    } catch (err) {
+      console.error('Failed to save settings:', err);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Handle user suspend
-  const handleSuspendUser = async (userId: string) => {
-    setIsProcessing(true);
-    try {
-      await api.request('/admin/users', {
-        method: 'PUT',
-        body: JSON.stringify({ userId, action: 'suspend', reason: 'Admin action', adminId: user?.id || 'admin' }),
-      });
-      setApiUsers(prev => prev.map(u =>
-        u.id === userId ? { ...u, status: 'SUSPENDED' } : u
-      ));
-      toast.success('User suspended successfully');
-    } catch (error) {
-      console.error('Failed to suspend user:', error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // ---- Sidebar configuration ----
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: TrendingUp },
-    { id: 'pending', label: 'Pending', icon: Clock, count: pendingApps.length },
-    { id: 'approved', label: 'Approved', icon: CheckCircle },
-    { id: 'rejected', label: 'Rejected', icon: XCircle },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'disputes', label: 'Disputes', icon: AlertTriangle, count: stats.openDisputes },
-    { id: 'listings', label: 'Premium Listings', icon: Crown, count: stats.activeListings },
-    { id: 'articles', label: 'Articles', icon: Newspaper, count: displayArticles.filter(a => a.status === 'PENDING').length },
-    { id: 'advertising', label: 'Advertising', icon: Megaphone, count: displayAds.filter(a => a.status === 'PENDING').length },
-    { id: 'reports', label: 'Reports', icon: Flag, count: overviewData?.pending.reports || displayReports.filter(r => r.status === 'PENDING').length },
-    { id: 'blocked', label: 'Blocked', icon: Ban, count: displayBans.length },
-    { id: 'support', label: 'Support', icon: LifeBuoy, count: overviewData?.pending.tickets || displayTickets.filter(s => s.status === 'OPEN').length },
-    { id: 'claims', label: 'Claims', icon: FileWarning, count: overviewData?.pending.claims || displayClaims.filter(c => c.status === 'SUBMITTED' || c.status === 'UNDER_REVIEW').length },
-    { id: 'page-content', label: 'Pages', icon: Globe },
-    { id: 'revenue', label: 'Revenue', icon: DollarSign },
-    { id: 'settings', label: 'Settings', icon: Settings },
+  const sidebarGroups = [
+    {
+      label: 'Analytics',
+      items: [
+        { id: 'overview' as SectionId, label: 'Overview', icon: LayoutDashboard },
+        { id: 'revenue' as SectionId, label: 'Revenue', icon: DollarSign },
+      ],
+    },
+    {
+      label: 'Management',
+      items: [
+        { id: 'users' as SectionId, label: 'Users', icon: Users },
+        { id: 'businesses' as SectionId, label: 'Businesses', icon: Building2, count: overviewData?.pending.applications },
+        { id: 'bookings' as SectionId, label: 'Bookings', icon: Calendar },
+        { id: 'listings' as SectionId, label: 'Featured Listings', icon: Crown },
+      ],
+    },
+    {
+      label: 'Operations',
+      items: [
+        { id: 'disputes-reports' as SectionId, label: 'Disputes & Reports', icon: Gavel, count: (overviewData?.pending.disputes || 0) + (overviewData?.pending.reports || 0) },
+        { id: 'claims-support' as SectionId, label: 'Claims & Support', icon: LifeBuoy, count: (overviewData?.pending.claims || 0) + (overviewData?.pending.tickets || 0) },
+        { id: 'content' as SectionId, label: 'Content', icon: BookOpen },
+        { id: 'settings' as SectionId, label: 'Settings', icon: Settings },
+      ],
+    },
   ];
 
-  const getFilteredApps = () => {
-    switch (activeTab) {
-      case 'pending':
-        return filterBySearch(pendingApps);
-      case 'approved':
-        return filterBySearch(approvedApps);
-      case 'rejected':
-        return filterBySearch(rejectedApps);
-      default:
-        return [];
-    }
-  };
+  // ---- Access denied ----
+  if (!user || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center py-8 px-4">
+        <GlassCard className="p-8 text-center max-w-md" hover={false}>
+          <Shield className="h-16 w-16 text-primary mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-muted-foreground mb-4">You need admin privileges to access this dashboard.</p>
+          <GlassButton variant="primary" onClick={() => (window.location.href = '/')}>Go to Home</GlassButton>
+        </GlassCard>
+      </div>
+    );
+  }
 
-  const handleSettingChange = (key: keyof typeof settings, value: number | boolean) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  };
+  // ---- Section title helper ----
+  const sectionTitle = sidebarGroups.flatMap(g => g.items).find(i => i.id === activeSection)?.label || '';
 
-  return (
-    <div className="min-h-screen py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  // ============================================
+  // RENDER: SIDEBAR
+  // ============================================
+
+  const renderSidebar = () => (
+    <>
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar */}
+      <aside className={cn(
+        'fixed top-0 left-0 z-50 h-full flex flex-col transition-all duration-300',
+        'bg-card/80 backdrop-blur-xl border-r border-white/10',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        'lg:translate-x-0',
+        sidebarCollapsed ? 'w-[72px]' : 'w-[260px]',
+      )}>
         {/* Header */}
-        <FadeIn>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-            <div className="flex items-start gap-3">
-              <BrandLogo variant="icon" size={40} className="hidden sm:block shrink-0 mt-1" />
-              <div>
-                <h1 className="text-3xl font-bold">
-                  <span className="gradient-text">Admin</span> Dashboard
-                </h1>
-                <p className="text-muted-foreground">Manage businesses, users, disputes, and platform settings</p>
+        <div className={cn(
+          'flex items-center h-16 px-4 border-b border-white/10 shrink-0',
+          sidebarCollapsed ? 'justify-center' : 'justify-between',
+        )}>
+          {!sidebarCollapsed && (
+            <div className="flex items-center gap-2">
+              <BrandLogo variant="icon" size={28} className="pointer-events-none" />
+              <span className="font-bold text-lg gradient-text">Styra</span>
+            </div>
+          )}
+          {sidebarCollapsed && (
+            <BrandLogo variant="icon" size={28} className="pointer-events-none" />
+          )}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:flex p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronLeft className={cn('h-4 w-4 transition-transform', sidebarCollapsed && 'rotate-180')} />
+            </button>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Nav groups */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+          {sidebarGroups.map((group) => (
+            <div key={group.label}>
+              {!sidebarCollapsed && (
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-3 mb-2">
+                  {group.label}
+                </p>
+              )}
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = activeSection === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => { setActiveSection(item.id); setSidebarOpen(false); }}
+                      className={cn(
+                        'w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
+                        sidebarCollapsed && 'justify-center px-0',
+                        isActive
+                          ? 'gradient-bg text-white shadow-glow-sm'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                      )}
+                      title={sidebarCollapsed ? item.label : undefined}
+                    >
+                      <item.icon className={cn('h-[18px] w-[18px] shrink-0', isActive && 'text-white')} />
+                      {!sidebarCollapsed && (
+                        <>
+                          <span className="flex-1 text-left">{item.label}</span>
+                          {item.count !== undefined && item.count > 0 && (
+                            <span className={cn(
+                              'min-w-[20px] h-5 flex items-center justify-center rounded-full text-[11px] font-bold px-1.5',
+                              isActive ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary',
+                            )}>
+                              {item.count}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        {!sidebarCollapsed && (
+          <div className="p-4 border-t border-white/10 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center">
-                <Shield className="h-5 w-5 text-white" />
+              <div className="w-9 h-9 rounded-full gradient-bg flex items-center justify-center text-white font-bold text-sm">
+                {user?.name?.charAt(0) || 'A'}
               </div>
-              <div>
-                <p className="text-sm font-medium">{user?.name || 'Admin'}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{user?.name || 'Admin'}</p>
                 <p className="text-xs text-muted-foreground">Administrator</p>
               </div>
             </div>
           </div>
-        </FadeIn>
+        )}
+      </aside>
+    </>
+  );
 
-        {/* Stats Cards */}
-        <FadeIn delay={0.1}>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8">
-            <GlassCard className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.totalUsers}</p>
-                  <p className="text-xs text-muted-foreground">Users</p>
-                </div>
-              </div>
-            </GlassCard>
-            <GlassCard className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                  <Building2 className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.totalBusinesses}</p>
-                  <p className="text-xs text-muted-foreground">Businesses</p>
-                </div>
-              </div>
-            </GlassCard>
-            <GlassCard className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-purple-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">${stats.totalRevenue.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Revenue</p>
-                </div>
-              </div>
-            </GlassCard>
-            <GlassCard className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                  <AlertTriangle className="h-5 w-5 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.openDisputes}</p>
-                  <p className="text-xs text-muted-foreground">Disputes</p>
-                </div>
-              </div>
-            </GlassCard>
-            <GlassCard className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                  <Crown className="h-5 w-5 text-yellow-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.activeListings}</p>
-                  <p className="text-xs text-muted-foreground">Premium</p>
-                </div>
-              </div>
-            </GlassCard>
-          </div>
-        </FadeIn>
+  // ============================================
+  // RENDER: MAIN CONTENT AREA
+  // ============================================
 
-        {/* Tabs */}
-        <FadeIn delay={0.2}>
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as TabType)}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap',
-                  activeTab === tab.id
-                    ? 'gradient-bg text-white shadow-glow-sm'
-                    : 'bg-muted/50 hover:bg-muted text-muted-foreground'
-                )}
-              >
-                <tab.icon className="h-4 w-4" />
-                {tab.label}
-                {tab.count !== undefined && tab.count > 0 && (
-                  <span className={cn(
-                    'px-2 py-0.5 rounded-full text-xs',
-                    activeTab === tab.id ? 'bg-white/20' : 'bg-primary/20 text-primary'
-                  )}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </FadeIn>
+  const renderMainContent = () => (
+    <main className={cn(
+      'flex-1 min-h-screen transition-all duration-300',
+      sidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[260px]',
+    )}>
+      {/* Top bar */}
+      <div className="sticky top-0 z-30 h-16 flex items-center justify-between px-4 md:px-6 bg-background/80 backdrop-blur-xl border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <h1 className="text-lg font-semibold">
+            <span className="gradient-text">{sectionTitle}</span>
+          </h1>
+        </div>
+        <button
+          onClick={() => fetchSectionData(activeSection)}
+          className="p-2 rounded-lg hover:bg-muted/50 text-muted-foreground transition-colors"
+          title="Refresh"
+        >
+          <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+        </button>
+      </div>
 
-        {/* Content */}
-        {activeTab === 'overview' && (
-          <FadeIn delay={0.3}>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Revenue Summary */}
-              <GlassCard className="p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  Revenue Overview
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-4 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total Revenue</p>
-                      <p className="text-2xl font-bold">${stats.totalRevenue.toLocaleString()}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 text-green-500 text-sm">
-                        <ArrowUpRight className="h-4 w-4" />
-                        +18%
-                      </div>
-                      <p className="text-xs text-muted-foreground">vs last month</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-lg bg-muted/30">
-                      <p className="text-xs text-muted-foreground">Commissions</p>
-                      <p className="text-lg font-bold">${(overviewData?.overview.totalCommissions || 0).toLocaleString()}</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted/30">
-                      <p className="text-xs text-muted-foreground">Listing Revenue</p>
-                      <p className="text-lg font-bold">$0</p>
-                    </div>
-                  </div>
-                </div>
-              </GlassCard>
-
-              {/* Recent Activity */}
-              <GlassCard className="p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  Recent Applications
-                </h3>
-                <div className="space-y-3">
-                  {pendingApps.length > 0 ? pendingApps.slice(0, 4).map((app: any) => (
-                    <div key={app.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                        <Building2 className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{app.name}</p>
-                        <p className="text-xs text-muted-foreground">{app.owner?.name}</p>
-                      </div>
-                      <GlassBadge variant="warning">
-                        PENDING
-                      </GlassBadge>
-                    </div>
-                  )) : (
-                    <p className="text-center text-muted-foreground py-8">
-                      No pending applications
-                    </p>
-                  )}
-                </div>
-              </GlassCard>
-
-              {/* Open Disputes */}
-              <GlassCard className="p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-primary" />
-                  Open Disputes
-                </h3>
-                <div className="space-y-3">
-                  {displayDisputes.filter(d => d.status !== 'RESOLVED').slice(0, 3).map((dispute) => (
-                    <div key={dispute.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
-                        <AlertCircle className="h-5 w-5 text-orange-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{dispute.customerName}</p>
-                        <p className="text-xs text-muted-foreground truncate">{dispute.type.replace('_', ' ')}</p>
-                      </div>
-                      <span className="text-sm font-medium">${dispute.amount}</span>
-                    </div>
+      {/* Content */}
+      <div className="p-4 md:p-6 max-w-7xl mx-auto">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeSection}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.2 }}
+          >
+            {isLoading && !dataFetched[activeSection] ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-24 rounded-2xl" />
                   ))}
                 </div>
-              </GlassCard>
+                <Skeleton className="h-64 rounded-2xl" />
+              </div>
+            ) : (
+              <>
+                {activeSection === 'overview' && renderOverview()}
+                {activeSection === 'revenue' && renderRevenue()}
+                {activeSection === 'users' && renderUsers()}
+                {activeSection === 'businesses' && renderBusinesses()}
+                {activeSection === 'bookings' && renderBookings()}
+                {activeSection === 'listings' && renderListings()}
+                {activeSection === 'disputes-reports' && renderDisputesReports()}
+                {activeSection === 'claims-support' && renderClaimsSupport()}
+                {activeSection === 'content' && renderContent()}
+                {activeSection === 'settings' && renderSettings()}
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </main>
+  );
 
-              {/* Quick Actions */}
-              <GlassCard className="p-6 lg:col-span-2">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-primary" />
-                  Quick Actions
-                </h3>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setActiveTab('pending')}
-                    className="flex items-center gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 transition-colors text-left"
-                  >
-                    <Clock className="h-5 w-5 text-yellow-500" />
-                    <div>
-                      <p className="font-medium">Review Pending Applications</p>
-                      <p className="text-xs text-muted-foreground">{pendingApps.length} awaiting approval</p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('disputes')}
-                    className="flex items-center gap-3 p-4 rounded-lg bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-colors text-left"
-                  >
-                    <AlertTriangle className="h-5 w-5 text-orange-500" />
-                    <div>
-                      <p className="font-medium">Resolve Disputes</p>
-                      <p className="text-xs text-muted-foreground">{stats.openDisputes} open disputes</p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('listings')}
-                    className="flex items-center gap-3 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-colors text-left"
-                  >
-                    <Crown className="h-5 w-5 text-purple-500" />
-                    <div>
-                      <p className="font-medium">Manage Premium Listings</p>
-                      <p className="text-xs text-muted-foreground">{stats.activeListings} active listings</p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('revenue')}
-                    className="flex items-center gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 transition-colors text-left"
-                  >
-                    <DollarSign className="h-5 w-5 text-green-500" />
-                    <div>
-                      <p className="font-medium">View Revenue Reports</p>
-                      <p className="text-xs text-muted-foreground">${(overviewData?.monthly.revenue || 0).toLocaleString()} this month</p>
-                    </div>
-                  </button>
+  // ============================================
+  // SECTION: OVERVIEW
+  // ============================================
+
+  const renderOverview = () => {
+    const ov = overviewData?.overview;
+    const pending = overviewData?.pending;
+    const payments = overviewData?.recentPayments || [];
+    const chart = overviewData?.revenueChart || [];
+
+    return (
+      <div className="space-y-6">
+        {/* Stats cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[
+            { label: 'Users', value: ov?.totalUsers ?? 0, icon: Users, color: 'blue' },
+            { label: 'Businesses', value: ov?.totalBusinesses ?? 0, icon: Building2, color: 'green' },
+            { label: 'Bookings', value: ov?.totalBookings ?? 0, icon: Calendar, color: 'purple' },
+            { label: 'Revenue', value: fmtCurrency(ov?.totalRevenue), icon: DollarSign, color: 'emerald', isText: true },
+            { label: 'Disputes', value: ov?.totalDisputes ?? 0, icon: AlertTriangle, color: 'orange' },
+          ].map((stat) => (
+            <GlassCard key={stat.label} className="p-4" hover={false}>
+              <div className="flex items-center gap-3">
+                <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', `bg-${stat.color}-500/20`)}>
+                  <stat.icon className={cn('h-5 w-5', `text-${stat.color}-500`)} />
                 </div>
-              </GlassCard>
-
-              {/* Top Performing Businesses */}
-              <GlassCard className="p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Star className="h-5 w-5 text-primary" />
-                  Top Businesses
-                </h3>
-                <div className="space-y-3">
-                  {/* TODO: Fetch top businesses from API when endpoint is available */}
-                  {(overviewData?.overview as any)?.topBusinesses?.length ?
-                    (overviewData?.overview as any).topBusinesses.map((b: { name: string; bookings: number; revenue: number }, i: number) => (
-                      <div key={b.name} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                        <span className="text-lg font-bold text-primary">#{i + 1}</span>
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{b.name}</p>
-                          <p className="text-xs text-muted-foreground">{b.bookings} bookings</p>
-                        </div>
-                        <span className="text-sm font-bold">${b.revenue.toLocaleString()}</span>
-                      </div>
-                    ))
-                  : (
-                    <p className="text-center text-muted-foreground py-6 text-sm">No top business data available yet</p>
-                  )}
+                <div className="min-w-0">
+                  <p className={cn('font-bold truncate', stat.isText ? 'text-lg' : 'text-2xl')}>{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </div>
-              </GlassCard>
-            </div>
-          </FadeIn>
-        )}
-
-        {/* Disputes Tab */}
-        {activeTab === 'disputes' && (
-          <FadeIn delay={0.3}>
-            <div className="space-y-4">
-              {displayDisputes.map((dispute) => (
-                <GlassCard key={dispute.id} className="p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-3">
-                        <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                          dispute.status === 'OPEN' ? "bg-orange-500/20" :
-                          dispute.status === 'IN_PROGRESS' ? "bg-blue-500/20" : "bg-green-500/20"
-                        )}>
-                          <AlertTriangle className={cn(
-                            "h-6 w-6",
-                            dispute.status === 'OPEN' ? "text-orange-500" :
-                            dispute.status === 'IN_PROGRESS' ? "text-blue-500" : "text-green-500"
-                          )} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">{dispute.type.replace('_', ' ')}</h3>
-                            <GlassBadge
-                              variant={
-                                dispute.status === 'OPEN' ? 'warning' :
-                                dispute.status === 'IN_PROGRESS' ? 'primary' : 'success'
-                              }
-                            >
-                              {dispute.status}
-                            </GlassBadge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">{dispute.description}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-sm">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Customer</p>
-                          <p className="font-medium">{dispute.customerName}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Provider</p>
-                          <p className="font-medium">{dispute.providerName}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Amount</p>
-                          <p className="font-medium">${dispute.amount}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Booking ID</p>
-                          <p className="font-medium">{dispute.bookingId}</p>
-                        </div>
-                      </div>
-
-                      {dispute.status === 'RESOLVED' && dispute.resolution && (
-                        <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                          <p className="text-xs font-medium text-green-500">RESOLUTION</p>
-                          <p className="text-sm">{dispute.resolution.type} - {dispute.resolution.notes}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex lg:flex-col gap-2 lg:w-40">
-                      {dispute.status !== 'RESOLVED' && (
-                        <>
-                          <GlassButton
-                            variant="primary"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<MessageSquare className="h-4 w-4" />}
-                            onClick={() => {
-                              setSelectedDispute(dispute.id);
-                              setShowDisputeModal(true);
-                            }}
-                          >
-                            Respond
-                          </GlassButton>
-                          <GlassButton
-                            variant="default"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<DollarSign className="h-4 w-4" />}
-                            onClick={() => handleRefund(dispute.id, dispute.amount)}
-                            disabled={isProcessing}
-                          >
-                            Refund
-                          </GlassButton>
-                          <GlassButton
-                            variant="default"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<Check className="h-4 w-4" />}
-                            onClick={() => {
-                              setSelectedDispute(dispute.id);
-                              setShowResolveModal(true);
-                            }}
-                          >
-                            Resolve
-                          </GlassButton>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </FadeIn>
-        )}
-
-        {/* Premium Listings Tab */}
-        {activeTab === 'listings' && (
-          <FadeIn delay={0.3}>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayListings.map((listing) => (
-                <GlassCard key={listing.id} className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center",
-                        listing.plan === 'FEATURED' ? "bg-yellow-500/20" : "bg-purple-500/20"
-                      )}>
-                        <Crown className={cn(
-                          "h-6 w-6",
-                          listing.plan === 'FEATURED' ? "text-yellow-500" : "text-purple-500"
-                        )} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">{listing.businessName}</h3>
-                        <p className="text-sm text-muted-foreground">{listing.plan}</p>
-                      </div>
-                    </div>
-                    <GlassBadge variant={listing.status === 'ACTIVE' ? 'success' : 'warning'}>
-                      {listing.status}
-                    </GlassBadge>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Price</span>
-                      <span className="font-medium">${listing.price}/month</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Duration</span>
-                      <span>{listing.startDate.toLocaleDateString()} - {listing.endDate.toLocaleDateString()}</span>
-                    </div>
-                    
-                    <div className="pt-3 border-t border-border">
-                      <p className="text-xs font-medium text-muted-foreground mb-2">PERFORMANCE</p>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="p-2 rounded bg-muted/30">
-                          <p className="text-lg font-bold">{listing.impressions.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">Views</p>
-                        </div>
-                        <div className="p-2 rounded bg-muted/30">
-                          <p className="text-lg font-bold">{listing.clicks}</p>
-                          <p className="text-xs text-muted-foreground">Clicks</p>
-                        </div>
-                        <div className="p-2 rounded bg-muted/30">
-                          <p className="text-lg font-bold">{listing.conversions}</p>
-                          <p className="text-xs text-muted-foreground">Bookings</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 mt-4">
-                    {listing.status === 'PENDING' && (
-                      <GlassButton
-                        variant="primary"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleApproveListing(listing.id)}
-                        disabled={isProcessing}
-                      >
-                        Approve
-                      </GlassButton>
-                    )}
-                    <GlassButton
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      leftIcon={<Eye className="h-4 w-4" />}
-                      onClick={() => handleViewListing(listing.id)}
-                    >
-                      View Details
-                    </GlassButton>
-                    <GlassButton
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      leftIcon={<Settings className="h-4 w-4" />}
-                      onClick={() => handleEditListing(listing.id)}
-                    >
-                      Edit
-                    </GlassButton>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </FadeIn>
-        )}
-
-        {/* Revenue Tab */}
-        {activeTab === 'revenue' && (
-          <FadeIn delay={0.3}>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <GlassCard className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
-                    <DollarSign className="h-6 w-6 text-green-500" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Total Revenue</p>
-                    <p className="text-2xl font-bold">${stats.totalRevenue.toLocaleString()}</p>
-                  </div>
-                </div>
-              </GlassCard>
-              <GlassCard className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                    <Percent className="h-6 w-6 text-blue-500" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Commissions</p>
-                    <p className="text-2xl font-bold">${(overviewData?.overview.totalCommissions || 0).toLocaleString()}</p>
-                  </div>
-                </div>
-              </GlassCard>
-              <GlassCard className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                    <Crown className="h-6 w-6 text-purple-500" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Listing Revenue</p>
-                    <p className="text-2xl font-bold">$0</p>
-                  </div>
-                </div>
-              </GlassCard>
-              <GlassCard className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                    <Activity className="h-6 w-6 text-orange-500" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Transactions</p>
-                    <p className="text-2xl font-bold">0</p>
-                  </div>
-                </div>
-              </GlassCard>
-            </div>
-
-            {/* Revenue Chart */}
-            <GlassCard className="p-6 mb-6">
-              <h3 className="font-semibold mb-6 flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-primary" />
-                Revenue Trend (Last 6 Months)
-              </h3>
-              <div className="flex items-end gap-4 h-48">
-                {(overviewData?.revenueChart || []).map((data, i) => (
-                  <div key={data.month} className="flex-1 flex flex-col items-center">
-                    <div 
-                      className="w-full gradient-bg rounded-t-lg"
-                      style={{ height: `${(data.revenue / 10000) * 100}%` }}
-                    />
-                    <p className="text-xs text-muted-foreground mt-2">{data.month}</p>
-                    <p className="text-xs font-medium">${(data.revenue / 1000).toFixed(1)}k</p>
-                  </div>
-                ))}
               </div>
             </GlassCard>
+          ))}
+        </div>
 
-            {/* Revenue Breakdown */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <GlassCard className="p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-primary" />
-                  Commission Breakdown
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                    <span>This Month</span>
-                    <span className="font-bold">${(overviewData?.monthly.commissions || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                    <span>Last Month</span>
-                    <span className="font-bold">$0</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                    <span>Commission Rate</span>
-                    <span className="font-bold">{settings.platformFee}%</span>
-                  </div>
-                </div>
-              </GlassCard>
-
-              <GlassCard className="p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Crown className="h-5 w-5 text-primary" />
-                  Listing Revenue
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                    <span>Featured Listings</span>
-                    <span className="font-bold">$198</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                    <span>Premium Listings</span>
-                    <span className="font-bold">$49</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                    <span>Active Listings</span>
-                    <span className="font-bold">{stats.activeListings}</span>
-                  </div>
-                </div>
-              </GlassCard>
-            </div>
-          </FadeIn>
-        )}
-
-        {/* Users Tab */}
-        {activeTab === 'users' && (
-          <FadeIn delay={0.3}>
-            <GlassCard className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  User Management
-                </h3>
-                <GlassInput
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  leftIcon={<Search className="h-4 w-4" />}
-                  className="w-64"
-                />
+        {/* Revenue chart + Pending actions */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          <GlassCard className="lg:col-span-2 p-6" hover={false}>
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" /> Revenue Trend
+            </h3>
+            {chart.length > 0 ? (
+              <div className="flex items-end gap-2 h-48">
+                {chart.map((item, i) => {
+                  const maxVal = Math.max(...chart.map(c => c.revenue), 1);
+                  const height = (item.revenue / maxVal) * 100;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <div
+                        className="w-full rounded-t-lg gradient-bg min-h-[4px] transition-all"
+                        style={{ height: `${Math.max(height, 4)}%` }}
+                        title={`${item.month}: ${fmtCurrency(item.revenue)}`}
+                      />
+                      <span className="text-[10px] text-muted-foreground">{item.month?.slice(0, 3)}</span>
+                    </div>
+                  );
+                })}
               </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-12">No revenue data available</p>
+            )}
+          </GlassCard>
+
+          <GlassCard className="p-6" hover={false}>
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-yellow-500" /> Pending Actions
+            </h3>
+            <div className="space-y-3">
+              {[
+                { label: 'Business Applications', count: pending?.applications || 0, section: 'businesses' as SectionId, color: 'yellow' },
+                { label: 'Open Disputes', count: pending?.disputes || 0, section: 'disputes-reports' as SectionId, color: 'orange' },
+                { label: 'User Reports', count: pending?.reports || 0, section: 'disputes-reports' as SectionId, color: 'red' },
+                { label: 'Support Tickets', count: pending?.tickets || 0, section: 'claims-support' as SectionId, color: 'blue' },
+                { label: 'Insurance Claims', count: pending?.claims || 0, section: 'claims-support' as SectionId, color: 'purple' },
+                { label: 'Listing Requests', count: pending?.listings || 0, section: 'listings' as SectionId, color: 'green' },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => setActiveSection(item.section)}
+                  className="w-full flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                >
+                  <span className="text-sm">{item.label}</span>
+                  <span className={cn(
+                    'min-w-[24px] h-6 flex items-center justify-center rounded-full text-xs font-bold px-2',
+                    item.count > 0 ? `bg-${item.color}-500/20 text-${item.color}-400` : 'text-muted-foreground',
+                  )}>
+                    {item.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </GlassCard>
+        </div>
+
+        {/* Recent payments + Quick actions */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          <GlassCard className="lg:col-span-2 p-6" hover={false}>
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" /> Recent Payments
+            </h3>
+            {payments.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 text-sm font-medium">User</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium">Email</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium">Role</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium">Status</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium">Joined</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium">Actions</th>
+                    <tr className="text-left text-muted-foreground border-b border-white/10">
+                      <th className="pb-3 font-medium">User</th>
+                      <th className="pb-3 font-medium">Amount</th>
+                      <th className="pb-3 font-medium">Method</th>
+                      <th className="pb-3 font-medium">Date</th>
+                      <th className="pb-3 font-medium">Status</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {displayUsers.filter(u => 
-                      !searchQuery || 
-                      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      u.email.toLowerCase().includes(searchQuery.toLowerCase())
-                    ).map((u) => (
-                      <tr key={u.id} className="border-b border-border/50 hover:bg-muted/30">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                              <span className="text-sm font-medium">{u.name.charAt(0)}</span>
-                            </div>
-                            <span className="font-medium">{u.name}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">{u.email}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            {u.roles && u.roles.length > 1 ? (
-                              u.roles.map((r, idx) => (
-                                <GlassBadge key={idx} variant={r === 'BUSINESS_OWNER' ? 'primary' : 'default'} className="text-xs">
-                                  {r === 'BUSINESS_OWNER' ? 'Provider' : 'Customer'}
-                                </GlassBadge>
-                              ))
-                            ) : (
-                              <GlassBadge variant={u.role === 'BUSINESS_OWNER' ? 'primary' : 'default'}>
-                                {u.role === 'BUSINESS_OWNER' ? 'Provider' : 'Customer'}
-                              </GlassBadge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <GlassBadge variant={u.status === 'ACTIVE' ? 'success' : 'destructive'}>
-                            {u.status}
-                          </GlassBadge>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">
-                          {u.joinedAt.toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <GlassButton
-                              variant="default"
-                              size="sm"
-                              leftIcon={<Eye className="h-4 w-4" />}
-                              onClick={() => handleViewUser(u.id)}
-                            >
-                              View
+                  <tbody className="divide-y divide-white/5">
+                    {payments.slice(0, 8).map((p) => (
+                      <tr key={p.id} className="hover:bg-muted/20">
+                        <td className="py-3 pr-4">{p.userName || 'N/A'}</td>
+                        <td className="py-3 pr-4 font-medium">{fmtCurrency(p.amount)}</td>
+                        <td className="py-3 pr-4 text-muted-foreground">{p.method || 'N/A'}</td>
+                        <td className="py-3 pr-4 text-muted-foreground">{fmtDate(p.date)}</td>
+                        <td className="py-3"><GlassBadge variant={statusColor(p.status)}>{p.status}</GlassBadge></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState icon={CreditCard} title="No payments yet" description="Payments will appear here once transactions are made." />
+            )}
+          </GlassCard>
+
+          <GlassCard className="p-6" hover={false}>
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" /> Quick Actions
+            </h3>
+            <div className="space-y-2">
+              {[
+                { label: 'Review Applications', section: 'businesses' as SectionId, icon: Building2, color: 'yellow' },
+                { label: 'Resolve Disputes', section: 'disputes-reports' as SectionId, icon: Gavel, color: 'orange' },
+                { label: 'Manage Listings', section: 'listings' as SectionId, icon: Crown, color: 'purple' },
+                { label: 'View Revenue', section: 'revenue' as SectionId, icon: TrendingUp, color: 'green' },
+                { label: 'Support Tickets', section: 'claims-support' as SectionId, icon: LifeBuoy, color: 'blue' },
+                { label: 'Platform Settings', section: 'settings' as SectionId, icon: Settings, color: 'gray' },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => setActiveSection(item.section)}
+                  className={cn(
+                    'w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left',
+                    `bg-${item.color}-500/10 hover:bg-${item.color}-500/20`,
+                  )}
+                >
+                  <item.icon className={cn('h-4 w-4', `text-${item.color}-500`)} />
+                  <span className="text-sm font-medium">{item.label}</span>
+                  <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          </GlassCard>
+        </div>
+      </div>
+    );
+  };
+
+  // ============================================
+  // SECTION: REVENUE
+  // ============================================
+
+  const renderRevenue = () => {
+    const ov = overviewData?.overview;
+    const monthly = overviewData?.monthly;
+    const chart = overviewData?.revenueChart || [];
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <GlassCard className="p-5" hover={false}>
+            <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
+            <p className="text-2xl font-bold">{fmtCurrency(ov?.totalRevenue)}</p>
+            {ov && ov.revenueGrowth !== undefined && (
+              <div className="flex items-center gap-1 mt-1">
+                <ArrowUpRight className={cn('h-3 w-3', ov.revenueGrowth >= 0 ? 'text-green-500' : 'text-red-500')} />
+                <span className={cn('text-xs', ov.revenueGrowth >= 0 ? 'text-green-500' : 'text-red-500')}>
+                  {ov.revenueGrowth >= 0 ? '+' : ''}{ov.revenueGrowth}%
+                </span>
+              </div>
+            )}
+          </GlassCard>
+          <GlassCard className="p-5" hover={false}>
+            <p className="text-xs text-muted-foreground mb-1">Total Commissions</p>
+            <p className="text-2xl font-bold">{fmtCurrency(ov?.totalCommissions)}</p>
+          </GlassCard>
+          <GlassCard className="p-5" hover={false}>
+            <p className="text-xs text-muted-foreground mb-1">Monthly Revenue</p>
+            <p className="text-2xl font-bold">{fmtCurrency(monthly?.revenue)}</p>
+          </GlassCard>
+          <GlassCard className="p-5" hover={false}>
+            <p className="text-xs text-muted-foreground mb-1">Monthly Bookings</p>
+            <p className="text-2xl font-bold">{monthly?.bookings ?? 0}</p>
+          </GlassCard>
+        </div>
+
+        {/* Commission breakdown */}
+        <GlassCard className="p-6" hover={false}>
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <PieChart className="h-5 w-5 text-primary" /> Commission Breakdown
+          </h3>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-muted/30">
+              <p className="text-xs text-muted-foreground">Platform Fee</p>
+              <p className="text-lg font-bold">{settings.platformFee}%</p>
+              <p className="text-xs text-muted-foreground mt-1">Current rate</p>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/30">
+              <p className="text-xs text-muted-foreground">This Month</p>
+              <p className="text-lg font-bold">{fmtCurrency(monthly?.commissions)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Commissions earned</p>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/30">
+              <p className="text-xs text-muted-foreground">Listing Revenue</p>
+              <p className="text-lg font-bold">{fmtCurrency(0)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Featured & premium</p>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Monthly chart */}
+        <GlassCard className="p-6" hover={false}>
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" /> Monthly Revenue Chart
+          </h3>
+          {chart.length > 0 ? (
+            <div className="flex items-end gap-3 h-64">
+              {chart.map((item, i) => {
+                const maxVal = Math.max(...chart.map(c => c.revenue), 1);
+                const height = (item.revenue / maxVal) * 100;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground">{fmtCurrency(item.revenue)}</span>
+                    <div
+                      className="w-full rounded-t-lg gradient-bg min-h-[4px] transition-all"
+                      style={{ height: `${Math.max(height, 4)}%` }}
+                    />
+                    <span className="text-xs text-muted-foreground">{item.month}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState icon={BarChart3} title="No chart data" description="Revenue data will appear once transactions are processed." />
+          )}
+        </GlassCard>
+
+        {/* Recent payments */}
+        <GlassCard className="p-6" hover={false}>
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-primary" /> Transaction History
+          </h3>
+          {(overviewData?.recentPayments || []).length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-muted-foreground border-b border-white/10">
+                    <th className="pb-3 font-medium">User</th>
+                    <th className="pb-3 font-medium">Amount</th>
+                    <th className="pb-3 font-medium">Method</th>
+                    <th className="pb-3 font-medium">Date</th>
+                    <th className="pb-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {(overviewData?.recentPayments || []).map((p) => (
+                    <tr key={p.id} className="hover:bg-muted/20">
+                      <td className="py-3 pr-4">{p.userName || 'N/A'}</td>
+                      <td className="py-3 pr-4 font-medium">{fmtCurrency(p.amount)}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">{p.method || 'N/A'}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">{fmtDate(p.date)}</td>
+                      <td className="py-3"><GlassBadge variant={statusColor(p.status)}>{p.status}</GlassBadge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState icon={CreditCard} title="No transactions" description="Transaction history will appear here." />
+          )}
+        </GlassCard>
+      </div>
+    );
+  };
+
+  // ============================================
+  // SECTION: USERS
+  // ============================================
+
+  const renderUsers = () => (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1">
+          <GlassInput
+            placeholder="Search users by name, email..."
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            leftIcon={<Search className="h-4 w-4" />}
+          />
+        </div>
+        <select
+          value={userRoleFilter}
+          onChange={(e) => setUserRoleFilter(e.target.value)}
+          className="h-11 px-4 rounded-xl border border-border bg-background/50 text-sm text-foreground"
+        >
+          <option value="">All Roles</option>
+          <option value="CUSTOMER">Customer</option>
+          <option value="BUSINESS_OWNER">Business Owner</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+      </div>
+
+      <GlassCard className="p-6" hover={false}>
+        {isLoading && !dataFetched['users'] ? (
+          <TableSkeleton />
+        ) : displayUsers.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b border-white/10">
+                  <th className="pb-3 font-medium">User</th>
+                  <th className="pb-3 font-medium">Role</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium">Verified</th>
+                  <th className="pb-3 font-medium">Joined</th>
+                  <th className="pb-3 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {displayUsers.map((u) => (
+                  <tr key={u.id} className="hover:bg-muted/20">
+                    <td className="py-3 pr-4">
+                      <div>
+                        <p className="font-medium">{u.name || 'N/A'}</p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      </div>
+                    </td>
+                    <td className="py-3 pr-4"><GlassBadge variant="default">{u.role}</GlassBadge></td>
+                    <td className="py-3 pr-4"><GlassBadge variant={statusColor(u.status)}>{u.status}</GlassBadge></td>
+                    <td className="py-3 pr-4">
+                      {u.isVerified ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}
+                    </td>
+                    <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(u.createdAt)}</td>
+                    <td className="py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <GlassButton
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => { setSelectedUserId(u.id); setShowUserModal(true); }}
+                          title="View details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </GlassButton>
+                        <GlassButton
+                          size="sm"
+                          variant={u.status === 'ACTIVE' ? 'outline' : 'primary'}
+                          onClick={() => handleToggleUser(u.id)}
+                          disabled={isProcessing}
+                        >
+                          {u.status === 'ACTIVE' ? <Ban className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
+                          {u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                        </GlassButton>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={Users} title="No users found" description="Try adjusting your search or filter criteria." />
+        )}
+      </GlassCard>
+    </div>
+  );
+
+  // ============================================
+  // SECTION: BUSINESSES
+  // ============================================
+
+  const renderBusinesses = () => (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1">
+          <GlassInput
+            placeholder="Search businesses..."
+            value={bizSearch}
+            onChange={(e) => setBizSearch(e.target.value)}
+            leftIcon={<Search className="h-4 w-4" />}
+          />
+        </div>
+        <select
+          value={bizStatusFilter}
+          onChange={(e) => setBizStatusFilter(e.target.value)}
+          className="h-11 px-4 rounded-xl border border-border bg-background/50 text-sm text-foreground"
+        >
+          <option value="">All Status</option>
+          <option value="PENDING">Pending</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
+      </div>
+
+      <GlassCard className="p-6" hover={false}>
+        {isLoading && !dataFetched['businesses'] ? (
+          <TableSkeleton />
+        ) : displayBusinesses.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b border-white/10">
+                  <th className="pb-3 font-medium">Business</th>
+                  <th className="pb-3 font-medium">Category</th>
+                  <th className="pb-3 font-medium">Owner</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium">Created</th>
+                  <th className="pb-3 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {displayBusinesses.map((b) => (
+                  <tr key={b.id} className="hover:bg-muted/20">
+                    <td className="py-3 pr-4">
+                      <div>
+                        <p className="font-medium">{b.name}</p>
+                        <p className="text-xs text-muted-foreground">{b.city || 'N/A'} &middot; {b._count?.services || 0} services</p>
+                      </div>
+                    </td>
+                    <td className="py-3 pr-4 text-muted-foreground">{b.category}</td>
+                    <td className="py-3 pr-4">
+                      <p className="text-sm">{b.owner?.name || 'N/A'}</p>
+                      <p className="text-xs text-muted-foreground">{b.owner?.email}</p>
+                    </td>
+                    <td className="py-3 pr-4"><GlassBadge variant={statusColor(b.verificationStatus)}>{b.verificationStatus}</GlassBadge></td>
+                    <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(b.createdAt)}</td>
+                    <td className="py-3 text-right">
+                      {b.verificationStatus === 'PENDING' && (
+                        <div className="flex items-center justify-end gap-2">
+                          <GlassButton size="sm" variant="primary" onClick={() => handleApproveBusiness(b.id)} disabled={isProcessing}>
+                            <Check className="h-3 w-3" /> Approve
+                          </GlassButton>
+                          <GlassButton size="sm" variant="outline" onClick={() => openRejectModal(b.id, 'business')} disabled={isProcessing}>
+                            <X className="h-3 w-3" /> Reject
+                          </GlassButton>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={Building2} title="No businesses found" description="No businesses match your current filters." />
+        )}
+      </GlassCard>
+    </div>
+  );
+
+  // ============================================
+  // SECTION: BOOKINGS
+  // ============================================
+
+  const renderBookings = () => (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1">
+          <GlassInput
+            placeholder="Search bookings..."
+            value={bookingSearch}
+            onChange={(e) => setBookingSearch(e.target.value)}
+            leftIcon={<Search className="h-4 w-4" />}
+          />
+        </div>
+        <select
+          value={bookingStatusFilter}
+          onChange={(e) => setBookingStatusFilter(e.target.value)}
+          className="h-11 px-4 rounded-xl border border-border bg-background/50 text-sm text-foreground"
+        >
+          <option value="">All Status</option>
+          <option value="PENDING">Pending</option>
+          <option value="CONFIRMED">Confirmed</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="CANCELLED">Cancelled</option>
+          <option value="NO_SHOW">No Show</option>
+        </select>
+      </div>
+
+      <GlassCard className="p-6" hover={false}>
+        {isLoading && !dataFetched['bookings'] ? (
+          <TableSkeleton />
+        ) : displayBookings.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b border-white/10">
+                  <th className="pb-3 font-medium">Booking</th>
+                  <th className="pb-3 font-medium">Customer</th>
+                  <th className="pb-3 font-medium">Business</th>
+                  <th className="pb-3 font-medium">Date / Time</th>
+                  <th className="pb-3 font-medium">Amount</th>
+                  <th className="pb-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {displayBookings.map((b) => (
+                  <tr key={b.id} className="hover:bg-muted/20">
+                    <td className="py-3 pr-4">
+                      <p className="font-medium text-xs font-mono">{b.id.slice(0, 8)}...</p>
+                      <p className="text-xs text-muted-foreground">{b.serviceName || 'N/A'}</p>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <p className="text-sm">{b.customerName || 'N/A'}</p>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <p className="text-sm">{b.business?.name || 'N/A'}</p>
+                      <p className="text-xs text-muted-foreground">{b.business?.category}</p>
+                    </td>
+                    <td className="py-3 pr-4 text-muted-foreground text-xs">
+                      <p>{fmtDate(b.date)}</p>
+                      <p>{b.time || 'N/A'}</p>
+                    </td>
+                    <td className="py-3 pr-4 font-medium">{fmtCurrency(b.totalPrice)}</td>
+                    <td className="py-3"><GlassBadge variant={statusColor(b.status)}>{b.status}</GlassBadge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={Calendar} title="No bookings found" description="No bookings match your current filters." />
+        )}
+      </GlassCard>
+    </div>
+  );
+
+  // ============================================
+  // SECTION: FEATURED LISTINGS
+  // ============================================
+
+  const renderListings = () => (
+    <div className="space-y-6">
+      <GlassCard className="p-6" hover={false}>
+        {isLoading && !dataFetched['listings'] ? (
+          <TableSkeleton />
+        ) : displayListings.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b border-white/10">
+                  <th className="pb-3 font-medium">Business</th>
+                  <th className="pb-3 font-medium">Plan</th>
+                  <th className="pb-3 font-medium">Price</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium">End Date</th>
+                  <th className="pb-3 font-medium">Impressions</th>
+                  <th className="pb-3 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {displayListings.map((l) => (
+                  <tr key={l.id} className="hover:bg-muted/20">
+                    <td className="py-3 pr-4 font-medium">{l.businessName || 'N/A'}</td>
+                    <td className="py-3 pr-4">
+                      <GlassBadge variant={l.plan === 'FEATURED' ? 'primary' : 'secondary'}>{l.plan}</GlassBadge>
+                    </td>
+                    <td className="py-3 pr-4 font-medium">{fmtCurrency(l.price)}</td>
+                    <td className="py-3 pr-4"><GlassBadge variant={statusColor(l.status)}>{l.status}</GlassBadge></td>
+                    <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(l.endDate)}</td>
+                    <td className="py-3 pr-4 text-muted-foreground">{l.impressions ?? 0}</td>
+                    <td className="py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <GlassButton size="icon" variant="ghost" onClick={() => {
+                          setSelectedListingId(l.id);
+                          setListingEditData({ plan: l.plan, price: l.price, endDate: l.endDate ? new Date(l.endDate).toISOString().split('T')[0] : '' });
+                          setShowListingModal(true);
+                        }} title="Edit">
+                          <Edit className="h-4 w-4" />
+                        </GlassButton>
+                        {l.status === 'PENDING' && (
+                          <>
+                            <GlassButton size="sm" variant="primary" onClick={() => handleListingAction(l.id, 'ACTIVE')} disabled={isProcessing}>
+                              <Check className="h-3 w-3" /> Approve
                             </GlassButton>
-                            {u.status === 'ACTIVE' ? (
-                              <GlassButton
-                                variant="default"
-                                size="sm"
-                                leftIcon={<Ban className="h-4 w-4" />}
-                                onClick={() => handleToggleUserStatus(u.id)}
-                                disabled={isProcessing}
-                                className="text-destructive hover:bg-destructive/10"
-                              >
-                                Suspend
-                              </GlassButton>
-                            ) : (
-                              <GlassButton
-                                variant="default"
-                                size="sm"
-                                leftIcon={<UserCheck className="h-4 w-4" />}
-                                onClick={() => handleToggleUserStatus(u.id)}
-                                disabled={isProcessing}
-                                className="text-green-500 hover:bg-green-500/10"
-                              >
-                                Activate
-                              </GlassButton>
+                            <GlassButton size="sm" variant="outline" onClick={() => openRejectModal(l.id, 'listing')} disabled={isProcessing}>
+                              <X className="h-3 w-3" /> Reject
+                            </GlassButton>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={Crown} title="No listings found" description="No premium listing requests found." />
+        )}
+      </GlassCard>
+    </div>
+  );
+
+  // ============================================
+  // SECTION: DISPUTES & REPORTS
+  // ============================================
+
+  const renderDisputesReports = () => {
+    const filteredDisputes = disputeFilter === 'all'
+      ? displayDisputes
+      : displayDisputes.filter(d => d.status === disputeFilter);
+
+    const filteredReports = reportFilter === 'all'
+      ? displayReports
+      : displayReports.filter(r => r.status === reportFilter);
+
+    return (
+      <div className="space-y-6">
+        {/* Disputes */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" /> Disputes
+            </h2>
+            <select
+              value={disputeFilter}
+              onChange={(e) => setDisputeFilter(e.target.value)}
+              className="h-9 px-3 rounded-lg border border-border bg-background/50 text-sm text-foreground"
+            >
+              <option value="all">All</option>
+              <option value="OPEN">Open</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="RESOLVED">Resolved</option>
+            </select>
+          </div>
+
+          <GlassCard className="p-6" hover={false}>
+            {isLoading && !dataFetched['disputes-reports'] ? (
+              <TableSkeleton />
+            ) : filteredDisputes.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b border-white/10">
+                      <th className="pb-3 font-medium">Dispute</th>
+                      <th className="pb-3 font-medium">Customer</th>
+                      <th className="pb-3 font-medium">Amount</th>
+                      <th className="pb-3 font-medium">Reason</th>
+                      <th className="pb-3 font-medium">Date</th>
+                      <th className="pb-3 font-medium">Status</th>
+                      <th className="pb-3 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredDisputes.map((d) => (
+                      <tr key={d.id} className="hover:bg-muted/20">
+                        <td className="py-3 pr-4">
+                          <p className="font-mono text-xs">{d.id.slice(0, 8)}...</p>
+                          <p className="text-xs text-muted-foreground">Booking: {d.bookingId?.slice(0, 8)}...</p>
+                        </td>
+                        <td className="py-3 pr-4">{d.customerName || 'N/A'}</td>
+                        <td className="py-3 pr-4 font-medium">{fmtCurrency(d.amount)}</td>
+                        <td className="py-3 pr-4 text-muted-foreground max-w-[200px] truncate">{d.reason || d.description || 'N/A'}</td>
+                        <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(d.createdAt)}</td>
+                        <td className="py-3 pr-4"><GlassBadge variant={statusColor(d.status)}>{d.status}</GlassBadge></td>
+                        <td className="py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {d.status !== 'RESOLVED' && (
+                              <>
+                                <GlassButton size="icon" variant="ghost" onClick={() => {
+                                  setSelectedDisputeId(d.id);
+                                  setDisputeResponse('');
+                                  setShowDisputeModal(true);
+                                }} title="Respond">
+                                  <MessageSquare className="h-4 w-4" />
+                                </GlassButton>
+                                <GlassButton size="sm" variant="primary" onClick={() => {
+                                  setSelectedDisputeId(d.id);
+                                  setResolutionNotes('');
+                                  setPartialRefundAmount(d.amount);
+                                  setResolutionType('FULL_REFUND');
+                                  setShowDisputeModal(true);
+                                }} disabled={isProcessing}>
+                                  <Check className="h-3 w-3" /> Resolve
+                                </GlassButton>
+                              </>
                             )}
                           </div>
                         </td>
@@ -1534,2024 +1556,685 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                   </tbody>
                 </table>
               </div>
-            </GlassCard>
-          </FadeIn>
-        )}
+            ) : (
+              <EmptyState icon={AlertTriangle} title="No disputes found" description="No disputes match your current filter." />
+            )}
+          </GlassCard>
+        </div>
 
-        {/* Applications Tabs (pending, approved, rejected) */}
-        {['pending', 'approved', 'rejected'].includes(activeTab) && (
-          <>
-            <FadeIn delay={0.3}>
-              <div className="mb-6">
-                <GlassInput
-                  placeholder="Search by business name, owner name, or email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  leftIcon={<Search className="h-4 w-4" />}
-                  className="w-full"
-                />
+        {/* Reports */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Flag className="h-5 w-5 text-red-500" /> User Reports
+            </h2>
+            <select
+              value={reportFilter}
+              onChange={(e) => setReportFilter(e.target.value)}
+              className="h-9 px-3 rounded-lg border border-border bg-background/50 text-sm text-foreground"
+            >
+              <option value="all">All</option>
+              <option value="PENDING">Pending</option>
+              <option value="INVESTIGATING">Investigating</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="DISMISSED">Dismissed</option>
+            </select>
+          </div>
+
+          <GlassCard className="p-6" hover={false}>
+            {isLoading && !dataFetched['disputes-reports'] ? (
+              <TableSkeleton rows={3} />
+            ) : filteredReports.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b border-white/10">
+                      <th className="pb-3 font-medium">Reporter</th>
+                      <th className="pb-3 font-medium">Reported User</th>
+                      <th className="pb-3 font-medium">Type</th>
+                      <th className="pb-3 font-medium">Reason</th>
+                      <th className="pb-3 font-medium">Date</th>
+                      <th className="pb-3 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredReports.map((r) => (
+                      <tr key={r.id} className="hover:bg-muted/20">
+                        <td className="py-3 pr-4">
+                          <p className="text-sm">{r.reporterName || 'N/A'}</p>
+                          <p className="text-xs text-muted-foreground">{r.reporterId?.slice(0, 8)}</p>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <p className="text-sm">{r.reportedUserName || 'N/A'}</p>
+                        </td>
+                        <td className="py-3 pr-4"><GlassBadge variant="default">{r.type}</GlassBadge></td>
+                        <td className="py-3 pr-4 text-muted-foreground max-w-[200px] truncate">{r.reason}</td>
+                        <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(r.createdAt)}</td>
+                        <td className="py-3"><GlassBadge variant={statusColor(r.status)}>{r.status}</GlassBadge></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </FadeIn>
+            ) : (
+              <EmptyState icon={Flag} title="No reports found" description="No reports match your current filter." />
+            )}
+          </GlassCard>
+        </div>
+      </div>
+    );
+  };
 
-            <FadeIn delay={0.4}>
-              <div className="space-y-4">
-                {getFilteredApps().length > 0 ? (
-                  getFilteredApps().map((app: any) => (
-                    <GlassCard key={app.id} className="p-4 sm:p-6">
-                      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-start gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                              <Building2 className="h-6 w-6 text-primary" />
-                            </div>
-                            <div className="min-w-0">
-                              <h3 className="font-semibold text-lg">{app.name}</h3>
-                              <p className="text-sm text-muted-foreground">{app.description}</p>
-                            </div>
-                          </div>
+  // ============================================
+  // SECTION: CLAIMS & SUPPORT
+  // ============================================
 
-                          <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
-                            <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4 text-muted-foreground" />
-                              <span>{app.owner?.name}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Mail className="h-4 w-4 text-muted-foreground" />
-                              <span className="truncate">{app.owner?.email}</span>
-                            </div>
-                            {app.owner?.phone && (
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-4 w-4 text-muted-foreground" />
-                                <span>{app.owner.phone}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <span>{app.city}{app.city && app.country ? ', ' : ''}{app.country}</span>
-                            </div>
-                          </div>
+  const renderClaimsSupport = () => {
+    const filteredClaims = claimStatusFilter === 'all'
+      ? displayClaims
+      : displayClaims.filter(c => c.status === claimStatusFilter);
 
-                          <div className="mt-4 p-3 rounded-lg bg-muted/50">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">BUSINESS DETAILS</p>
-                            <div className="flex items-center gap-4 text-sm">
-                              <div>
-                                <span className="text-xs text-muted-foreground">Category:</span>
-                                <span className="ml-1 font-medium">{app.category || 'General Grooming'}</span>
-                              </div>
-                              <div>
-                                <span className="text-xs text-muted-foreground">Services:</span>
-                                <span className="ml-1 font-medium">{app._count?.services || 0}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+    const filteredTickets = ticketStatusFilter === 'all'
+      ? displayTickets
+      : displayTickets.filter(t => t.status === ticketStatusFilter);
 
-                        <div className="flex lg:flex-col gap-2 lg:w-40">
-                          {app.verificationStatus === 'PENDING' && (
-                            <>
-                              <GlassButton
-                                variant="primary"
-                                size="sm"
-                                className="flex-1"
-                                onClick={() => handleApprove(app.id)}
-                                isLoading={isProcessing}
-                                leftIcon={<Check className="h-4 w-4" />}
-                              >
-                                Approve
-                              </GlassButton>
-                              <GlassButton
-                                variant="default"
-                                size="sm"
-                                className="flex-1"
-                                onClick={() => {
-                                  setSelectedApplication(app.id);
-                                  setShowRejectModal(true);
-                                }}
-                                leftIcon={<X className="h-4 w-4" />}
-                              >
-                                Reject
-                              </GlassButton>
-                            </>
+    return (
+      <div className="space-y-6">
+        {/* Claims */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-purple-500" /> Insurance Claims
+            </h2>
+            <select
+              value={claimStatusFilter}
+              onChange={(e) => setClaimStatusFilter(e.target.value)}
+              className="h-9 px-3 rounded-lg border border-border bg-background/50 text-sm text-foreground"
+            >
+              <option value="all">All</option>
+              <option value="SUBMITTED">Submitted</option>
+              <option value="UNDER_REVIEW">Under Review</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="PAID">Paid</option>
+            </select>
+          </div>
+
+          <GlassCard className="p-6" hover={false}>
+            {isLoading && !dataFetched['claims-support'] ? (
+              <TableSkeleton />
+            ) : filteredClaims.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b border-white/10">
+                      <th className="pb-3 font-medium">Claim #</th>
+                      <th className="pb-3 font-medium">Customer</th>
+                      <th className="pb-3 font-medium">Type</th>
+                      <th className="pb-3 font-medium">Amount</th>
+                      <th className="pb-3 font-medium">Date</th>
+                      <th className="pb-3 font-medium">Status</th>
+                      <th className="pb-3 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredClaims.map((c) => (
+                      <tr key={c.id} className="hover:bg-muted/20">
+                        <td className="py-3 pr-4 font-mono text-xs">{c.claimNumber || c.id.slice(0, 8)}</td>
+                        <td className="py-3 pr-4">
+                          <p className="text-sm">{c.customerName || 'N/A'}</p>
+                          <p className="text-xs text-muted-foreground">{c.providerName}</p>
+                        </td>
+                        <td className="py-3 pr-4"><GlassBadge variant="default">{(c.type || '').replace(/_/g, ' ')}</GlassBadge></td>
+                        <td className="py-3 pr-4 font-medium">{fmtCurrency(c.amount)}</td>
+                        <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(c.createdAt)}</td>
+                        <td className="py-3 pr-4"><GlassBadge variant={statusColor(c.status)}>{(c.status || '').replace(/_/g, ' ')}</GlassBadge></td>
+                        <td className="py-3 text-right">
+                          {c.status !== 'PAID' && c.status !== 'REJECTED' && (
+                            <GlassButton size="sm" variant="outline" onClick={() => {
+                              setSelectedClaimId(c.id);
+                              setClaimNotes(c.adminNotes || '');
+                              setClaimAction('');
+                              setShowClaimModal(true);
+                            }} disabled={isProcessing}>
+                              <Gavel className="h-3 w-3" /> Review
+                            </GlassButton>
                           )}
-                          {app.verificationStatus === 'APPROVED' && (
-                            <GlassBadge variant="success" className="justify-center py-2">
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Approved
-                            </GlassBadge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState icon={ShieldCheck} title="No claims found" description="No insurance claims match your current filter." />
+            )}
+          </GlassCard>
+        </div>
+
+        {/* Support Tickets */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <LifeBuoy className="h-5 w-5 text-blue-500" /> Support Tickets
+            </h2>
+            <select
+              value={ticketStatusFilter}
+              onChange={(e) => setTicketStatusFilter(e.target.value)}
+              className="h-9 px-3 rounded-lg border border-border bg-background/50 text-sm text-foreground"
+            >
+              <option value="all">All</option>
+              <option value="OPEN">Open</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="WAITING">Waiting</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="CLOSED">Closed</option>
+            </select>
+          </div>
+
+          <GlassCard className="p-6" hover={false}>
+            {isLoading && !dataFetched['claims-support'] ? (
+              <TableSkeleton />
+            ) : filteredTickets.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b border-white/10">
+                      <th className="pb-3 font-medium">Ticket</th>
+                      <th className="pb-3 font-medium">User</th>
+                      <th className="pb-3 font-medium">Subject</th>
+                      <th className="pb-3 font-medium">Priority</th>
+                      <th className="pb-3 font-medium">Date</th>
+                      <th className="pb-3 font-medium">Status</th>
+                      <th className="pb-3 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredTickets.map((t) => (
+                      <tr key={t.id} className="hover:bg-muted/20">
+                        <td className="py-3 pr-4 font-mono text-xs">{t.id.slice(0, 8)}...</td>
+                        <td className="py-3 pr-4">
+                          <p className="text-sm">{t.userName || 'N/A'}</p>
+                          <p className="text-xs text-muted-foreground">{t.userEmail}</p>
+                        </td>
+                        <td className="py-3 pr-4 max-w-[200px] truncate font-medium">{t.subject}</td>
+                        <td className="py-3 pr-4">
+                          <GlassBadge variant={
+                            t.priority === 'URGENT' ? 'destructive' :
+                            t.priority === 'HIGH' ? 'warning' : 'default'
+                          }>
+                            {t.priority}
+                          </GlassBadge>
+                        </td>
+                        <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(t.createdAt)}</td>
+                        <td className="py-3 pr-4"><GlassBadge variant={statusColor(t.status)}>{(t.status || '').replace(/_/g, ' ')}</GlassBadge></td>
+                        <td className="py-3 text-right">
+                          {t.status !== 'RESOLVED' && t.status !== 'CLOSED' && (
+                            <GlassButton size="sm" variant="outline" onClick={() => {
+                              setSelectedTicketId(t.id);
+                              setTicketReply('');
+                              setShowTicketModal(true);
+                            }} disabled={isProcessing}>
+                              <MessageSquare className="h-3 w-3" /> Reply
+                            </GlassButton>
                           )}
-                          {app.verificationStatus === 'REJECTED' && (
-                            <div className="space-y-2 w-full">
-                              <GlassBadge variant="destructive" className="justify-center py-2 w-full">
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Rejected
-                              </GlassBadge>
-                              {app.rejectionReason && (
-                                <p className="text-xs text-muted-foreground text-center">
-                                  Reason: {app.rejectionReason}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </GlassCard>
-                  ))
-                ) : (
-                  <GlassCard className="p-8 text-center">
-                    <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                      {activeTab === 'pending' ? (
-                        <Clock className="h-8 w-8 text-muted-foreground" />
-                      ) : activeTab === 'approved' ? (
-                        <CheckCircle className="h-8 w-8 text-muted-foreground" />
-                      ) : (
-                        <XCircle className="h-8 w-8 text-muted-foreground" />
-                      )}
-                    </div>
-                    <h3 className="font-semibold mb-2">
-                      No {activeTab} applications
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {searchQuery
-                        ? 'Try adjusting your search query'
-                        : `There are no ${activeTab} applications at the moment`}
-                    </p>
-                  </GlassCard>
-                )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </FadeIn>
-          </>
-        )}
+            ) : (
+              <EmptyState icon={LifeBuoy} title="No tickets found" description="No support tickets match your current filter." />
+            )}
+          </GlassCard>
+        </div>
+      </div>
+    );
+  };
 
-        {/* Articles Tab */}
-        {activeTab === 'articles' && (
-          <FadeIn delay={0.3}>
-            <div className="space-y-4">
-              {/* Articles Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-semibold">Blog Articles</h2>
-                  <p className="text-sm text-muted-foreground">Manage and publish blog articles</p>
-                </div>
-                <GlassButton
-                  variant="primary"
-                  leftIcon={<Plus className="h-4 w-4" />}
-                  onClick={() => {
-                    // TODO: Open create article modal
-                    alert('Create article functionality coming soon!');
-                  }}
-                >
-                  New Article
-                </GlassButton>
-              </div>
+  // ============================================
+  // SECTION: CONTENT
+  // ============================================
 
-              {/* Article Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-yellow-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayArticles.filter(a => a.status === 'PENDING').length}</p>
-                      <p className="text-xs text-muted-foreground">Pending</p>
-                    </div>
+  const renderContent = () => (
+    <div className="space-y-6">
+      {/* CMS Pages */}
+      <div>
+        <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <Globe className="h-5 w-5 text-primary" /> CMS Pages
+        </h2>
+        <div className="grid md:grid-cols-2 gap-4">
+          {isLoading && !dataFetched['content'] ? (
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)
+          ) : displayPageContent.length > 0 ? (
+            displayPageContent.map((page) => (
+              <GlassCard key={page.id} className="p-5" hover={false}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold mb-1">{page.title}</h3>
+                    <p className="text-xs text-muted-foreground capitalize mb-2">{page.page} page</p>
+                    <p className="text-sm text-muted-foreground line-clamp-2">{(page.content || '').slice(0, 120)}...</p>
+                    <p className="text-xs text-muted-foreground mt-2">Updated: {fmtDate(page.updatedAt)}</p>
                   </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayArticles.filter(a => a.status === 'PUBLISHED').length}</p>
-                      <p className="text-xs text-muted-foreground">Published</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-slate-500/20 flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-slate-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayArticles.filter(a => a.status === 'DRAFT').length}</p>
-                      <p className="text-xs text-muted-foreground">Drafts</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayArticles.filter(a => a.status === 'REJECTED').length}</p>
-                      <p className="text-xs text-muted-foreground">Rejected</p>
-                    </div>
-                  </div>
-                </GlassCard>
-              </div>
-
-              {/* Articles List */}
-              {displayArticles.map((article) => (
-                <GlassCard key={article.id} className="p-4 sm:p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                          <Newspaper className="h-6 w-6 text-primary" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-lg">{article.title}</h3>
-                            <GlassBadge
-                              variant={
-                                article.status === 'PUBLISHED' ? 'success' :
-                                article.status === 'PENDING' ? 'warning' :
-                                article.status === 'DRAFT' ? 'default' : 'destructive'
-                              }
-                            >
-                              {article.status}
-                            </GlassBadge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">{article.excerpt}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span>{article.author}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Tag className="h-4 w-4 text-muted-foreground" />
-                          <span>{article.category}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                          <span>{article.views.toLocaleString()} views</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Heart className="h-4 w-4 text-muted-foreground" />
-                          <span>{article.likes} likes</span>
-                        </div>
-                      </div>
-
-                      {article.adminNotes && (
-                        <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                          <p className="text-xs font-medium text-red-500">ADMIN NOTES</p>
-                          <p className="text-sm">{article.adminNotes}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex lg:flex-col gap-2 lg:w-48">
-                      {article.status === 'PENDING' && (
-                        <>
-                          <GlassButton
-                            variant="primary"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<Check className="h-4 w-4" />}
-                            onClick={() => {
-                              // TODO: Implement publish article
-                              alert(`Article "${article.title}" published!`);
-                            }}
-                          >
-                            Publish
-                          </GlassButton>
-                          <GlassButton
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 text-red-500 border-red-500 hover:bg-red-500/10"
-                            leftIcon={<X className="h-4 w-4" />}
-                            onClick={() => {
-                              // TODO: Implement reject article
-                              alert(`Article "${article.title}" rejected!`);
-                            }}
-                          >
-                            Reject
-                          </GlassButton>
-                        </>
-                      )}
-                      {article.status === 'PUBLISHED' && (
-                        <GlassButton
-                          variant="default"
-                          size="sm"
-                          className="flex-1"
-                          leftIcon={<Eye className="h-4 w-4" />}
-                        >
-                          View Live
-                        </GlassButton>
-                      )}
-                      {article.status === 'DRAFT' && (
-                        <GlassButton
-                          variant="default"
-                          size="sm"
-                          className="flex-1"
-                          leftIcon={<Edit className="h-4 w-4" />}
-                        >
-                          Edit Draft
-                        </GlassButton>
-                      )}
-                      <GlassButton
-                        variant="default"
-                        size="sm"
-                        className="flex-1"
-                        leftIcon={<Edit className="h-4 w-4" />}
-                        onClick={() => {
-                          // TODO: Open edit modal
-                          alert(`Edit article: ${article.title}`);
-                        }}
-                      >
-                        Edit
-                      </GlassButton>
-                      <GlassButton
-                        variant="ghost"
-                        size="sm"
-                        className="flex-1 text-red-500 hover:bg-red-500/10"
-                        leftIcon={<Trash2 className="h-4 w-4" />}
-                        onClick={() => {
-                          if (confirm(`Delete article "${article.title}"?`)) {
-                            alert('Article deleted!');
-                          }
-                        }}
-                      >
-                        Delete
-                      </GlassButton>
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </FadeIn>
-        )}
-
-        {/* Claims Management Tab */}
-        {activeTab === 'claims' && (
-          <FadeIn delay={0.3}>
-            <div className="space-y-4">
-              {/* Claims Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                      <FileWarning className="h-5 w-5 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayClaims.filter(c => c.status === 'SUBMITTED').length}</p>
-                      <p className="text-xs text-muted-foreground">Submitted</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-yellow-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayClaims.filter(c => c.status === 'UNDER_REVIEW').length}</p>
-                      <p className="text-xs text-muted-foreground">Under Review</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayClaims.filter(c => c.status === 'APPROVED').length}</p>
-                      <p className="text-xs text-muted-foreground">Approved</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayClaims.filter(c => c.status === 'REJECTED').length}</p>
-                      <p className="text-xs text-muted-foreground">Rejected</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                      <DollarSign className="h-5 w-5 text-purple-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">${displayClaims.filter(c => c.status === 'APPROVED' || c.status === 'PAID').reduce((acc, c) => acc + c.amount, 0)}</p>
-                      <p className="text-xs text-muted-foreground">Total Paid</p>
-                    </div>
-                  </div>
-                </GlassCard>
-              </div>
-
-              {/* Claims List */}
-              {displayClaims.map((claim) => (
-                <GlassCard key={claim.id} className="p-4 sm:p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-3">
-                        <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                          claim.status === 'SUBMITTED' ? "bg-blue-500/20" :
-                          claim.status === 'UNDER_REVIEW' ? "bg-yellow-500/20" :
-                          claim.status === 'APPROVED' || claim.status === 'PAID' ? "bg-green-500/20" : "bg-red-500/20"
-                        )}>
-                          <FileWarning className={cn(
-                            "h-6 w-6",
-                            claim.status === 'SUBMITTED' ? "text-blue-500" :
-                            claim.status === 'UNDER_REVIEW' ? "text-yellow-500" :
-                            claim.status === 'APPROVED' || claim.status === 'PAID' ? "text-green-500" : "text-red-500"
-                          )} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-lg">{claim.claimNumber}</h3>
-                            <GlassBadge
-                              variant={
-                                claim.status === 'SUBMITTED' ? 'primary' :
-                                claim.status === 'UNDER_REVIEW' ? 'warning' :
-                                claim.status === 'APPROVED' || claim.status === 'PAID' ? 'success' : 'destructive'
-                              }
-                            >
-                              {claim.status.replace('_', ' ')}
-                            </GlassBadge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">{claim.type.replace('_', ' ')} - {claim.description}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span>{claim.customerName}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          <span>{claim.providerName}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                          <span>${claim.amount}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>{claim.incidentDate.toLocaleDateString()}</span>
-                        </div>
-                      </div>
-
-                      {claim.documents && claim.documents.length > 0 && (
-                        <div className="mt-4 p-3 rounded-lg bg-muted/50">
-                          <p className="text-xs font-medium text-muted-foreground mb-2">ATTACHMENTS</p>
-                          <div className="flex flex-wrap gap-2">
-                            {claim.documents.map((doc, i) => (
-                              <button key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background/50 border border-border text-sm hover:bg-background/80 transition-colors">
-                                <FileText className="h-4 w-4" />
-                                {doc}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {claim.adminNotes && (
-                        <div className="mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                          <p className="text-xs font-medium text-blue-500">ADMIN NOTES</p>
-                          <p className="text-sm mt-1">{claim.adminNotes}</p>
-                        </div>
-                      )}
-
-                      {claim.resolution && (
-                        <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                          <p className="text-xs font-medium text-green-500">RESOLUTION</p>
-                          <p className="text-sm mt-1">{claim.resolution}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex lg:flex-col gap-2 lg:w-32">
-                      {(claim.status === 'SUBMITTED' || claim.status === 'UNDER_REVIEW') && (
-                        <>
-                          <GlassButton
-                            variant="primary"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<Check className="h-4 w-4" />}
-                            onClick={() => alert(`Claim ${claim.claimNumber} approved!`)}
-                          >
-                            Approve
-                          </GlassButton>
-                          <GlassButton
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 text-red-500 border-red-500 hover:bg-red-500/10"
-                            leftIcon={<X className="h-4 w-4" />}
-                            onClick={() => alert(`Claim ${claim.claimNumber} rejected!`)}
-                          >
-                            Reject
-                          </GlassButton>
-                        </>
-                      )}
-                      <GlassButton
-                        variant="default"
-                        size="sm"
-                        className="flex-1"
-                        leftIcon={<Eye className="h-4 w-4" />}
-                      >
-                        Details
-                      </GlassButton>
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </FadeIn>
-        )}
-
-        {/* Reports Management Tab */}
-        {activeTab === 'reports' && (
-          <FadeIn delay={0.3}>
-            <div className="space-y-4">
-              {/* Reports Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                      <Flag className="h-5 w-5 text-red-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayReports.filter(r => r.status === 'PENDING').length}</p>
-                      <p className="text-xs text-muted-foreground">Pending</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                      <Search className="h-5 w-5 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayReports.filter(r => r.status === 'INVESTIGATING').length}</p>
-                      <p className="text-xs text-muted-foreground">Investigating</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayReports.filter(r => r.status === 'RESOLVED').length}</p>
-                      <p className="text-xs text-muted-foreground">Resolved</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-slate-500/20 flex items-center justify-center">
-                      <XCircle className="h-5 w-5 text-slate-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayReports.filter(r => r.status === 'DISMISSED').length}</p>
-                      <p className="text-xs text-muted-foreground">Dismissed</p>
-                    </div>
-                  </div>
-                </GlassCard>
-              </div>
-
-              {/* Reports List */}
-              {displayReports.map((report) => (
-                <GlassCard key={report.id} className="p-4 sm:p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-3">
-                        <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                          report.status === 'PENDING' ? "bg-red-500/20" :
-                          report.status === 'INVESTIGATING' ? "bg-blue-500/20" :
-                          report.status === 'RESOLVED' ? "bg-green-500/20" : "bg-slate-500/20"
-                        )}>
-                          <Flag className={cn(
-                            "h-6 w-6",
-                            report.status === 'PENDING' ? "text-red-500" :
-                            report.status === 'INVESTIGATING' ? "text-blue-500" :
-                            report.status === 'RESOLVED' ? "text-green-500" : "text-slate-500"
-                          )} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-lg">{report.reason}</h3>
-                            <GlassBadge variant="secondary">{report.type}</GlassBadge>
-                            <GlassBadge
-                              variant={
-                                report.status === 'PENDING' ? 'destructive' :
-                                report.status === 'INVESTIGATING' ? 'primary' :
-                                report.status === 'RESOLVED' ? 'success' : 'default'
-                              }
-                            >
-                              {report.status}
-                            </GlassBadge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">{report.description}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 mt-4 p-4 rounded-lg bg-muted/50">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-2">REPORTER</p>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{report.reporterName}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">{report.reporterEmail}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-2">REPORTED USER</p>
-                          <div className="flex items-center gap-2">
-                            <UserX className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{report.reportedUserName}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">{report.reportedUserEmail}</p>
-                        </div>
-                      </div>
-
-                      {report.adminNotes && (
-                        <div className="mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                          <p className="text-xs font-medium text-blue-500">ADMIN NOTES</p>
-                          <p className="text-sm mt-1">{report.adminNotes}</p>
-                        </div>
-                      )}
-
-                      {report.action && (
-                        <div className="mt-4 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                          <p className="text-xs font-medium text-orange-500">ACTION TAKEN</p>
-                          <p className="text-sm mt-1">{report.action.replace('_', ' ')}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex lg:flex-col gap-2 lg:w-40">
-                      {report.status === 'PENDING' && (
-                        <>
-                          <GlassButton
-                            variant="primary"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<Search className="h-4 w-4" />}
-                            onClick={() => alert(`Investigating report ${report.id}`)}
-                          >
-                            Investigate
-                          </GlassButton>
-                          <GlassButton
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 text-red-500 border-red-500 hover:bg-red-500/10"
-                            leftIcon={<Ban className="h-4 w-4" />}
-                            onClick={() => alert(`Ban user for report ${report.id}`)}
-                          >
-                            Ban User
-                          </GlassButton>
-                        </>
-                      )}
-                      {report.status === 'INVESTIGATING' && (
-                        <>
-                          <GlassButton
-                            variant="primary"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<Check className="h-4 w-4" />}
-                            onClick={() => alert(`Resolve report ${report.id}`)}
-                          >
-                            Resolve
-                          </GlassButton>
-                          <GlassButton
-                            variant="default"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<X className="h-4 w-4" />}
-                            onClick={() => alert(`Dismiss report ${report.id}`)}
-                          >
-                            Dismiss
-                          </GlassButton>
-                        </>
-                      )}
-                      {report.status === 'RESOLVED' && (
-                        <GlassBadge variant="success" className="justify-center py-2">
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Resolved
-                        </GlassBadge>
-                      )}
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </FadeIn>
-        )}
-
-        {/* Blocked Users Tab */}
-        {activeTab === 'blocked' && (
-          <FadeIn delay={0.3}>
-            <div className="space-y-4">
-              {/* Blocked Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                      <Ban className="h-5 w-5 text-red-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayBans.length}</p>
-                      <p className="text-xs text-muted-foreground">Total Blocked</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                      <AlertCircle className="h-5 w-5 text-yellow-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayBans.filter(b => b.appealStatus === 'PENDING').length}</p>
-                      <p className="text-xs text-muted-foreground">Pending Appeals</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                      <Unlock className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayBans.filter(b => b.unblockScheduledAt).length}</p>
-                      <p className="text-xs text-muted-foreground">Scheduled Unblocks</p>
-                    </div>
-                  </div>
-                </GlassCard>
-              </div>
-
-              {/* Blocked Users List */}
-              {displayBans.map((blocked) => (
-                <GlassCard key={blocked.id} className="p-4 sm:p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
-                          <UserX className="h-6 w-6 text-red-500" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-lg">{blocked.userName}</h3>
-                            <GlassBadge
-                              variant={blocked.appealStatus === 'PENDING' ? 'warning' : blocked.appealStatus === 'REJECTED' ? 'destructive' : 'default'}
-                            >
-                              {blocked.appealStatus === 'PENDING' ? 'Appeal Pending' : 
-                               blocked.appealStatus === 'REJECTED' ? 'Appeal Rejected' :
-                               blocked.appealStatus === 'APPROVED' ? 'Appeal Approved' : 'No Appeal'}
-                            </GlassBadge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{blocked.userEmail}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                        <p className="text-xs font-medium text-red-500 mb-2">REASON FOR BLOCKING</p>
-                        <p className="text-sm">{blocked.reason}</p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>Blocked: {blocked.blockedAt.toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Shield className="h-4 w-4 text-muted-foreground" />
-                          <span>By: {blocked.blockedBy}</span>
-                        </div>
-                      </div>
-
-                      {blocked.appealReason && (
-                        <div className="mt-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                          <p className="text-xs font-medium text-yellow-500">APPEAL REASON</p>
-                          <p className="text-sm mt-1">{blocked.appealReason}</p>
-                          {blocked.appealDate && (
-                            <p className="text-xs text-muted-foreground mt-2">Submitted: {blocked.appealDate.toLocaleDateString()}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {blocked.unblockScheduledAt && (
-                        <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                          <p className="text-xs font-medium text-green-500">SCHEDULED UNBLOCK</p>
-                          <p className="text-sm mt-1">{blocked.unblockScheduledAt.toLocaleDateString()}</p>
-                        </div>
-                      )}
-
-                      {blocked.adminNotes && (
-                        <div className="mt-4 p-3 rounded-lg bg-muted/50">
-                          <p className="text-xs font-medium text-muted-foreground">ADMIN NOTES</p>
-                          <p className="text-sm mt-1">{blocked.adminNotes}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex lg:flex-col gap-2 lg:w-40">
-                      {blocked.appealStatus === 'PENDING' && (
-                        <>
-                          <GlassButton
-                            variant="primary"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<Check className="h-4 w-4" />}
-                            onClick={() => alert(`Appeal approved for ${blocked.userName}`)}
-                          >
-                            Approve Appeal
-                          </GlassButton>
-                          <GlassButton
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 text-red-500 border-red-500 hover:bg-red-500/10"
-                            leftIcon={<X className="h-4 w-4" />}
-                            onClick={() => alert(`Appeal rejected for ${blocked.userName}`)}
-                          >
-                            Reject Appeal
-                          </GlassButton>
-                        </>
-                      )}
-                      <GlassButton
-                        variant="default"
-                        size="sm"
-                        className="flex-1"
-                        leftIcon={<Unlock className="h-4 w-4" />}
-                        onClick={() => alert(`Unblock ${blocked.userName}`)}
-                      >
-                        Remove Block
-                      </GlassButton>
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </FadeIn>
-        )}
-
-        {/* Advertising Submissions Tab */}
-        {activeTab === 'advertising' && (
-          <FadeIn delay={0.3}>
-            <div className="space-y-4">
-              {/* Advertising Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-yellow-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayAds.filter(a => a.status === 'PENDING').length}</p>
-                      <p className="text-xs text-muted-foreground">Pending</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                      <Zap className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayAds.filter(a => a.status === 'ACTIVE').length}</p>
-                      <p className="text-xs text-muted-foreground">Active</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayAds.filter(a => a.status === 'COMPLETED').length}</p>
-                      <p className="text-xs text-muted-foreground">Completed</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                      <DollarSign className="h-5 w-5 text-purple-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">${displayAds.reduce((acc, a) => acc + a.budget, 0).toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">Total Budget</p>
-                    </div>
-                  </div>
-                </GlassCard>
-              </div>
-
-              {/* Ad Requests List */}
-              {displayAds.map((ad) => (
-                <GlassCard key={ad.id} className="p-4 sm:p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-3">
-                        <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                          ad.status === 'PENDING' ? "bg-yellow-500/20" :
-                          ad.status === 'ACTIVE' ? "bg-green-500/20" :
-                          ad.status === 'COMPLETED' ? "bg-blue-500/20" : "bg-red-500/20"
-                        )}>
-                          <Megaphone className={cn(
-                            "h-6 w-6",
-                            ad.status === 'PENDING' ? "text-yellow-500" :
-                            ad.status === 'ACTIVE' ? "text-green-500" :
-                            ad.status === 'COMPLETED' ? "text-blue-500" : "text-red-500"
-                          )} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-lg">{ad.businessName}</h3>
-                            <GlassBadge variant="secondary">{ad.package}</GlassBadge>
-                            <GlassBadge
-                              variant={
-                                ad.status === 'PENDING' ? 'warning' :
-                                ad.status === 'ACTIVE' ? 'success' :
-                                ad.status === 'COMPLETED' ? 'primary' : 'destructive'
-                              }
-                            >
-                              {ad.status}
-                            </GlassBadge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">{ad.notes}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          <span className="truncate">{ad.contactEmail}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
-                          <span>{ad.contactPhone}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                          <span>${ad.budget} budget</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>{ad.duration} days</span>
-                        </div>
-                      </div>
-
-                      {ad.status === 'ACTIVE' && (
-                        <div className="mt-4 p-4 rounded-lg bg-muted/50">
-                          <p className="text-xs font-medium text-muted-foreground mb-3">PERFORMANCE</p>
-                          <div className="grid grid-cols-3 gap-4 text-center">
-                            <div>
-                              <p className="text-lg font-bold">{ad.impressions.toLocaleString()}</p>
-                              <p className="text-xs text-muted-foreground">Impressions</p>
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold">{ad.clicks}</p>
-                              <p className="text-xs text-muted-foreground">Clicks</p>
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold">{ad.conversions}</p>
-                              <p className="text-xs text-muted-foreground">Conversions</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex lg:flex-col gap-2 lg:w-40">
-                      {ad.status === 'PENDING' && (
-                        <>
-                          <GlassButton
-                            variant="primary"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<Check className="h-4 w-4" />}
-                            onClick={() => alert(`Approved ad for ${ad.businessName}`)}
-                          >
-                            Approve
-                          </GlassButton>
-                          <GlassButton
-                            variant="default"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<Mail className="h-4 w-4" />}
-                            onClick={() => alert(`Contact ${ad.businessName}`)}
-                          >
-                            Contact
-                          </GlassButton>
-                        </>
-                      )}
-                      {ad.status === 'ACTIVE' && (
-                        <GlassButton
-                          variant="default"
-                          size="sm"
-                          className="flex-1"
-                          leftIcon={<Eye className="h-4 w-4" />}
-                        >
-                          View Stats
-                        </GlassButton>
-                      )}
-                      {ad.status === 'COMPLETED' && (
-                        <GlassButton
-                          variant="default"
-                          size="sm"
-                          className="flex-1"
-                          leftIcon={<RefreshCw className="h-4 w-4" />}
-                          onClick={() => alert(`Renew ad for ${ad.businessName}`)}
-                        >
-                          Renew
-                        </GlassButton>
-                      )}
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </FadeIn>
-        )}
-
-        {/* Support Messages Tab */}
-        {activeTab === 'support' && (
-          <FadeIn delay={0.3}>
-            <div className="space-y-4">
-              {/* Support Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                      <Inbox className="h-5 w-5 text-red-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayTickets.filter(s => s.status === 'OPEN').length}</p>
-                      <p className="text-xs text-muted-foreground">Open</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayTickets.filter(s => s.status === 'IN_PROGRESS').length}</p>
-                      <p className="text-xs text-muted-foreground">In Progress</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                      <AlertCircle className="h-5 w-5 text-yellow-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayTickets.filter(s => s.status === 'WAITING').length}</p>
-                      <p className="text-xs text-muted-foreground">Waiting</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayTickets.filter(s => s.status === 'RESOLVED').length}</p>
-                      <p className="text-xs text-muted-foreground">Resolved</p>
-                    </div>
-                  </div>
-                </GlassCard>
-                <GlassCard className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                      <AlertTriangle className="h-5 w-5 text-orange-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{displayTickets.filter(s => s.priority === 'URGENT').length}</p>
-                      <p className="text-xs text-muted-foreground">Urgent</p>
-                    </div>
-                  </div>
-                </GlassCard>
-              </div>
-
-              {/* Support Messages List */}
-              {displayTickets.map((msg) => (
-                <GlassCard key={msg.id} className="p-4 sm:p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-3">
-                        <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                          msg.priority === 'URGENT' ? "bg-red-500/20" :
-                          msg.priority === 'HIGH' ? "bg-orange-500/20" :
-                          msg.priority === 'MEDIUM' ? "bg-yellow-500/20" : "bg-green-500/20"
-                        )}>
-                          <LifeBuoy className={cn(
-                            "h-6 w-6",
-                            msg.priority === 'URGENT' ? "text-red-500" :
-                            msg.priority === 'HIGH' ? "text-orange-500" :
-                            msg.priority === 'MEDIUM' ? "text-yellow-500" : "text-green-500"
-                          )} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-lg">{msg.subject}</h3>
-                            <GlassBadge variant="secondary">{msg.category}</GlassBadge>
-                            <GlassBadge
-                              variant={
-                                msg.priority === 'URGENT' ? 'destructive' :
-                                msg.priority === 'HIGH' ? 'warning' : 'default'
-                              }
-                            >
-                              {msg.priority}
-                            </GlassBadge>
-                            <GlassBadge
-                              variant={
-                                msg.status === 'OPEN' ? 'destructive' :
-                                msg.status === 'IN_PROGRESS' ? 'primary' :
-                                msg.status === 'WAITING' ? 'warning' : 'success'
-                              }
-                            >
-                              {msg.status.replace('_', ' ')}
-                            </GlassBadge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">{msg.message}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 mt-4 p-4 rounded-lg bg-muted/50">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">FROM</p>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{msg.userName}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">{msg.userEmail}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">TIMELINE</p>
-                          <p className="text-sm">Created: {msg.createdAt.toLocaleDateString()}</p>
-                          <p className="text-xs text-muted-foreground">Updated: {msg.updatedAt.toLocaleDateString()}</p>
-                        </div>
-                      </div>
-
-                      {msg.replies.length > 0 && (
-                        <div className="mt-4 space-y-3">
-                          <p className="text-xs font-medium text-muted-foreground">REPLIES ({msg.replies.length})</p>
-                          {msg.replies.map((reply) => (
-                            <div key={reply.id} className={cn(
-                              "p-3 rounded-lg",
-                              reply.from === 'ADMIN' ? "bg-primary/10 border border-primary/20" : "bg-muted/50"
-                            )}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <GlassBadge variant={reply.from === 'ADMIN' ? 'primary' : 'default'} className="text-xs">
-                                  {reply.from}
-                                </GlassBadge>
-                                {reply.adminName && <span className="text-xs text-muted-foreground">{reply.adminName}</span>}
-                                <span className="text-xs text-muted-foreground ml-auto">{reply.createdAt.toLocaleDateString()}</span>
-                              </div>
-                              <p className="text-sm">{reply.message}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex lg:flex-col gap-2 lg:w-40">
-                      {msg.status !== 'RESOLVED' && msg.status !== 'CLOSED' && (
-                        <>
-                          <GlassButton
-                            variant="primary"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<Send className="h-4 w-4" />}
-                            onClick={() => alert(`Reply to ticket from ${msg.userName}`)}
-                          >
-                            Reply
-                          </GlassButton>
-                          <GlassButton
-                            variant="default"
-                            size="sm"
-                            className="flex-1"
-                            leftIcon={<Check className="h-4 w-4" />}
-                            onClick={() => alert(`Resolve ticket from ${msg.userName}`)}
-                          >
-                            Resolve
-                          </GlassButton>
-                        </>
-                      )}
-                      {msg.status === 'RESOLVED' && (
-                        <GlassBadge variant="success" className="justify-center py-2">
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Resolved
-                        </GlassBadge>
-                      )}
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </FadeIn>
-        )}
-
-        {/* Page Content Management Tab */}
-        {activeTab === 'page-content' && (
-          <FadeIn delay={0.3}>
-            <div className="grid md:grid-cols-2 gap-6">
-              {displayPageContent.map((page) => (
-                <GlassCard key={page.id} className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center",
-                        page.page === 'about' ? "bg-blue-500/20" :
-                        page.page === 'privacy' ? "bg-green-500/20" :
-                        page.page === 'terms' ? "bg-purple-500/20" : "bg-orange-500/20"
-                      )}>
-                        <Globe className={cn(
-                          "h-6 w-6",
-                          page.page === 'about' ? "text-blue-500" :
-                          page.page === 'privacy' ? "text-green-500" :
-                          page.page === 'terms' ? "text-purple-500" : "text-orange-500"
-                        )} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">{page.title}</h3>
-                        <p className="text-sm text-muted-foreground capitalize">{page.page} Page</p>
-                      </div>
-                    </div>
-                    <GlassBadge variant="secondary">
-                      {page.page}
-                    </GlassBadge>
-                  </div>
-
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                    {page.content}
-                  </p>
-
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-                    <span>Last updated: {page.lastUpdated.toLocaleDateString()}</span>
-                    <span>By: {page.updatedBy}</span>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <GlassButton
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      leftIcon={<Edit className="h-4 w-4" />}
-                      onClick={() => alert(`Edit ${page.page} page`)}
-                    >
-                      Edit Content
-                    </GlassButton>
-                    <GlassButton
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      leftIcon={<Eye className="h-4 w-4" />}
-                      onClick={() => alert(`Preview ${page.page} page`)}
-                    >
-                      Preview
-                    </GlassButton>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-
-            {/* Quick Actions */}
-            <GlassCard className="p-6 mt-6">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
-                Quick Actions
-              </h3>
-              <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
-                <GlassButton
-                  variant="default"
-                  className="justify-start"
-                  leftIcon={<FileText className="h-4 w-4" />}
-                  onClick={() => alert('Create new page')}
-                >
-                  Create New Page
-                </GlassButton>
-                <GlassButton
-                  variant="default"
-                  className="justify-start"
-                  leftIcon={<Download className="h-4 w-4" />}
-                  onClick={() => alert('Export all pages')}
-                >
-                  Export All Pages
-                </GlassButton>
-                <GlassButton
-                  variant="default"
-                  className="justify-start"
-                  leftIcon={<Globe className="h-4 w-4" />}
-                  onClick={() => alert('View live site')}
-                >
-                  View Live Site
-                </GlassButton>
-                <GlassButton
-                  variant="default"
-                  className="justify-start"
-                  leftIcon={<RefreshCw className="h-4 w-4" />}
-                  onClick={() => alert('Clear page cache')}
-                >
-                  Clear Cache
-                </GlassButton>
-              </div>
-            </GlassCard>
-          </FadeIn>
-        )}
-
-        {/* Settings Tab */}
-        {activeTab === 'settings' && (
-          <FadeIn delay={0.3}>
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Platform Fees */}
-              <GlassCard className="p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Percent className="h-5 w-5 text-primary" />
-                  Platform Fees & Pricing
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Service Fee (%)</label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="number"
-                        value={settings.platformFee}
-                        onChange={(e) => handleSettingChange('platformFee', parseInt(e.target.value))}
-                        className="flex-1 h-10 px-3 rounded-lg border border-input bg-background/50"
-                        min="0"
-                        max="50"
-                      />
-                      <span className="text-muted-foreground">%</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Fee charged on each booking</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Minimum Withdrawal ($)</label>
-                    <input
-                      type="number"
-                      value={settings.minWithdrawal}
-                      onChange={(e) => handleSettingChange('minWithdrawal', parseInt(e.target.value))}
-                      className="w-full h-10 px-3 rounded-lg border border-input bg-background/50"
-                      min="10"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">Minimum amount for business payouts</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Featured Listing Price ($)</label>
-                    <input
-                      type="number"
-                      value={settings.featuredListingPrice}
-                      onChange={(e) => handleSettingChange('featuredListingPrice', parseInt(e.target.value))}
-                      className="w-full h-10 px-3 rounded-lg border border-input bg-background/50"
-                      min="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Premium Listing Price ($)</label>
-                    <input
-                      type="number"
-                      value={settings.premiumListingPrice}
-                      onChange={(e) => handleSettingChange('premiumListingPrice', parseInt(e.target.value))}
-                      className="w-full h-10 px-3 rounded-lg border border-input bg-background/50"
-                      min="0"
-                    />
-                  </div>
-                </div>
-              </GlassCard>
-
-              {/* Notifications */}
-              <GlassCard className="p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Bell className="h-5 w-5 text-primary" />
-                  Notifications
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">Email Notifications</p>
-                      <p className="text-xs text-muted-foreground">Send email alerts for new applications</p>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('emailNotifications', !settings.emailNotifications)}
-                      className="text-primary"
-                    >
-                      {settings.emailNotifications ? (
-                        <ToggleRight className="h-8 w-8" />
-                      ) : (
-                        <ToggleLeft className="h-8 w-8 text-muted-foreground" />
-                      )}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">SMS Notifications</p>
-                      <p className="text-xs text-muted-foreground">Send SMS for urgent matters</p>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('smsNotifications', !settings.smsNotifications)}
-                    >
-                      {settings.smsNotifications ? (
-                        <ToggleRight className="h-8 w-8 text-primary" />
-                      ) : (
-                        <ToggleLeft className="h-8 w-8 text-muted-foreground" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </GlassCard>
-
-              {/* Security */}
-              <GlassCard className="p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-primary" />
-                  Security & Verification
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">Require ID Verification</p>
-                      <p className="text-xs text-muted-foreground">Businesses must upload ID document</p>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('requireIdVerification', !settings.requireIdVerification)}
-                    >
-                      {settings.requireIdVerification ? (
-                        <ToggleRight className="h-8 w-8 text-primary" />
-                      ) : (
-                        <ToggleLeft className="h-8 w-8 text-muted-foreground" />
-                      )}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">Auto-Approve Businesses</p>
-                      <p className="text-xs text-muted-foreground">Skip manual review process</p>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('autoApprove', !settings.autoApprove)}
-                    >
-                      {settings.autoApprove ? (
-                        <ToggleRight className="h-8 w-8 text-primary" />
-                      ) : (
-                        <ToggleLeft className="h-8 w-8 text-muted-foreground" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </GlassCard>
-
-              {/* Maintenance */}
-              <GlassCard className="p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-primary" />
-                  Maintenance
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                    <div>
-                      <p className="font-medium">Maintenance Mode</p>
-                      <p className="text-xs text-muted-foreground">Temporarily disable the platform</p>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('maintenanceMode', !settings.maintenanceMode)}
-                    >
-                      {settings.maintenanceMode ? (
-                        <ToggleRight className="h-8 w-8 text-red-500" />
-                      ) : (
-                        <ToggleLeft className="h-8 w-8 text-muted-foreground" />
-                      )}
-                    </button>
-                  </div>
-                  <GlassButton variant="default" className="w-full" leftIcon={<RefreshCw className="h-4 w-4" />}>
-                    Clear Cache
-                  </GlassButton>
-                  <GlassButton variant="default" className="w-full" leftIcon={<Download className="h-4 w-4" />}>
-                    Export Data
+                  <GlassButton size="icon" variant="ghost" onClick={() => {
+                    setEditingPage(page);
+                    setContentEditTitle(page.title);
+                    setContentEditBody(page.content);
+                    setShowContentModal(true);
+                  }}>
+                    <Edit className="h-4 w-4" />
                   </GlassButton>
                 </div>
               </GlassCard>
+            ))
+          ) : (
+            <div className="col-span-2">
+              <EmptyState icon={Globe} title="No pages found" description="No CMS pages are available." />
             </div>
-            
-            {/* Save Button */}
-            <div className="mt-6 flex justify-end">
-              <GlassButton
-                variant="primary"
-                onClick={handleSaveSettings}
-                isLoading={isProcessing}
-                leftIcon={<Check className="h-4 w-4" />}
-              >
-                Save Settings
-              </GlassButton>
+          )}
+        </div>
+      </div>
+
+      {/* Blog Articles */}
+      <div>
+        <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <Newspaper className="h-5 w-5 text-primary" /> Blog Articles
+        </h2>
+        <GlassCard className="p-6" hover={false}>
+          {isLoading && !dataFetched['content'] ? (
+            <TableSkeleton />
+          ) : displayArticles.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-muted-foreground border-b border-white/10">
+                    <th className="pb-3 font-medium">Title</th>
+                    <th className="pb-3 font-medium">Author</th>
+                    <th className="pb-3 font-medium">Category</th>
+                    <th className="pb-3 font-medium">Status</th>
+                    <th className="pb-3 font-medium">Views</th>
+                    <th className="pb-3 font-medium">Updated</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {displayArticles.map((a) => (
+                    <tr key={a.id} className="hover:bg-muted/20">
+                      <td className="py-3 pr-4">
+                        <p className="font-medium max-w-[250px] truncate">{a.title}</p>
+                        <p className="text-xs text-muted-foreground">{a.slug}</p>
+                      </td>
+                      <td className="py-3 pr-4">{a.author || 'N/A'}</td>
+                      <td className="py-3 pr-4"><GlassBadge variant="default">{a.category || 'N/A'}</GlassBadge></td>
+                      <td className="py-3 pr-4"><GlassBadge variant={statusColor(a.status)}>{a.status}</GlassBadge></td>
+                      <td className="py-3 pr-4 text-muted-foreground">{a.views ?? 0}</td>
+                      <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(a.updatedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            
-            {/* Settings Saved Message */}
-            <AnimatePresence>
-              {settingsSaved && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50"
-                >
-                  <Check className="h-4 w-4" />
-                  Settings saved successfully!
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </FadeIn>
-        )}
-
-        {/* Resolve Dispute Modal */}
-        <AnimatePresence>
-          {showResolveModal && selectedDispute && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-              onClick={() => setShowResolveModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-md"
-              >
-                <GlassCard variant="elevated" className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                      <AlertTriangle className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Resolve Dispute</h3>
-                      <p className="text-sm text-muted-foreground">Choose a resolution</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4 mb-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Resolution Type</label>
-                      <select
-                        value={resolutionType}
-                        onChange={(e) => setResolutionType(e.target.value as any)}
-                        className="w-full h-10 px-3 rounded-lg border border-input bg-background/50"
-                      >
-                        <option value="FULL_REFUND">Full Refund</option>
-                        <option value="PARTIAL_REFUND">Partial Refund</option>
-                        <option value="NO_ACTION">No Action Needed</option>
-                      </select>
-                    </div>
-                    
-                    {resolutionType === 'PARTIAL_REFUND' && (
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Refund Amount</label>
-                        <GlassInput
-                          type="number"
-                          value={partialRefundAmount}
-                          onChange={(e) => setPartialRefundAmount(parseFloat(e.target.value))}
-                          placeholder="Enter amount"
-                        />
-                      </div>
-                    )}
-                    
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Notes</label>
-                      <textarea
-                        value={resolutionNotes}
-                        onChange={(e) => setResolutionNotes(e.target.value)}
-                        placeholder="Add resolution notes..."
-                        className="w-full h-24 p-3 rounded-lg border border-input bg-background/50 resize-none"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <GlassButton
-                      variant="ghost"
-                      className="flex-1"
-                      onClick={() => setShowResolveModal(false)}
-                    >
-                      Cancel
-                    </GlassButton>
-                    <GlassButton
-                      variant="primary"
-                      className="flex-1"
-                      onClick={handleResolveDispute}
-                      disabled={isProcessing}
-                      isLoading={isProcessing}
-                    >
-                      Resolve
-                    </GlassButton>
-                  </div>
-                </GlassCard>
-              </motion.div>
-            </motion.div>
+          ) : (
+            <EmptyState icon={Newspaper} title="No articles found" description="No blog articles have been created yet." />
           )}
-        </AnimatePresence>
-
-        {/* Reject Modal */}
-        <AnimatePresence>
-          {showRejectModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-              onClick={() => setShowRejectModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-md"
-              >
-                <GlassCard variant="elevated" className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
-                      <AlertTriangle className="h-5 w-5 text-destructive" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Reject Application</h3>
-                      <p className="text-sm text-muted-foreground">Please provide a reason</p>
-                    </div>
-                  </div>
-                  
-                  <textarea
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    placeholder="Enter the reason for rejection..."
-                    className="w-full h-32 p-3 rounded-lg border border-input bg-background/50 resize-none mb-4"
-                  />
-                  
-                  <div className="flex gap-3">
-                    <GlassButton
-                      variant="ghost"
-                      className="flex-1"
-                      onClick={() => setShowRejectModal(false)}
-                    >
-                      Cancel
-                    </GlassButton>
-                    <GlassButton
-                      variant="outline"
-                      className="flex-1 text-red-500 border-red-500 hover:bg-red-50"
-                      onClick={handleReject}
-                      disabled={!rejectReason.trim() || isProcessing}
-                      isLoading={isProcessing}
-                    >
-                      Reject
-                    </GlassButton>
-                  </div>
-                </GlassCard>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* User Details Modal */}
-        <AnimatePresence>
-          {showUserModal && selectedUser && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-              onClick={() => setShowUserModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg"
-              >
-                <GlassCard variant="elevated" className="p-6">
-                  {(() => {
-                    const u = displayUsers.find(user => user.id === selectedUser);
-                    if (!u) return null;
-                    return (
-                      <>
-                        <div className="flex items-center gap-4 mb-6">
-                          <div className="w-16 h-16 rounded-full gradient-bg flex items-center justify-center">
-                            <span className="text-2xl font-bold text-white">{u.name.charAt(0)}</span>
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-semibold">{u.name}</h3>
-                            <p className="text-sm text-muted-foreground">{u.email}</p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 rounded-lg bg-muted/50">
-                              <p className="text-xs text-muted-foreground mb-1">Role(s)</p>
-                              <div className="flex flex-wrap gap-1">
-                                {u.roles && u.roles.length > 1 ? (
-                                  u.roles.map((r, idx) => (
-                                    <GlassBadge key={idx} variant={r === 'BUSINESS_OWNER' ? 'primary' : 'default'} className="text-xs">
-                                      {r === 'BUSINESS_OWNER' ? 'Provider' : 'Customer'}
-                                    </GlassBadge>
-                                  ))
-                                ) : (
-                                  <GlassBadge variant={u.role === 'BUSINESS_OWNER' ? 'primary' : 'default'}>
-                                    {u.role === 'BUSINESS_OWNER' ? 'Provider' : 'Customer'}
-                                  </GlassBadge>
-                                )}
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-lg bg-muted/50">
-                              <p className="text-xs text-muted-foreground mb-1">Status</p>
-                              <GlassBadge variant={u.status === 'ACTIVE' ? 'success' : 'destructive'}>
-                                {u.status}
-                              </GlassBadge>
-                            </div>
-                          </div>
-
-                          <div className="p-4 rounded-lg bg-muted/50">
-                            <p className="text-xs text-muted-foreground mb-1">Joined</p>
-                            <p className="font-medium">{u.joinedAt.toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                          </div>
-
-                          {/* Show both spending and earnings for dual role users */}
-                          <div className="grid grid-cols-2 gap-4">
-                            {u.totalSpent !== undefined && (
-                              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                                <p className="text-xs text-muted-foreground mb-1">Total Spent</p>
-                                <p className="text-xl font-bold text-green-500">${u.totalSpent}</p>
-                                <p className="text-xs text-muted-foreground">as Customer</p>
-                              </div>
-                            )}
-
-                            {u.totalEarnings !== undefined && (
-                              <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                                <p className="text-xs text-muted-foreground mb-1">Total Earnings</p>
-                                <p className="text-xl font-bold text-blue-500">${u.totalEarnings.toLocaleString()}</p>
-                                <p className="text-xs text-muted-foreground">as Provider</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-6">
-                          <GlassButton
-                            variant="ghost"
-                            className="flex-1"
-                            onClick={() => setShowUserModal(false)}
-                          >
-                            Close
-                          </GlassButton>
-                          <GlassButton
-                            variant="outline"
-                            className={cn("flex-1", u.status === 'ACTIVE' && "text-red-500 border-red-500 hover:bg-red-500/10")}
-                            onClick={() => {
-                              handleToggleUserStatus(u.id);
-                              setShowUserModal(false);
-                            }}
-                            leftIcon={u.status === 'ACTIVE' ? <Ban className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                          >
-                            {u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
-                          </GlassButton>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </GlassCard>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Dispute Respond Modal */}
-        <AnimatePresence>
-          {showDisputeModal && selectedDispute && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-              onClick={() => setShowDisputeModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg"
-              >
-                <GlassCard variant="elevated" className="p-6">
-                  {(() => {
-                    const dispute = disputes.find(d => d.id === selectedDispute);
-                    if (!dispute) return null;
-                    return (
-                      <>
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                            <MessageSquare className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold">Respond to Dispute</h3>
-                            <p className="text-sm text-muted-foreground">{dispute.type.replace('_', ' ')}</p>
-                          </div>
-                        </div>
-
-                        <div className="p-4 rounded-lg bg-muted/50 mb-4">
-                          <p className="text-xs font-medium text-muted-foreground mb-2">Original Complaint</p>
-                          <p className="text-sm">{dispute.description}</p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div className="p-3 rounded-lg bg-muted/30">
-                            <p className="text-xs text-muted-foreground">Customer</p>
-                            <p className="font-medium">{dispute.customerName}</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-muted/30">
-                            <p className="text-xs text-muted-foreground">Provider</p>
-                            <p className="font-medium">{dispute.providerName}</p>
-                          </div>
-                        </div>
-
-                        <div className="mb-4">
-                          <label className="text-sm font-medium mb-2 block">Your Response</label>
-                          <textarea
-                            value={disputeResponse}
-                            onChange={(e) => setDisputeResponse(e.target.value)}
-                            placeholder="Enter your response to this dispute..."
-                            className="w-full h-32 p-3 rounded-lg border border-input bg-background/50 resize-none"
-                          />
-                        </div>
-
-                        <div className="flex gap-3">
-                          <GlassButton
-                            variant="ghost"
-                            className="flex-1"
-                            onClick={() => {
-                              setShowDisputeModal(false);
-                              setDisputeResponse('');
-                            }}
-                          >
-                            Cancel
-                          </GlassButton>
-                          <GlassButton
-                            variant="primary"
-                            className="flex-1"
-                            onClick={handleSendDisputeResponse}
-                            disabled={!disputeResponse.trim() || isProcessing}
-                            isLoading={isProcessing}
-                            leftIcon={<Send className="h-4 w-4" />}
-                          >
-                            Send Response
-                          </GlassButton>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </GlassCard>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Listing Details/Edit Modal */}
-        <AnimatePresence>
-          {showListingModal && selectedListing && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-              onClick={() => setShowListingModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg"
-              >
-                <GlassCard variant="elevated" className="p-6">
-                  {(() => {
-                    const listing = premiumListings.find(l => l.id === selectedListing);
-                    if (!listing) return null;
-                    return (
-                      <>
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className={cn(
-                            "w-10 h-10 rounded-full flex items-center justify-center",
-                            listing.plan === 'FEATURED' ? "bg-yellow-500/20" : "bg-purple-500/20"
-                          )}>
-                            <Crown className={cn(
-                              "h-5 w-5",
-                              listing.plan === 'FEATURED' ? "text-yellow-500" : "text-purple-500"
-                            )} />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold">Premium Listing Details</h3>
-                            <p className="text-sm text-muted-foreground">{listing.businessName}</p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-sm font-medium mb-2 block">Plan</label>
-                              <select
-                                value={listingEditData.plan}
-                                onChange={(e) => setListingEditData(prev => ({ ...prev, plan: e.target.value }))}
-                                className="w-full h-10 px-3 rounded-lg border border-input bg-background/50"
-                              >
-                                <option value="FEATURED">Featured</option>
-                                <option value="PREMIUM">Premium</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium mb-2 block">Price ($/month)</label>
-                              <GlassInput
-                                type="number"
-                                value={listingEditData.price}
-                                onChange={(e) => setListingEditData(prev => ({ ...prev, price: parseInt(e.target.value) || 0 }))}
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-sm font-medium mb-2 block">End Date</label>
-                            <GlassInput
-                              type="date"
-                              value={listingEditData.endDate}
-                              onChange={(e) => setListingEditData(prev => ({ ...prev, endDate: e.target.value }))}
-                            />
-                          </div>
-
-                          <div className="p-4 rounded-lg bg-muted/50">
-                            <p className="text-xs font-medium text-muted-foreground mb-3">PERFORMANCE STATS</p>
-                            <div className="grid grid-cols-3 gap-3 text-center">
-                              <div>
-                                <p className="text-lg font-bold">{listing.impressions.toLocaleString()}</p>
-                                <p className="text-xs text-muted-foreground">Views</p>
-                              </div>
-                              <div>
-                                <p className="text-lg font-bold">{listing.clicks}</p>
-                                <p className="text-xs text-muted-foreground">Clicks</p>
-                              </div>
-                              <div>
-                                <p className="text-lg font-bold">{listing.conversions}</p>
-                                <p className="text-xs text-muted-foreground">Bookings</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                            <span className="text-sm text-muted-foreground">Status</span>
-                            <GlassBadge variant={listing.status === 'ACTIVE' ? 'success' : 'warning'}>
-                              {listing.status}
-                            </GlassBadge>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-6">
-                          <GlassButton
-                            variant="ghost"
-                            className="flex-1"
-                            onClick={() => setShowListingModal(false)}
-                          >
-                            Cancel
-                          </GlassButton>
-                          <GlassButton
-                            variant="primary"
-                            className="flex-1"
-                            onClick={handleSaveListing}
-                            isLoading={isProcessing}
-                            leftIcon={<Check className="h-4 w-4" />}
-                          >
-                            Save Changes
-                          </GlassButton>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </GlassCard>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </GlassCard>
       </div>
     </div>
   );
-};
 
-export default AdminDashboard;
+  // ============================================
+  // SECTION: SETTINGS
+  // ============================================
+
+  const renderSettings = () => (
+    <div className="space-y-6 max-w-3xl">
+      {/* Platform Fees */}
+      <GlassCard className="p-6" hover={false}>
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <Percent className="h-5 w-5 text-primary" /> Platform Fees
+        </h3>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Platform Fee (%)</label>
+            <GlassInput
+              type="number"
+              value={settings.platformFee}
+              onChange={(e) => setSettings(s => ({ ...s, platformFee: Number(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Min Withdrawal (KSh)</label>
+            <GlassInput
+              type="number"
+              value={settings.minWithdrawal}
+              onChange={(e) => setSettings(s => ({ ...s, minWithdrawal: Number(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Featured Listing Price (KSh)</label>
+            <GlassInput
+              type="number"
+              value={settings.featuredListingPrice}
+              onChange={(e) => setSettings(s => ({ ...s, featuredListingPrice: Number(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Premium Listing Price (KSh)</label>
+            <GlassInput
+              type="number"
+              value={settings.premiumListingPrice}
+              onChange={(e) => setSettings(s => ({ ...s, premiumListingPrice: Number(e.target.value) }))}
+            />
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Notification Toggles */}
+      <GlassCard className="p-6" hover={false}>
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <Bell className="h-5 w-5 text-primary" /> Notifications
+        </h3>
+        <div className="space-y-4">
+          {[
+            { key: 'emailNotifications' as const, label: 'Email Notifications', desc: 'Send email notifications to users' },
+            { key: 'smsNotifications' as const, label: 'SMS Notifications', desc: 'Send SMS notifications to users' },
+          ].map((item) => (
+            <div key={item.key} className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{item.label}</p>
+                <p className="text-xs text-muted-foreground">{item.desc}</p>
+              </div>
+              <button
+                onClick={() => setSettings(s => ({ ...s, [item.key]: !s[item.key] }))}
+                className={cn(
+                  'w-12 h-6 rounded-full transition-colors relative',
+                  settings[item.key] ? 'bg-primary' : 'bg-muted',
+                )}
+              >
+                <span className={cn(
+                  'absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
+                  settings[item.key] ? 'translate-x-6.5 left-0' : 'left-0.5',
+                )} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </GlassCard>
+
+      {/* Security Settings */}
+      <GlassCard className="p-6" hover={false}>
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <Lock className="h-5 w-5 text-primary" /> Security
+        </h3>
+        <div className="space-y-4">
+          {[
+            { key: 'requireIdVerification' as const, label: 'Require ID Verification', desc: 'Require users to verify their identity' },
+            { key: 'autoApproveBusinesses' as const, label: 'Auto-Approve Businesses', desc: 'Automatically approve new business applications' },
+            { key: 'maintenanceMode' as const, label: 'Maintenance Mode', desc: 'Temporarily disable the platform for maintenance' },
+          ].map((item) => (
+            <div key={item.key} className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{item.label}</p>
+                <p className="text-xs text-muted-foreground">{item.desc}</p>
+              </div>
+              <button
+                onClick={() => setSettings(s => ({ ...s, [item.key]: !s[item.key] }))}
+                className={cn(
+                  'w-12 h-6 rounded-full transition-colors relative',
+                  settings[item.key] ? 'bg-primary' : 'bg-muted',
+                )}
+              >
+                <span className={cn(
+                  'absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
+                  settings[item.key] ? 'translate-x-6.5 left-0' : 'left-0.5',
+                )} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </GlassCard>
+
+      <div className="flex justify-end">
+        <GlassButton variant="primary" size="lg" onClick={handleSaveSettings} isLoading={isProcessing}>
+          <Save className="h-4 w-4" /> Save Settings
+        </GlassButton>
+      </div>
+    </div>
+  );
+
+  // ============================================
+  // MODALS
+  // ============================================
+
+  return (
+    <div className="min-h-screen flex">
+      {renderSidebar()}
+      {renderMainContent()}
+
+      {/* Reject Modal */}
+      <GlassModal isOpen={showRejectModal} onClose={() => setShowRejectModal(false)} title="Reject" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Please provide a reason for rejecting this {rejectType === 'business' ? 'business' : 'listing'}.
+          </p>
+          <textarea
+            className="w-full h-24 rounded-xl border border-border bg-background/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+            placeholder="Enter rejection reason..."
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+          />
+          <div className="flex justify-end gap-3">
+            <GlassButton variant="ghost" onClick={() => setShowRejectModal(false)}>Cancel</GlassButton>
+            <GlassButton variant="outline" onClick={handleRejectBusiness} disabled={isProcessing || !rejectReason.trim()}>
+              <X className="h-3 w-3" /> Reject
+            </GlassButton>
+          </div>
+        </div>
+      </GlassModal>
+
+      {/* Dispute Modal */}
+      <GlassModal isOpen={showDisputeModal} onClose={() => setShowDisputeModal(false)} title="Handle Dispute" size="md">
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Admin Message</label>
+            <textarea
+              className="w-full h-20 rounded-xl border border-border bg-background/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="Enter your response..."
+              value={disputeResponse}
+              onChange={(e) => setDisputeResponse(e.target.value)}
+            />
+          </div>
+          <div className="border-t border-white/10 pt-4">
+            <label className="text-sm font-medium block mb-1.5">Resolution</label>
+            <select
+              value={resolutionType}
+              onChange={(e) => setResolutionType(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-border bg-background/50 text-sm text-foreground mb-3"
+            >
+              <option value="FULL_REFUND">Full Refund</option>
+              <option value="PARTIAL_REFUND">Partial Refund</option>
+              <option value="NO_ACTION">No Action</option>
+            </select>
+            {resolutionType === 'PARTIAL_REFUND' && (
+              <div className="mb-3">
+                <label className="text-sm font-medium block mb-1.5">Refund Amount</label>
+                <GlassInput
+                  type="number"
+                  value={partialRefundAmount}
+                  onChange={(e) => setPartialRefundAmount(Number(e.target.value))}
+                />
+              </div>
+            )}
+            <textarea
+              className="w-full h-16 rounded-xl border border-border bg-background/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="Resolution notes..."
+              value={resolutionNotes}
+              onChange={(e) => setResolutionNotes(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <GlassButton variant="ghost" onClick={() => setShowDisputeModal(false)}>Cancel</GlassButton>
+            <GlassButton variant="outline" onClick={() => handleDisputeAction('respond')} disabled={isProcessing || !disputeResponse.trim()}>
+              <Send className="h-3 w-3" /> Send Response
+            </GlassButton>
+            <GlassButton variant="primary" onClick={() => handleDisputeAction('resolve')} disabled={isProcessing}>
+              <Check className="h-3 w-3" /> Resolve
+            </GlassButton>
+          </div>
+        </div>
+      </GlassModal>
+
+      {/* Ticket Reply Modal */}
+      <GlassModal isOpen={showTicketModal} onClose={() => setShowTicketModal(false)} title="Reply to Ticket" size="md">
+        <div className="space-y-4">
+          <textarea
+            className="w-full h-32 rounded-xl border border-border bg-background/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+            placeholder="Type your reply..."
+            value={ticketReply}
+            onChange={(e) => setTicketReply(e.target.value)}
+          />
+          <div className="flex justify-end gap-3">
+            <GlassButton variant="ghost" onClick={() => setShowTicketModal(false)}>Cancel</GlassButton>
+            <GlassButton variant="primary" onClick={handleTicketReply} disabled={isProcessing || !ticketReply.trim()}>
+              <Send className="h-3 w-3" /> Send Reply
+            </GlassButton>
+          </div>
+        </div>
+      </GlassModal>
+
+      {/* Claim Review Modal */}
+      <GlassModal isOpen={showClaimModal} onClose={() => setShowClaimModal(false)} title="Review Claim" size="md">
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Action</label>
+            <select
+              value={claimAction}
+              onChange={(e) => setClaimAction(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-border bg-background/50 text-sm text-foreground"
+            >
+              <option value="">Select action...</option>
+              <option value="UNDER_REVIEW">Under Review</option>
+              <option value="APPROVED">Approve</option>
+              <option value="REJECTED">Reject</option>
+              <option value="PAID">Mark as Paid</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Admin Notes</label>
+            <textarea
+              className="w-full h-24 rounded-xl border border-border bg-background/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="Add notes about this claim..."
+              value={claimNotes}
+              onChange={(e) => setClaimNotes(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <GlassButton variant="ghost" onClick={() => setShowClaimModal(false)}>Cancel</GlassButton>
+            <GlassButton variant="primary" onClick={handleClaimAction} disabled={isProcessing || !claimAction}>
+              <Check className="h-3 w-3" /> Update Claim
+            </GlassButton>
+          </div>
+        </div>
+      </GlassModal>
+
+      {/* User Detail Modal */}
+      <GlassModal isOpen={showUserModal} onClose={() => setShowUserModal(false)} title="User Details" size="md">
+        {selectedUserId && (() => {
+          const u = displayUsers.find(u => u.id === selectedUserId);
+          if (!u) return <p className="text-muted-foreground">User not found</p>;
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Name:</span> <span className="font-medium ml-1">{u.name || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Email:</span> <span className="font-medium ml-1">{u.email || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium ml-1">{u.phone || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Role:</span> <span className="font-medium ml-1">{u.role || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Status:</span> <GlassBadge variant={statusColor(u.status)} className="ml-1">{u.status}</GlassBadge></div>
+                <div><span className="text-muted-foreground">Verified:</span> {u.isVerified ? <CheckCircle className="inline h-4 w-4 text-green-500 ml-1" /> : <XCircle className="inline h-4 w-4 text-muted-foreground ml-1" />}</div>
+                <div><span className="text-muted-foreground">Joined:</span> <span className="font-medium ml-1">{fmtDate(u.createdAt)}</span></div>
+                <div><span className="text-muted-foreground">Total Spent:</span> <span className="font-medium ml-1">{fmtCurrency(u.totalSpent)}</span></div>
+                {u.business && (
+                  <div className="col-span-2"><span className="text-muted-foreground">Business:</span> <span className="font-medium ml-1">{u.business.name}</span></div>
+                )}
+              </div>
+              <div className="flex justify-end gap-3 pt-2 border-t border-white/10">
+                <GlassButton variant="ghost" onClick={() => setShowUserModal(false)}>Close</GlassButton>
+                <GlassButton
+                  variant={u.status === 'ACTIVE' ? 'outline' : 'primary'}
+                  onClick={() => { handleToggleUser(u.id); setShowUserModal(false); }}
+                  disabled={isProcessing}
+                >
+                  {u.status === 'ACTIVE' ? <Ban className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
+                  {u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                </GlassButton>
+              </div>
+            </div>
+          );
+        })()}
+      </GlassModal>
+
+      {/* Listing Edit Modal */}
+      <GlassModal isOpen={showListingModal} onClose={() => setShowListingModal(false)} title="Edit Listing" size="md">
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Plan</label>
+            <select
+              value={listingEditData.plan}
+              onChange={(e) => setListingEditData(d => ({ ...d, plan: e.target.value }))}
+              className="w-full h-10 px-3 rounded-xl border border-border bg-background/50 text-sm text-foreground"
+            >
+              <option value="FEATURED">Featured</option>
+              <option value="PREMIUM">Premium</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Price (KSh)</label>
+            <GlassInput
+              type="number"
+              value={listingEditData.price}
+              onChange={(e) => setListingEditData(d => ({ ...d, price: Number(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">End Date</label>
+            <GlassInput
+              type="date"
+              value={listingEditData.endDate}
+              onChange={(e) => setListingEditData(d => ({ ...d, endDate: e.target.value }))}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <GlassButton variant="ghost" onClick={() => setShowListingModal(false)}>Cancel</GlassButton>
+            <GlassButton variant="primary" onClick={handleSaveListing} disabled={isProcessing}>
+              <Check className="h-3 w-3" /> Save Changes
+            </GlassButton>
+          </div>
+        </div>
+      </GlassModal>
+
+      {/* Content Edit Modal */}
+      <GlassModal isOpen={showContentModal} onClose={() => setShowContentModal(false)} title="Edit Page Content" size="xl">
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Page Title</label>
+            <GlassInput value={contentEditTitle} onChange={(e) => setContentEditTitle(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Content</label>
+            <textarea
+              className="w-full h-64 rounded-xl border border-border bg-background/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+              value={contentEditBody}
+              onChange={(e) => setContentEditBody(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <GlassButton variant="ghost" onClick={() => setShowContentModal(false)}>Cancel</GlassButton>
+            <GlassButton variant="primary" onClick={handleSavePageContent} disabled={isProcessing || !contentEditTitle.trim()}>
+              <Save className="h-3 w-3" /> Save Content
+            </GlassButton>
+          </div>
+        </div>
+      </GlassModal>
+    </div>
+  );
+};

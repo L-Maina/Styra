@@ -680,3 +680,39 @@ Stage Summary:
 - Login flow: Sign In → app auto-detects admin role → redirects to Admin Dashboard
 - Files created: src/app/api/setup/route.ts
 - Files modified: prisma/seed.ts (idempotent upsert), package.json (db:seed), DEPLOY.md
+---
+Task ID: ADMIN-DASHBOARD-REBUILD
+Agent: Main Agent
+Task: Complete rebuild of the Admin Dashboard with 10 organized sections, sidebar navigation, and real API data
+
+Work Log:
+- Audited entire AdminDashboard.tsx (3558 lines) — found 16 scattered tabs, 27 alert() placeholders, 11 crash-prone date calls, dead state variables, hardcoded data
+- Audited all 21 admin API routes — confirmed all return real data from database
+- Audited Prisma schema (47 models) — confirmed no `lastUpdated` field (uses `updatedAt`), no `isActive` on User model
+- Created missing `/api/admin/bookings` endpoint (GET with search/filter, status summary)
+- Created missing `/api/admin/notifications` endpoint (POST for sending announcements)
+- Completely rewrote AdminDashboard.tsx (2240 lines, 37% reduction):
+  - Sidebar navigation (collapsible, 3 groups: Analytics, Management, Operations)
+  - 10 sections: Overview, Revenue, Users, Businesses, Bookings, Featured Listings, Disputes & Reports, Claims & Support, Content, Settings
+  - Null-safe date handling via fmtDate/fmtDateTime/fmtCurrency helpers
+  - All actions connected to real API calls (zero alert() calls)
+  - Loading skeletons and empty states for every section
+  - User management with search/filter by role + suspend/activate
+  - Business management with status filter + approve/reject
+  - Bookings with status filter + search
+  - Disputes with respond/resolve/refund actions
+  - Claims with approve/reject + admin notes
+  - Support tickets with reply/resolve
+  - Content management (CMS pages + blog articles)
+  - Settings with platform fees, notification toggles, security settings
+  - Revenue section with chart, commissions, transaction history
+
+Stage Summary:
+- Lines reduced from 3558 to 2240 (37% reduction)
+- 16 scattered tabs → 10 organized sidebar sections
+- 27 alert() calls → 0 (all use toast.success/error)
+- 11 crash-prone date calls → 0 (all use fmtDate helper)
+- Dead state variables removed (premiumListings, disputes)
+- All hardcoded values removed
+- 2 new API endpoints created
+- Lint: 0 errors
