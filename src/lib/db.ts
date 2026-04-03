@@ -5,21 +5,43 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /**
- * Build the database URL with pgbouncer=true for Supabase pooler.
- * This is REQUIRED because Supabase's Supavisor (port 6543) does not
- * support prepared statements, and Prisma uses them by default.
- * Adding pgbouncer=true tells Prisma to use simple query protocol.
+ * Build the database URL for Supabase pooler (Supavisor).
+ *
+ * Supavisor (port 6543) does NOT support prepared statements.
+ * Prisma uses prepared statements by default, which causes:
+ *   Error 42P05: "prepared statement already exists"
+ *
+ * The pgbouncer=true flag tells Prisma to use the simple query
+ * protocol instead, which avoids this error entirely.
+ *
+ * We also set connection_limit=1 for Vercel serverless to prevent
+ * connection pool exhaustion on cold starts.
  */
 function buildDatabaseUrl(url: string): string {
-  // Only add pgbouncer=true for PostgreSQL URLs going through Supabase pooler
+  // Only modify PostgreSQL URLs going through Supabase pooler
   if (!url.includes('supabase') && !url.includes('pooler')) {
     return url;
   }
-  if (url.includes('pgbouncer=')) {
-    return url; // Already has the param
+
+  const params: string[] = [];
+
+  if (!url.includes('pgbouncer=')) {
+    params.push('pgbouncer=true');
   }
+  if (!url.includes('connection_limit=')) {
+    params.push('connection_limit=1');
+  }
+  if (!url.includes('pool_timeout=')) {
+    params.push('pool_timeout=10');
+  }
+  if (!url.includes('sslmode=')) {
+    params.push('sslmode=require');
+  }
+
+  if (params.length === 0) return url;
+
   const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}pgbouncer=true`;
+  return `${url}${separator}${params.join('&')}`;
 }
 
 /**
@@ -48,10 +70,19 @@ function createPrismaClient() {
     );
   }
 
-  // Append pgbouncer=true for Supabase pooler connections
+  // Build the URL with pooler-compatible parameters
   const databaseUrl = buildDatabaseUrl(rawDatabaseUrl);
 
+  // CRITICAL: Pass the modified URL via datasources — do NOT rely on env var
+  // because the env var does NOT have pgbouncer=true appended
+  console.log(`[DB] Using database: ${databaseUrl.replace(/:[^:@]+@/, ':****@')}`);
+
   return new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
     log:
       process.env.NODE_ENV === 'production'
         ? ['error']
