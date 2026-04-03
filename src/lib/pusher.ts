@@ -1,13 +1,32 @@
 import Pusher from 'pusher';
 
 // Server-side Pusher client (for API routes)
-export const pusherServer = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
-  useTLS: true,
-});
+// Lazy initialization to avoid crashes when env vars are missing
+let _pusherServer: Pusher | null = null;
+
+function getPusherServer(): Pusher | null {
+  if (_pusherServer) return _pusherServer;
+  if (!process.env.PUSHER_APP_ID || !process.env.PUSHER_SECRET) {
+    return null;
+  }
+  _pusherServer = new Pusher({
+    appId: process.env.PUSHER_APP_ID,
+    key: process.env.NEXT_PUBLIC_PUSHER_KEY || '',
+    secret: process.env.PUSHER_SECRET,
+    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
+    useTLS: true,
+  });
+  return _pusherServer;
+}
+
+// Export a getter instead of a direct instance
+export const pusherServer = {
+  trigger: (...args: Parameters<Pusher['trigger']>) => {
+    const p = getPusherServer();
+    if (!p) return Promise.resolve();
+    return p.trigger(...args);
+  },
+};
 
 // Channel names
 export const CHANNELS = {
