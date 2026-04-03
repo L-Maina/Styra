@@ -174,12 +174,11 @@ export const GlassInput = React.forwardRef<HTMLInputElement, GlassInputProps>(
         <input
           ref={ref}
           className={cn(
-            'flex h-11 w-full rounded-xl border bg-[rgba(255,255,255,0.08)] backdrop-blur-sm',
+            'flex h-11 w-full rounded-xl border border-border bg-background/50 backdrop-blur-sm',
             'px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60',
             'transition-[box-shadow,border-color] duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50',
+            'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary',
             'disabled:cursor-not-allowed disabled:opacity-40',
-            'border-[rgba(255,255,255,0.15)]',
             leftIcon && 'pl-10',
             rightIcon && 'pr-10',
             error && 'border-destructive/60 focus:ring-destructive/30',

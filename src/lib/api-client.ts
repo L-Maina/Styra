@@ -207,10 +207,10 @@ class ApiClient {
     });
   }
 
-  async resendOTP(phone: string) {
+  async resendOTP(phone: string, email: string, name: string, password: string) {
     return this.request('/auth/resend-otp', {
       method: 'POST',
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ phone, email, name, password }),
       noRetry: true,
     });
   }

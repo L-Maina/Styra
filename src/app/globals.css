@@ -48,8 +48,8 @@
   --accent-foreground: #FFFFFF;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.2);
+  --input: rgba(255, 255, 255, 0.25);
   --ring: #6C4EFF;
   --surface: #1F2937;
 
@@ -94,8 +94,8 @@
   --accent-foreground: #0F172A;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(148, 163, 184, 0.2);
-  --input: rgba(148, 163, 184, 0.2);
+  --border: rgba(148, 163, 184, 0.35);
+  --input: rgba(148, 163, 184, 0.4);
   --ring: #6C4EFF;
   --surface: #F1F5F9;
 

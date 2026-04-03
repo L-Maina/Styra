@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { hashPassword, generateToken, createOTP } from '@/lib/auth';
+import { hashPassword, createOTP } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { registerSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 
+/**
+ * POST /api/auth/register
+ *
+ * Step 1 of registration — does NOT create a User yet.
+ * Validates input, stores registration data in an OTPVerification record,
+ * and sends OTP via Supabase Auth SMS (or shows fallback code).
+ *
+ * The user is only created in Step 2 (POST /api/auth/verify-otp).
+ * If the user goes back or abandons, the OTP expires in 10 minutes
+ * and no orphan account is left behind.
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -15,6 +26,7 @@ export async function POST(request: NextRequest) {
 
     const email = validated.data.email.toLowerCase();
 
+    // Check if email is already taken
     const existingUser = await db.user.findUnique({ where: { email } });
     if (existingUser) {
       return errorResponse(
@@ -34,19 +46,28 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await hashPassword(validated.data.password);
 
-    const user = await db.user.create({
-      data: {
-        email,
-        name: validated.data.name,
-        phone: validated.data.phone || null,
-        password: hashedPassword,
-        role: 'customer',
-      },
+    // Store registration data as JSON in the OTP record's email field.
+    // The user is NOT created yet — only after OTP is verified.
+    // If abandoned, the OTP expires in 10 minutes and nothing is left behind.
+    const registrationData = JSON.stringify({
+      email,
+      name: validated.data.name,
+      phone: validated.data.phone || null,
+      hashedPassword,
+      role: 'customer',
     });
+
+    // Create OTP — the registration payload is stored in the email field
+    // so verify-otp can retrieve it and create the user
+    const otpCode = await createOTP(
+      null,              // no userId yet
+      registrationData,  // JSON payload in email field
+      validated.data.phone || null,
+      'phone_verification'
+    );
 
     // Send OTP via Supabase Auth (real SMS to the phone)
     let otpSent = false;
-    let otpFallback: string | null = null;
 
     if (validated.data.phone) {
       try {
@@ -57,47 +78,23 @@ export async function POST(request: NextRequest) {
 
         if (smsError) {
           console.error('[OTP SMS Failed]', smsError.message);
-          // Fallback: generate OTP in DB so user can still verify
-          otpFallback = await createOTP(user.id, email, validated.data.phone, 'phone_verification');
         } else {
           otpSent = true;
         }
       } catch (err) {
-        // Supabase not configured or auth not enabled — fallback to DB OTP
         console.error('[OTP SMS Error]', err);
-        otpFallback = await createOTP(user.id, email, validated.data.phone, 'phone_verification');
       }
     }
 
-    const token = generateToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      tokenVersion: user.tokenVersion,
-    });
-
-    const response = successResponse(
+    return successResponse(
       {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
+        email,
+        name: validated.data.name,
         otpSent,
-        // Only include fallback code if SMS failed (for dev/debugging)
-        otpCode: otpSent ? undefined : otpFallback,
+        otpCode: otpSent ? undefined : otpCode,
       },
       201
     );
-
-    response.cookies.set('styra-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
-    return response;
   } catch (error) {
     return handleApiError(error);
   }

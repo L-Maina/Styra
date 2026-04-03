@@ -234,7 +234,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [isOtpSent, setIsOtpSent] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
-  const registeredUserData = useRef<{ id: string; email: string; name: string; role: string } | null>(null);
+  // Stores pending registration data (email, name) — no user ID yet since user isn't created until OTP verified
+  const pendingRegistration = useRef<{ email: string; name: string; phone: string } | null>(null);
 
   // Derive canResend from otpTimer instead of separate state
   const canResend = otpTimer === 0 && step === 2;
@@ -400,10 +401,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setIsLoading(true);
 
     try {
-      // Register API creates user, sets session cookie, and sends OTP via Supabase SMS
+      // Register API validates input, stores registration data, sends OTP via Supabase SMS
+      // User is NOT created yet — only created after OTP verification
       const response = await api.register({ email, password, name, phone });
-      const regData = response.data as { id: string; email: string; name: string; role: string; otpSent?: boolean; otpCode?: string };
-      registeredUserData.current = regData;
+      const regData = response.data as { email: string; name: string; otpSent?: boolean; otpCode?: string };
+      pendingRegistration.current = { email, name, phone: phone || '' };
 
       // If SMS was sent via Supabase, user will receive it on their phone
       if (regData.otpSent) {
@@ -441,7 +443,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setIsLoading(true);
 
     try {
-      const response = await api.resendOTP(phone);
+      const reg = pendingRegistration.current;
+      const response = await api.resendOTP(phone, email, name, password);
       const data = response.data as { otpCode?: string; otpSent?: boolean; alreadyVerified?: boolean };
 
       if (data?.alreadyVerified) {
@@ -518,33 +521,35 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   };
 
-  // Handle verify OTP — calls real backend API
+  // Handle verify OTP — calls real backend API (creates user on success)
   const handleVerifyOtp = async (otpCode: string) => {
     setOtpError('');
     setIsLoading(true);
 
     try {
-      await api.verifyOTP(phone, otpCode);
+      // Verify OTP — backend creates the user AND sets session cookie
+      const response = await api.verifyOTP(phone, otpCode);
+      const data = response.data as { id: string; email: string; name: string; role: string; message?: string };
 
-      // Use user data stored from the register response
-      const regData = registeredUserData.current;
+      // Build user object from the verify response (user was just created)
+      const normalizedRole = (data.role || 'customer').toUpperCase() as UserRole;
       const user: UserType = {
-        id: regData?.id || `user-${Date.now()}`,
-        email: regData?.email || email,
-        name: regData?.name || name,
+        id: data.id,
+        email: data.email,
+        name: data.name,
         phone,
-        role: (regData?.role || 'CUSTOMER') as UserRole,
-        roles: [(regData?.role || 'CUSTOMER') as UserRole],
-        activeMode: ((regData?.role || 'CUSTOMER') === 'ADMIN' ? 'ADMIN' : (regData?.role || 'CUSTOMER') === 'BUSINESS_OWNER' ? 'PROVIDER' : 'CLIENT') as UserMode,
+        role: normalizedRole,
+        roles: [normalizedRole],
+        activeMode: 'CLIENT' as UserMode,
         phoneVerified: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      // Update auth store (session cookie was already set by register API)
+      // Update auth store (session cookie was set by verify-otp API)
       storeLogin(user, 'session');
 
-      toast.success('Account created successfully!');
+      toast.success(data.message || 'Account created successfully!');
       onLogin?.(user);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid verification code. Please try again.';
