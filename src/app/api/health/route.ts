@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 5;
 
 export async function GET() {
   try {
-    // Test database connectivity
+    // Dynamic import to catch Prisma init errors
+    const { db } = await import('@/lib/db');
+
+    // Test database connectivity with a raw query
     const start = Date.now();
-    await db.$queryRaw`SELECT 1 as ok`;
+    const result = await db.$queryRaw<Array<{ ok: number }>>`SELECT 1 as ok`;
     const dbLatency = Date.now() - start;
 
     // Count key tables
@@ -23,19 +25,25 @@ export async function GET() {
       database: {
         connected: true,
         latencyMs: dbLatency,
+        rawResult: result,
         businesses: businessCount,
         users: userCount,
       },
       env: {
         nodeEnv: process.env.NODE_ENV,
         hasDatabaseUrl: !!process.env.DATABASE_URL,
-        databaseUrlPrefix: process.env.DATABASE_URL?.replace(/:\/\/.*@/, '://***@')?.substring(0, 40) || 'NOT SET',
+        hasDirectUrl: !!process.env.DIRECT_DATABASE_URL,
+        databaseUrlPrefix: process.env.DATABASE_URL?.replace(/:\/\/[^:]+:[^@]+@/, '://***:***@')?.substring(0, 80) || 'NOT SET',
       },
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : null;
     const errorType = error instanceof Error ? error.constructor.name : typeof error;
     console.error(`[Health Check Failed] Type: ${errorType}, Message: ${errorMessage}`);
+    if (errorStack) {
+      console.error(`[Health Check Stack] ${errorStack}`);
+    }
 
     return NextResponse.json(
       {
@@ -43,10 +51,12 @@ export async function GET() {
         timestamp: new Date().toISOString(),
         error: errorMessage,
         errorType,
+        stack: errorStack?.split('\n').slice(0, 5), // First 5 stack lines
         env: {
           nodeEnv: process.env.NODE_ENV,
           hasDatabaseUrl: !!process.env.DATABASE_URL,
-          databaseUrlPrefix: process.env.DATABASE_URL?.replace(/:\/\/.*@/, '://***@')?.substring(0, 40) || 'NOT SET',
+          hasDirectUrl: !!process.env.DIRECT_DATABASE_URL,
+          databaseUrlPrefix: process.env.DATABASE_URL?.replace(/:\/\/[^:]+:[^@]+@/, '://***:***@')?.substring(0, 80) || 'NOT SET',
         },
       },
       { status: 503 }
