@@ -400,13 +400,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setIsLoading(true);
 
     try {
-      // Register API creates user, sets session cookie, and generates OTP
+      // Register API creates user, sets session cookie, and sends OTP via Supabase SMS
       const response = await api.register({ email, password, name, phone });
-      const regData = response.data as { id: string; email: string; name: string; role: string; otpCode?: string };
+      const regData = response.data as { id: string; email: string; name: string; role: string; otpSent?: boolean; otpCode?: string };
       registeredUserData.current = regData;
 
-      // If OTP code is returned (no SMS provider), auto-fill it
-      if (regData.otpCode) {
+      // If SMS was sent via Supabase, user will receive it on their phone
+      if (regData.otpSent) {
+        toast.success('Verification code sent to your phone!');
+      } else if (regData.otpCode) {
+        // Fallback: SMS not available — show the code on screen
         const digits = regData.otpCode.split('');
         setOtp(digits);
         toast.success(`Your verification code is: ${regData.otpCode}`);
@@ -439,15 +442,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     try {
       const response = await api.resendOTP(phone);
-      const data = response.data as { otpCode?: string; alreadyVerified?: boolean };
+      const data = response.data as { otpCode?: string; otpSent?: boolean; alreadyVerified?: boolean };
 
       if (data?.alreadyVerified) {
         toast.success('Phone number is already verified!');
         return;
       }
 
-      // Auto-fill the new OTP code
-      if (data?.otpCode) {
+      if (data?.otpSent) {
+        toast.success('New verification code sent to your phone!');
+      } else if (data?.otpCode) {
+        // Fallback: auto-fill code from DB
         const digits = data.otpCode.split('');
         setOtp(digits);
         toast.success(`New verification code: ${data.otpCode}`);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { hashPassword, generateToken, createOTP } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { registerSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 
@@ -43,10 +44,29 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Generate OTP for phone verification
-    let otpCode: string | null = null;
+    // Send OTP via Supabase Auth (real SMS to the phone)
+    let otpSent = false;
+    let otpFallback: string | null = null;
+
     if (validated.data.phone) {
-      otpCode = await createOTP(user.id, email, validated.data.phone, 'phone_verification');
+      try {
+        const supabase = getSupabaseAdmin();
+        const { error: smsError } = await supabase.auth.signInWithOtp({
+          phone: validated.data.phone,
+        });
+
+        if (smsError) {
+          console.error('[OTP SMS Failed]', smsError.message);
+          // Fallback: generate OTP in DB so user can still verify
+          otpFallback = await createOTP(user.id, email, validated.data.phone, 'phone_verification');
+        } else {
+          otpSent = true;
+        }
+      } catch (err) {
+        // Supabase not configured or auth not enabled — fallback to DB OTP
+        console.error('[OTP SMS Error]', err);
+        otpFallback = await createOTP(user.id, email, validated.data.phone, 'phone_verification');
+      }
     }
 
     const token = generateToken({
@@ -62,9 +82,9 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
-        // Return OTP code so the frontend can show it to the user
-        // (no SMS provider configured — user enters it manually)
-        otpCode,
+        otpSent,
+        // Only include fallback code if SMS failed (for dev/debugging)
+        otpCode: otpSent ? undefined : otpFallback,
       },
       201
     );
