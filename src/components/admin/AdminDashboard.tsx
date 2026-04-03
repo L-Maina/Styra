@@ -177,7 +177,7 @@ const EmptyState = ({ icon: Icon, title, description }: { icon: React.ElementTyp
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'overview' }) => {
   const { user } = useAuthStore();
-  const isAdmin = user?.roles?.includes('ADMIN') || user?.role === 'ADMIN';
+  const isAdmin = (user?.roles || []).some((r: string) => r.toUpperCase() === 'ADMIN') || (user?.role || '').toUpperCase() === 'ADMIN';
 
   // ---- Navigation ----
   const [activeSection, setActiveSection] = useState<SectionId>(initialTab as SectionId);

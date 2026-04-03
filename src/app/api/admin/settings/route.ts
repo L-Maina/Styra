@@ -1,22 +1,63 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { successResponse, handleApiError } from '@/lib/api-utils';
 import { requireAdmin } from '@/lib/auth';
+
+const DEFAULT_SETTINGS: Record<string, string | number | boolean> = {
+  platformFee: 15,
+  minWithdrawal: 50,
+  featuredListingPrice: 99,
+  premiumListingPrice: 49,
+  maintenanceMode: false,
+  emailNotifications: true,
+  smsNotifications: false,
+  autoApproveBusinesses: false,
+  requireIdVerification: true,
+};
+
+// Parse all settings rows into a flat object
+async function loadSettings(): Promise<Record<string, any>> {
+  const rows = await db.platformSetting.findMany();
+  const settings: Record<string, any> = { ...DEFAULT_SETTINGS };
+
+  for (const row of rows) {
+    try {
+      const parsed = JSON.parse(row.value);
+      if (typeof parsed === 'object' && parsed !== null) {
+        // Value was stored as a complex object, merge it
+        Object.assign(settings, parsed);
+      } else {
+        settings[row.key] = parsed;
+      }
+    } catch {
+      if (row.value === 'true') settings[row.key] = true;
+      else if (row.value === 'false') settings[row.key] = false;
+      else if (!isNaN(Number(row.value)) && row.value.trim() !== '') settings[row.key] = Number(row.value);
+      else settings[row.key] = row.value;
+    }
+  }
+
+  return settings;
+}
+
+// Upsert settings as key-value rows
+async function saveSettings(data: Record<string, any>): Promise<void> {
+  for (const [key, value] of Object.entries(data)) {
+    if (key in DEFAULT_SETTINGS) {
+      await db.platformSetting.upsert({
+        where: { key },
+        create: { key, value: JSON.stringify(value) },
+        update: { value: JSON.stringify(value) },
+      });
+    }
+  }
+}
 
 // GET - Fetch platform settings
 export async function GET() {
   try {
     await requireAdmin();
-    // There should only be one settings record
-    let settings = await db.platformSetting.findFirst();
-
-    if (!settings) {
-      // Create default settings if not exists
-      settings = await db.platformSetting.create({
-        data: {},
-      });
-    }
-
+    const settings = await loadSettings();
     return successResponse({ settings });
   } catch (error) {
     return handleApiError(error);
@@ -28,55 +69,17 @@ export async function PUT(request: NextRequest) {
   try {
     await requireAdmin();
     const body = await request.json();
-    const {
-      platformFee,
-      minWithdrawal,
-      featuredListingPrice,
-      premiumListingPrice,
-      maintenanceMode,
-      emailNotifications,
-      smsNotifications,
-      autoApproveBusinesses,
-      requireIdVerification,
-    } = body;
 
-    // Find existing settings
-    let settings = await db.platformSetting.findFirst();
-
-    if (!settings) {
-      // Create new settings
-      settings = await db.platformSetting.create({
-        data: {
-          platformFee: platformFee ?? 15.0,
-          minWithdrawal: minWithdrawal ?? 50.0,
-          featuredListingPrice: featuredListingPrice ?? 99.0,
-          premiumListingPrice: premiumListingPrice ?? 49.0,
-          maintenanceMode: maintenanceMode ?? false,
-          emailNotifications: emailNotifications ?? true,
-          smsNotifications: smsNotifications ?? false,
-          autoApproveBusinesses: autoApproveBusinesses ?? false,
-          requireIdVerification: requireIdVerification ?? true,
-        },
-      });
-    } else {
-      // Update existing settings
-      const updateData: Record<string, unknown> = {};
-      
-      if (platformFee !== undefined) updateData.platformFee = platformFee;
-      if (minWithdrawal !== undefined) updateData.minWithdrawal = minWithdrawal;
-      if (featuredListingPrice !== undefined) updateData.featuredListingPrice = featuredListingPrice;
-      if (premiumListingPrice !== undefined) updateData.premiumListingPrice = premiumListingPrice;
-      if (maintenanceMode !== undefined) updateData.maintenanceMode = maintenanceMode;
-      if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
-      if (smsNotifications !== undefined) updateData.smsNotifications = smsNotifications;
-      if (autoApproveBusinesses !== undefined) updateData.autoApproveBusinesses = autoApproveBusinesses;
-      if (requireIdVerification !== undefined) updateData.requireIdVerification = requireIdVerification;
-
-      settings = await db.platformSetting.update({
-        where: { id: settings.id },
-        data: updateData,
-      });
+    // Only save keys that we recognize
+    const toSave: Record<string, any> = {};
+    for (const key of Object.keys(DEFAULT_SETTINGS)) {
+      if (key in body) {
+        toSave[key] = body[key];
+      }
     }
+
+    await saveSettings(toSave);
+    const settings = await loadSettings();
 
     return successResponse({ settings });
   } catch (error) {

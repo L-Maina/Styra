@@ -1,9 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
-import { updateBusinessStatusSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
-import { sanitizeResponse } from '@/lib/response-sanitizer';
 
 // Get business details (admin)
 export async function GET(
@@ -23,7 +21,6 @@ export async function GET(
             name: true,
             email: true,
             phone: true,
-            avatar: true,
             role: true,
             createdAt: true,
           },
@@ -41,7 +38,7 @@ export async function GET(
       return errorResponse('Business not found', 404);
     }
 
-    return successResponse(sanitizeResponse(business));
+    return successResponse(business);
   } catch (error) {
     return handleApiError(error);
   }
@@ -56,12 +53,17 @@ export async function PATCH(
     await requireAdmin();
     const { id } = await params;
     const body = await request.json();
-    const validated = updateBusinessStatusSchema.parse(body);
+    const { verificationStatus, reason } = body;
+
+    // Map verificationStatus to isVerified boolean
+    const isVerified = verificationStatus === 'APPROVED';
+    const isActive = verificationStatus !== 'REJECTED';
 
     const business = await db.business.update({
       where: { id },
       data: {
-        verificationStatus: validated.verificationStatus,
+        isVerified,
+        isActive,
       },
     });
 
@@ -70,13 +72,16 @@ export async function PATCH(
       data: {
         userId: business.ownerId,
         title: 'Verification Update',
-        message: validated.reason || `Your business verification status is now ${validated.verificationStatus}`,
+        message: reason || `Your business verification status is now ${verificationStatus}`,
         type: 'VERIFICATION_UPDATE',
-        data: JSON.stringify({ businessId: id, status: validated.verificationStatus }),
+        link: `/business/${id}`,
       },
     });
 
-    return successResponse(business);
+    return successResponse({
+      ...business,
+      verificationStatus: isVerified ? 'APPROVED' : (isActive ? 'PENDING' : 'REJECTED'),
+    });
   } catch (error) {
     return handleApiError(error);
   }

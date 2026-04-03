@@ -1,19 +1,55 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { successResponse, handleApiError } from '@/lib/api-utils';
 import { requireAdmin } from '@/lib/auth';
+
+// Default platform settings
+const DEFAULT_SETTINGS = {
+  platformFee: 15,
+  minWithdrawal: 50,
+  featuredListingPrice: 99,
+  premiumListingPrice: 49,
+  maintenanceMode: false,
+  emailNotifications: true,
+  smsNotifications: false,
+  autoApproveBusinesses: false,
+  requireIdVerification: true,
+};
+
+// Parse settings from key-value PlatformSetting rows
+async function getPlatformSettings(): Promise<Record<string, any>> {
+  try {
+    const rows = await db.platformSetting.findMany();
+    const settings: Record<string, any> = { ...DEFAULT_SETTINGS };
+
+    for (const row of rows) {
+      try {
+        settings[row.key] = JSON.parse(row.value);
+      } catch {
+        // Try plain value for booleans and numbers
+        if (row.value === 'true') settings[row.key] = true;
+        else if (row.value === 'false') settings[row.key] = false;
+        else if (!isNaN(Number(row.value))) settings[row.key] = Number(row.value);
+        else settings[row.key] = row.value;
+      }
+    }
+
+    return settings;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
 
 // GET - Fetch admin dashboard overview
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin();
-    // Get current date info
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    // Parallel fetch all stats — no sequential awaits after this block
+    // Parallel fetch all stats
     const [
       totalUsers,
       totalBusinesses,
@@ -22,7 +58,7 @@ export async function GET(request: NextRequest) {
       monthlyRevenue,
       lastMonthRevenue,
       monthlyBookings,
-      pendingApplications,
+      unverifiedBusinesses,
       pendingReports,
       openDisputes,
       activeListings,
@@ -33,22 +69,13 @@ export async function GET(request: NextRequest) {
       recentPayments,
       settings,
     ] = await Promise.all([
-      // Total users
       db.user.count(),
-      
-      // Total businesses
       db.business.count(),
-      
-      // Total bookings
       db.booking.count(),
-      
-      // Total revenue
       db.payment.aggregate({
         where: { status: 'COMPLETED' },
         _sum: { amount: true },
       }),
-      
-      // Monthly revenue
       db.payment.aggregate({
         where: {
           status: 'COMPLETED',
@@ -56,8 +83,6 @@ export async function GET(request: NextRequest) {
         },
         _sum: { amount: true },
       }),
-      
-      // Last month revenue
       db.payment.aggregate({
         where: {
           status: 'COMPLETED',
@@ -65,35 +90,16 @@ export async function GET(request: NextRequest) {
         },
         _sum: { amount: true },
       }),
-      
-      // Monthly bookings count
       db.booking.count({ where: { createdAt: { gte: startOfMonth } } }),
-      
-      // Pending business applications
-      db.business.count({ where: { verificationStatus: 'PENDING' } }),
-      
-      // Pending reports
+      // Business model uses isVerified (boolean), not verificationStatus
+      db.business.count({ where: { isVerified: false } }),
       db.adminReport.count({ where: { status: 'PENDING' } }),
-      
-      // Open disputes
       db.dispute.count({ where: { status: 'OPEN' } }),
-      
-      // Active premium listings
       db.premiumListing.count({ where: { status: 'ACTIVE' } }),
-      
-      // Pending premium listings
       db.premiumListing.count({ where: { status: 'PENDING' } }),
-      
-      // Pending support tickets
       db.supportTicket.count({ where: { status: 'OPEN' } }),
-      
-      // Pending insurance claims
       db.insuranceClaim.count({ where: { status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } } }),
-      
-      // Pending advertisements
       db.advertisement.count({ where: { status: 'PENDING' } }),
-      
-      // Recent payments
       db.payment.findMany({
         where: { status: 'COMPLETED' },
         orderBy: { createdAt: 'desc' },
@@ -103,25 +109,22 @@ export async function GET(request: NextRequest) {
             select: { name: true, email: true },
           },
           booking: {
-            select: { 
+            select: {
               business: { select: { name: true } },
             },
           },
         },
       }),
-      
-      // Platform settings
-      db.platformSetting.findFirst(),
+      getPlatformSettings(),
     ]);
 
-    // Calculate growth percentage
     const currentRevenue = monthlyRevenue._sum.amount || 0;
     const previousRevenue = lastMonthRevenue._sum.amount || 0;
-    const revenueGrowth = previousRevenue > 0 
-      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 
+    const revenueGrowth = previousRevenue > 0
+      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
       : 0;
 
-    // Get monthly revenue data for the last 6 months — single query with grouping
+    // Monthly revenue chart for last 6 months
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     const monthlyTxns = await db.payment.findMany({
       where: { status: 'COMPLETED', createdAt: { gte: sixMonthsAgo } },
@@ -132,18 +135,19 @@ export async function GET(request: NextRequest) {
       const monthKey = `${txn.createdAt.getFullYear()}-${String(txn.createdAt.getMonth() + 1).padStart(2, '0')}`;
       monthlyDataMap.set(monthKey, (monthlyDataMap.get(monthKey) || 0) + txn.amount);
     }
-    const monthlyData: { month: string; revenue: number }[] = [];
+    const monthlyData: { month: string; revenue: number; commissions: number }[] = [];
+    const platformFee = Number(settings.platformFee) || 15;
     for (let i = 5; i >= 0; i--) {
       const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthKey = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+      const rev = monthlyDataMap.get(monthKey) || 0;
       monthlyData.push({
         month: monthStart.toLocaleDateString('en-KE', { month: 'short' }),
-        revenue: monthlyDataMap.get(monthKey) || 0,
+        revenue: rev,
+        commissions: Math.round(rev * (platformFee / 100)),
       });
     }
 
-    // Calculate commissions (platform fee)
-    const platformFee = settings?.platformFee || 15;
     const totalCommissions = Math.round((totalRevenue._sum.amount || 0) * (platformFee / 100));
 
     return successResponse({
@@ -161,7 +165,7 @@ export async function GET(request: NextRequest) {
         bookings: monthlyBookings,
       },
       pending: {
-        applications: pendingApplications,
+        applications: unverifiedBusinesses,
         reports: pendingReports,
         disputes: openDisputes,
         listings: pendingPremiumListings,
@@ -173,16 +177,13 @@ export async function GET(request: NextRequest) {
       recentPayments: recentPayments.map(p => ({
         id: p.id,
         amount: p.amount,
+        status: p.status,
+        method: p.method,
         createdAt: p.createdAt,
         customerName: p.user?.name || 'Unknown',
         businessName: p.booking?.business?.name || 'N/A',
       })),
-      settings: settings || {
-        platformFee: 15,
-        minWithdrawal: 50,
-        featuredListingPrice: 99,
-        premiumListingPrice: 49,
-      },
+      settings,
     });
   } catch (error) {
     return handleApiError(error);

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
+import { successResponse, handleApiError } from '@/lib/api-utils';
 import { requireAdmin } from '@/lib/auth';
-import { handleApiError } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (search) {
       where.OR = [
-        { customerName: { contains: search, mode: 'insensitive' } },
-        { customerEmail: { contains: search, mode: 'insensitive' } },
-        { serviceName: { contains: search, mode: 'insensitive' } },
-        { staffName: { contains: search, mode: 'insensitive' } },
+        { customerName: { contains: search } },
+        { customerEmail: { contains: search } },
+        { serviceName: { contains: search } },
+        { staffName: { contains: search } },
       ];
     }
 
@@ -41,30 +41,29 @@ export async function GET(request: NextRequest) {
       db.booking.count({ where }),
     ]);
 
-    // Status counts
+    // Status counts via groupBy (single query instead of 5)
     const statusCounts = await db.booking.groupBy({
       by: ['status'],
       _count: true,
     });
 
-    const statusSummary = {
+    const statusSummary: Record<string, number> = {
       pending: 0, confirmed: 0, completed: 0, cancelled: 0, disputed: 0,
     };
     for (const s of statusCounts) {
       const key = (s.status as string).toLowerCase();
       if (key in statusSummary) {
-        (statusSummary as Record<string, number>)[key] = s._count;
+        statusSummary[key] = s._count;
       }
     }
 
-    return NextResponse.json({
+    return successResponse({
       bookings,
       total,
       hasMore: offset + bookings.length < total,
       statusSummary,
     });
   } catch (error) {
-    if (error instanceof Response) return error as NextResponse;
     return handleApiError(error);
   }
 }

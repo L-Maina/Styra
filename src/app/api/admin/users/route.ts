@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { requireAdmin } from '@/lib/auth';
-import { sanitizeUser, sanitizeUsers } from '@/lib/response-sanitizer';
 
 // GET - Fetch all users with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -15,19 +14,19 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const where: Record<string, unknown> = {};
-    
+
     if (search) {
       where.OR = [
         { name: { contains: search } },
         { email: { contains: search } },
       ];
     }
-    
+
     if (role && role !== 'all') {
       where.role = role;
     }
 
-    // Get users with their business info
+    // Get users with their business info (single query)
     const users = await db.user.findMany({
       where,
       include: {
@@ -35,8 +34,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
-            verificationStatus: true,
-            totalEarnings: true,
+            isVerified: true,
           },
         },
       },
@@ -45,36 +43,61 @@ export async function GET(request: NextRequest) {
       skip: offset,
     });
 
-    // Calculate total spent for customers
-    const usersWithStats = await Promise.all(
-      users.map(async (user) => {
-        const totalSpent = await db.payment.aggregate({
-          where: {
-            userId: user.id,
-            status: 'COMPLETED',
-          },
-          _sum: { amount: true },
-        });
+    // Get all user IDs for batch queries (avoids N+1)
+    const userIds = users.map(u => u.id);
 
-        // Check if user is banned
-        const ban = await db.userBan.findUnique({
-          where: { userId: user.id },
-        });
+    // Batch query: total spent per user (single aggregate with grouping)
+    let paymentAggregates: { userId: string; total: number }[] = [];
+    if (userIds.length > 0) {
+      const payments = await db.payment.groupBy({
+        by: ['userId'],
+        where: { userId: { in: userIds }, status: 'COMPLETED' },
+        _sum: { amount: true },
+      });
+      paymentAggregates = payments.map(p => ({
+        userId: p.userId,
+        total: p._sum.amount || 0,
+      }));
+    }
+    const paymentMap = new Map(paymentAggregates.map(p => [p.userId, p.total]));
 
-        return {
-          ...sanitizeUser(user as unknown as Record<string, unknown>),
-          totalSpent: totalSpent._sum.amount || 0,
-          totalEarnings: user.business?.totalEarnings || 0,
-          status: ban ? (ban.isPermanent ? 'BANNED' : 'SUSPENDED') : 'ACTIVE',
-          roles: user.role === 'BUSINESS_OWNER' ? ['CUSTOMER', 'BUSINESS_OWNER'] : [user.role],
-        };
-      })
-    );
+    // Batch query: banned users (single query)
+    let banMap = new Map<string, any>();
+    if (userIds.length > 0) {
+      const bans = await db.userBan.findMany({
+        where: { userId: { in: userIds } },
+        select: { userId: true, type: true, isPermanent: true },
+      });
+      banMap = new Map(bans.map(b => [b.userId, b]));
+    }
+
+    // Combine everything without N+1
+    const usersWithStats = users.map(user => {
+      const ban = banMap.get(user.id);
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        isVerified: user.isVerified,
+        isBanned: user.isBanned,
+        status: ban ? (ban.isPermanent ? 'BANNED' : 'SUSPENDED') : 'ACTIVE',
+        totalSpent: paymentMap.get(user.id) || 0,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        business: user.business ? {
+          id: user.business.id,
+          name: user.business.name,
+          isVerified: user.business.isVerified,
+        } : undefined,
+      };
+    });
 
     const total = await db.user.count({ where });
 
     return successResponse({
-      users: sanitizeUsers(usersWithStats),
+      users: usersWithStats,
       total,
       hasMore: offset + users.length < total,
     });
@@ -103,9 +126,8 @@ export async function PUT(request: NextRequest) {
     }
 
     if (action === 'suspend' || action === 'ban') {
-      // Create or update ban record
       const endDate = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null;
-      
+
       await db.userBan.upsert({
         where: { userId },
         create: {
@@ -127,19 +149,29 @@ export async function PUT(request: NextRequest) {
           appealStatus: 'NONE',
         },
       });
+
+      // Also set isBanned flag on user
+      await db.user.update({
+        where: { id: userId },
+        data: { isBanned: true, banReason: reason || 'Admin action' },
+      });
     } else if (action === 'activate') {
-      // Remove ban record
       await db.userBan.delete({
         where: { userId },
       }).catch(() => {
         // User might not have a ban record, ignore error
+      });
+
+      await db.user.update({
+        where: { id: userId },
+        data: { isBanned: false, banReason: null },
       });
     } else if (action === 'updateRole') {
       const { newRole } = body;
       if (!newRole) {
         return errorResponse('New role is required', 400);
       }
-      
+
       await db.user.update({
         where: { id: userId },
         data: { role: newRole },

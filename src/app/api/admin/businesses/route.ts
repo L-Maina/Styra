@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
-import { updateBusinessStatusSchema } from '@/lib/validations';
-import { successResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
+import { successResponse, handleApiError, parsePagination } from '@/lib/api-utils';
 
 // List all businesses (admin view)
 export async function GET(request: NextRequest) {
@@ -15,7 +14,9 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('query');
 
     const where: Record<string, unknown> = {};
-    if (status) where.verificationStatus = status;
+    // Business model uses isVerified (boolean), not verificationStatus
+    if (status === 'pending') where.isVerified = false;
+    else if (status === 'approved') where.isVerified = true;
     if (query) {
       where.OR = [
         { name: { contains: query } },
@@ -41,7 +42,28 @@ export async function GET(request: NextRequest) {
       db.business.count({ where }),
     ]);
 
-    return paginatedResponse(businesses, page, limit, total);
+    // Map isVerified to verificationStatus for frontend compatibility
+    const mapped = businesses.map(b => ({
+      ...b,
+      verificationStatus: b.isVerified ? 'APPROVED' : 'PENDING',
+      isActive: b.isActive,
+      rating: b.rating,
+      reviewCount: b.reviewCount,
+      owner: b.owner ? {
+        id: b.owner.id,
+        name: b.owner.name,
+        email: b.owner.email,
+      } : null,
+      _count: b._count,
+    }));
+
+    return successResponse({
+      data: mapped,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     return handleApiError(error);
   }

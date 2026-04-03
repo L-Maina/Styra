@@ -76,7 +76,9 @@ export async function requireAuth(): Promise<any> {
 
 export async function requireRole(...roles: string[]): Promise<any> {
   const session = await requireAuth();
-  if (!roles.includes(session.role)) {
+  const userRole = (session.role || '').toUpperCase();
+  const allowed = roles.map(r => r.toUpperCase());
+  if (!allowed.includes(userRole)) {
     throw new Response(JSON.stringify({ error: 'Insufficient permissions' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
   }
   return session;
@@ -88,7 +90,7 @@ export async function requireAdmin(): Promise<any> {
 
 export async function requireBusinessOwner(businessId: string): Promise<any> {
   const session = await requireRole('business', 'admin');
-  if (session.role === 'business') {
+  if ((session.role || '').toUpperCase() === 'BUSINESS') {
     const business = await db.business.findFirst({ where: { id: businessId, ownerId: session.userId } });
     if (!business) {
       throw new Response(JSON.stringify({ error: 'Not your business' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
@@ -102,7 +104,7 @@ export async function requireBusinessOwner(businessId: string): Promise<any> {
  * Used for route-level permission checks without throwing.
  */
 export function canManageBusiness(user: any, ownerId: string): boolean {
-  return user.role === 'admin' || user.userId === ownerId;
+  return (user.role || '').toUpperCase() === 'ADMIN' || user.userId === ownerId;
 }
 
 /**

@@ -78,7 +78,7 @@ export default function HomePage() {
         const parsed = JSON.parse(stored);
         const u = parsed?.state?.user;
         if (u) {
-          const roles = u.roles || [u.role];
+          const roles = (u.roles || [u.role]).map((r: string) => (r || '').toUpperCase());
           if (roles.includes('ADMIN')) return 'admin-dashboard';
           if (roles.includes('BUSINESS_OWNER') && u.activeMode === 'PROVIDER') return 'business-dashboard';
         }
@@ -121,8 +121,8 @@ export default function HomePage() {
 
   // Get active mode for dual role support
   const activeMode = user?.activeMode || 'CLIENT';
-  const hasProviderRole = user?.roles?.includes('BUSINESS_OWNER') || user?.role === 'BUSINESS_OWNER';
-  const isAdmin = user?.roles?.includes('ADMIN') || user?.role === 'ADMIN';
+  const hasProviderRole = (user?.roles || []).some((r: string) => r.toUpperCase() === 'BUSINESS_OWNER') || (user?.role || '').toUpperCase() === 'BUSINESS_OWNER';
+  const isAdmin = (user?.roles || []).some((r: string) => r.toUpperCase() === 'ADMIN') || (user?.role || '').toUpperCase() === 'ADMIN';
 
   // Mode-based access control
   const isProviderMode = activeMode === 'PROVIDER' && hasProviderRole;
@@ -221,14 +221,14 @@ export default function HomePage() {
     if (!currentUser) return;
     
     // Check if user has ADMIN role
-    const isAdminUser = currentUser.roles?.includes('ADMIN') || currentUser.role === 'ADMIN';
+    const isAdminUser = (currentUser.roles || []).some((r: string) => r.toUpperCase() === 'ADMIN') || (currentUser.role || '').toUpperCase() === 'ADMIN';
     if (isAdminUser) {
       navigate('admin-dashboard');
       return;
     }
     
     // Check if user has BUSINESS_OWNER role and verification status
-    const hasBusinessRole = currentUser.roles?.includes('BUSINESS_OWNER') || currentUser.role === 'BUSINESS_OWNER';
+    const hasBusinessRole = (currentUser.roles || []).some((r: string) => r.toUpperCase() === 'BUSINESS_OWNER') || (currentUser.role || '').toUpperCase() === 'BUSINESS_OWNER';
     
     // Get active mode (defaults to CLIENT if not set)
     const mode = currentUser.activeMode || 'CLIENT';

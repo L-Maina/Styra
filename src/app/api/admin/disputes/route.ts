@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const where: Record<string, unknown> = {};
-    
+
     if (status && status !== 'all') {
       where.status = status;
     }
@@ -23,66 +23,47 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       take: limit,
       skip: offset,
+      include: {
+        customer: { select: { name: true, email: true } },
+        provider: { select: { name: true, email: true } },
+        booking: { select: { totalPrice: true, serviceName: true } },
+      },
     });
 
     const total = await db.dispute.count({ where });
 
-    // Calculate stats
-    const stats = {
-      open: await db.dispute.count({ where: { status: 'OPEN' } }),
-      inProgress: await db.dispute.count({ where: { status: 'IN_PROGRESS' } }),
-      resolved: await db.dispute.count({ where: { status: 'RESOLVED' } }),
-      totalAmount: await db.dispute.aggregate({
-        _sum: { amount: true },
-      }),
-    };
+    // Stats (3 queries instead of 4 - use groupBy for efficiency)
+    const [statusCounts] = await Promise.all([
+      db.dispute.groupBy({ by: ['status'], _count: true }),
+    ]);
+
+    const stats = { open: 0, inProgress: 0, resolved: 0 };
+    for (const s of statusCounts) {
+      if (s.status === 'OPEN') stats.open = s._count;
+      else if (s.status === 'IN_PROGRESS') stats.inProgress = s._count;
+      else if (s.status === 'RESOLVED') stats.resolved = s._count;
+    }
+
+    // Map to frontend-friendly format
+    const mapped = disputes.map(d => ({
+      id: d.id,
+      bookingId: d.bookingId,
+      status: d.status,
+      reason: d.reason,
+      description: d.description,
+      amount: d.booking?.totalPrice || 0,
+      createdAt: d.createdAt,
+      customerName: d.customer?.name || 'Unknown',
+      providerName: d.provider?.name || 'Unknown',
+      resolution: d.resolution ? (() => { try { return JSON.parse(d.resolution); } catch { return null; } })() : null,
+    }));
 
     return successResponse({
-      disputes,
+      disputes: mapped,
       total,
       stats,
       hasMore: offset + disputes.length < total,
     });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
-
-// POST - Create a new dispute
-export async function POST(request: NextRequest) {
-  try {
-    await requireAdmin();
-    const body = await request.json();
-    const {
-      bookingId,
-      customerId,
-      customerName,
-      providerId,
-      providerName,
-      type,
-      description,
-      amount,
-    } = body;
-
-    if (!customerName || !providerName || !type || !description || !amount) {
-      return errorResponse('Missing required fields', 400);
-    }
-
-    const dispute = await db.dispute.create({
-      data: {
-        bookingId,
-        customerId,
-        customerName,
-        providerId,
-        providerName,
-        type,
-        description,
-        amount,
-        status: 'OPEN',
-      },
-    });
-
-    return successResponse({ dispute }, 201);
   } catch (error) {
     return handleApiError(error);
   }
@@ -93,23 +74,28 @@ export async function PUT(request: NextRequest) {
   try {
     await requireAdmin();
     const body = await request.json();
-    const { disputeId, status, resolution } = body;
+    const { disputeId, status, adminMessage, resolution } = body;
 
     if (!disputeId) {
       return errorResponse('Dispute ID is required', 400);
     }
 
     const updateData: Record<string, unknown> = {};
-    
+
     if (status) {
       updateData.status = status;
-      if (status === 'RESOLVED') {
-        updateData.resolvedAt = new Date();
-      }
     }
-    
-    if (resolution !== undefined) {
-      updateData.resolution = JSON.stringify(resolution);
+
+    // Store resolution and admin message in the resolution field
+    if (adminMessage || resolution) {
+      const existing = await db.dispute.findUnique({ where: { id: disputeId } });
+      let existingResolution: Record<string, any> = {};
+      if (existing?.resolution) {
+        try { existingResolution = JSON.parse(existing.resolution); } catch { /* ignore */ }
+      }
+      if (adminMessage) existingResolution.adminMessage = adminMessage;
+      if (resolution) existingResolution.resolution = resolution;
+      updateData.resolution = JSON.stringify(existingResolution);
     }
 
     const dispute = await db.dispute.update({
@@ -119,7 +105,6 @@ export async function PUT(request: NextRequest) {
 
     // If resolution involves refund, process it
     if (resolution && resolution.type === 'FULL_REFUND') {
-      // Find the payment and mark as refunded
       if (dispute.bookingId) {
         await db.payment.updateMany({
           where: { bookingId: dispute.bookingId },
@@ -129,27 +114,6 @@ export async function PUT(request: NextRequest) {
     }
 
     return successResponse({ dispute });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
-
-// DELETE - Delete a dispute
-export async function DELETE(request: NextRequest) {
-  try {
-    await requireAdmin();
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return errorResponse('Dispute ID is required', 400);
-    }
-
-    await db.dispute.delete({
-      where: { id },
-    });
-
-    return successResponse({ message: 'Dispute deleted successfully' });
   } catch (error) {
     return handleApiError(error);
   }
