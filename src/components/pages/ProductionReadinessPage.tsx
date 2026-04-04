@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ArrowLeft,
   Shield,
@@ -10,19 +10,31 @@ import {
   ShieldAlert,
   ClipboardCheck,
   Rocket,
-  Bug,
   AlertTriangle,
   Gauge,
-  Activity,
   FileText,
   Server,
   Trophy,
+  RefreshCw,
+  Users,
+  Store,
+  CalendarCheck,
+  DollarSign,
+  Lock,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface ProductionReadinessPageProps {
   onBack: () => void;
+  onNavigate?: (page: string) => void;
+}
+
+interface PlatformStats {
+  users: { total: number; newThisMonth: number };
+  businesses: { total: number; pendingVerification: number };
+  bookings: { total: number; monthly: number; activeToday: number };
+  revenue: { total: number; monthly: number };
 }
 
 interface Phase {
@@ -39,7 +51,7 @@ interface Vulnerability {
   status: string;
 }
 
-interface SecurityScore {
+interface SecurityScoreItem {
   category: string;
   score: number;
 }
@@ -50,7 +62,7 @@ interface EnvVar {
   description: string;
 }
 
-// ─── Data ───────────────────────────────────────────────────────────────────
+// ─── Static Data ────────────────────────────────────────────────────────────
 
 const phases: Phase[] = [
   { number: 1, icon: '💳', title: 'Real Payment Systems', status: 'COMPLETE', summary: 'PayPal + M-Pesa API integration' },
@@ -75,7 +87,7 @@ const vulnerabilities: Vulnerability[] = [
   { severity: 'MEDIUM', description: 'Audit log had weak hash fallback', status: 'FIXED ✅' },
 ];
 
-const securityScores: SecurityScore[] = [
+const baseSecurityScores: SecurityScoreItem[] = [
   { category: 'Authentication', score: 100 },
   { category: 'Authorization', score: 98 },
   { category: 'Input Validation', score: 95 },
@@ -85,7 +97,7 @@ const securityScores: SecurityScore[] = [
   { category: 'Audit Logging', score: 95 },
 ];
 
-const envVars: EnvVar[] = [
+const envVarsList: EnvVar[] = [
   { name: 'JWT_SECRET', required: true, description: 'Required' },
   { name: 'STRIPE_SECRET_KEY', required: true, description: 'Required for Stripe payments' },
   { name: 'STRIPE_WEBHOOK_SECRET', required: true, description: 'Required for Stripe webhooks' },
@@ -102,9 +114,23 @@ const envVars: EnvVar[] = [
   { name: 'REDIS_URL', required: false, description: 'Optional — memory fallback' },
 ];
 
-const overallScore = 94;
+const BASELINE_SCORE = 94;
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function formatNumber(n: number): string {
+  return n.toLocaleString('en-US');
+}
+
+function formatCurrency(n: number): string {
+  return `KES ${formatNumber(n)}`;
+}
 
 // ─── Sub-Components ─────────────────────────────────────────────────────────
+
+function Skeleton({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-slate-800/60 ${className}`} />;
+}
 
 function SectionCard({
   children,
@@ -225,16 +251,177 @@ function ScoreRing({ score, size = 140, strokeWidth = 10 }: { score: number; siz
   );
 }
 
+// ─── Stat Card ──────────────────────────────────────────────────────────────
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  subValue,
+  iconColor,
+  loading,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  subValue?: string;
+  iconColor: string;
+  loading?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className={`w-4 h-4 ${iconColor}`} />
+        <span className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">{label}</span>
+      </div>
+      {loading ? (
+        <>
+          <Skeleton className="h-8 w-24 mb-1" />
+          {subValue && <Skeleton className="h-3 w-16" />}
+        </>
+      ) : (
+        <>
+          <div className="text-2xl font-bold text-white">{value}</div>
+          {subValue && <div className="text-xs text-slate-500 mt-0.5">{subValue}</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Error State ────────────────────────────────────────────────────────────
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="relative rounded-2xl border border-red-500/30 bg-red-950/20 backdrop-blur-sm p-8 sm:p-12 text-center">
+      <div className="flex flex-col items-center">
+        <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center mb-4">
+          <AlertTriangle className="w-7 h-7 text-red-400" />
+        </div>
+        <h3 className="text-lg font-semibold text-white mb-2">Failed to Load Data</h3>
+        <p className="text-sm text-slate-400 mb-6 max-w-md">{message}</p>
+        <button
+          onClick={onRetry}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-slate-800 border border-slate-700/50 text-sm font-medium text-white hover:bg-slate-700 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 
-export default function ProductionReadinessPage({ onBack }: ProductionReadinessPageProps) {
+export default function ProductionReadinessPage({ onBack, onNavigate }: ProductionReadinessPageProps) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<PlatformStats | null>(null);
+  const [envStatusMap, setEnvStatusMap] = useState<Record<string, boolean> | null>(null);
+  const [authError, setAuthError] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setAuthError(false);
+
+    let gotAuthError = false;
+
+    try {
+      const statsPromise = fetch('/api/admin/stats').then(async (r) => {
+        if (r.status === 401 || r.status === 403) {
+          gotAuthError = true;
+          return null;
+        }
+        if (!r.ok) return null;
+        const json = await r.json();
+        return json.success ? (json.data as PlatformStats) : null;
+      });
+
+      const envPromise = fetch('/api/admin/env-check').then(async (r) => {
+        if (r.status === 401 || r.status === 403) {
+          gotAuthError = true;
+          return null;
+        }
+        if (!r.ok) return null;
+        const json = await r.json();
+        return json.success ? (json.data as Record<string, boolean>) : null;
+      });
+
+      const [statsData, envData] = await Promise.all([statsPromise, envPromise]);
+
+      if (statsData) setStats(statsData);
+      if (envData) setEnvStatusMap(envData);
+      if (gotAuthError) setAuthError(true);
+    } catch {
+      setError('Failed to load platform data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Compute dynamic overall score based on env var coverage
+  const overallScore = useMemo(() => {
+    if (!envStatusMap) return BASELINE_SCORE;
+
+    const requiredVars = envVarsList.filter((v) => v.required);
+    const setRequired = requiredVars.filter((v) => envStatusMap[v.name]).length;
+    const missingRequired = requiredVars.length - setRequired;
+
+    if (missingRequired === 0) return Math.min(100, BASELINE_SCORE + 3);
+    return Math.max(60, BASELINE_SCORE - missingRequired * 3);
+  }, [envStatusMap]);
+
+  const grade =
+    overallScore >= 90 ? 'A' : overallScore >= 80 ? 'B' : overallScore >= 70 ? 'C' : 'D';
+
+  const envVarsWithStatus = useMemo(
+    () =>
+      envVarsList.map((v) => ({
+        ...v,
+        isSet: envStatusMap ? envStatusMap[v.name] : undefined,
+      })),
+    [envStatusMap],
+  );
+
+  const requiredEnvCount = envVarsList.filter((v) => v.required).length;
+  const setRequiredCount = envVarsWithStatus
+    .filter((v) => v.required && v.isSet === true).length;
+  const allRequiredSet = envStatusMap
+    ? setRequiredCount === requiredEnvCount
+    : undefined;
+
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
 
-  const grade = overallScore >= 90 ? 'A' : overallScore >= 80 ? 'B' : overallScore >= 70 ? 'C' : 'D';
+  // Full-page error state
+  if (error && !stats && !envStatusMap) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white pb-16">
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-emerald-500/[0.03] rounded-full blur-[120px]" />
+        </div>
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors mb-6 group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            Back
+          </button>
+          <ErrorState message={error} onRetry={fetchData} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white pb-16">
@@ -286,7 +473,7 @@ export default function ProductionReadinessPage({ onBack }: ProductionReadinessP
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 mt-4">
-                    <StatusBadge variant="success">
+                    <StatusBadge variant={overallScore >= 90 ? 'success' : 'warning'}>
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       {overallScore}/100 ({grade})
                     </StatusBadge>
@@ -299,34 +486,67 @@ export default function ProductionReadinessPage({ onBack }: ProductionReadinessP
 
                 {/* Score ring */}
                 <div className="flex flex-col items-center">
-                  <ScoreRing score={overallScore} />
+                  {loading ? (
+                    <div className="w-[140px] h-[140px] rounded-full bg-slate-800/40 animate-pulse" />
+                  ) : (
+                    <ScoreRing score={overallScore} />
+                  )}
                   <span className="text-xs text-slate-500 mt-2 font-medium">OVERALL SCORE</span>
                 </div>
               </div>
 
-              {/* 3 stat cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-                <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">Phases Completed</span>
-                  </div>
-                  <div className="text-2xl font-bold text-emerald-400">11<span className="text-slate-500 text-lg">/11</span></div>
+              {/* Auth warning banner */}
+              {authError && !loading && (
+                <div className="mt-5 flex items-center gap-3 p-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/15">
+                  <Lock className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                  <span className="text-sm text-amber-300 font-medium">
+                    Live platform stats require admin access. Showing baseline data.
+                    {onNavigate && (
+                      <button
+                        onClick={() => onNavigate('login')}
+                        className="ml-2 underline underline-offset-2 hover:text-amber-200 transition-colors"
+                      >
+                        Sign in as admin
+                      </button>
+                    )}
+                  </span>
                 </div>
-                <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Bug className="w-4 h-4 text-red-400" />
-                    <span className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">Vulnerabilities Fixed</span>
-                  </div>
-                  <div className="text-2xl font-bold text-red-400">6</div>
-                </div>
-                <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Activity className="w-4 h-4 text-cyan-400" />
-                    <span className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">ESLint Errors</span>
-                  </div>
-                  <div className="text-2xl font-bold text-cyan-400">0</div>
-                </div>
+              )}
+
+              {/* 4 Dynamic Stat Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+                <StatCard
+                  icon={Users}
+                  label="Total Users"
+                  value={stats ? formatNumber(stats.users.total) : '—'}
+                  subValue={stats ? `+${stats.users.newThisMonth} this month` : undefined}
+                  iconColor="text-emerald-400"
+                  loading={loading}
+                />
+                <StatCard
+                  icon={Store}
+                  label="Total Businesses"
+                  value={stats ? formatNumber(stats.businesses.total) : '—'}
+                  subValue={stats ? `${stats.businesses.pendingVerification} pending` : undefined}
+                  iconColor="text-cyan-400"
+                  loading={loading}
+                />
+                <StatCard
+                  icon={CalendarCheck}
+                  label="Total Bookings"
+                  value={stats ? formatNumber(stats.bookings.total) : '—'}
+                  subValue={stats ? `${stats.bookings.monthly} this month` : undefined}
+                  iconColor="text-purple-400"
+                  loading={loading}
+                />
+                <StatCard
+                  icon={DollarSign}
+                  label="Total Revenue"
+                  value={stats ? formatCurrency(stats.revenue.total) : '—'}
+                  subValue={stats ? `${formatCurrency(stats.revenue.monthly)} this month` : undefined}
+                  iconColor="text-amber-400"
+                  loading={loading}
+                />
               </div>
             </div>
           </div>
@@ -437,22 +657,41 @@ export default function ProductionReadinessPage({ onBack }: ProductionReadinessP
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Score ring */}
               <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-slate-700/50 bg-slate-800/30">
-                <ScoreRing score={overallScore} size={160} strokeWidth={12} />
-                <span className="text-sm font-semibold text-white mt-3">Overall Security Score</span>
-                <span className="text-xs text-slate-500 mt-0.5">Grade: {grade}</span>
+                {loading ? (
+                  <div className="w-[160px] h-[160px] rounded-full bg-slate-800/40 animate-pulse" />
+                ) : (
+                  <ScoreRing score={overallScore} size={160} strokeWidth={12} />
+                )}
+                <span className="text-sm font-semibold text-white mt-3">
+                  Overall Security Score
+                </span>
+                <span className="text-xs text-slate-500 mt-0.5">
+                  {loading ? 'Calculating...' : `Grade: ${grade}`}
+                </span>
+                {envStatusMap && (
+                  <span className="text-[10px] text-slate-600 mt-1">
+                    {allRequiredSet
+                      ? 'All required env vars configured'
+                      : `${setRequiredCount}/${requiredEnvCount} required vars set`}
+                  </span>
+                )}
               </div>
 
               {/* Score bars */}
               <div className="lg:col-span-2 space-y-4">
-                {securityScores.map((item) => (
+                {baseSecurityScores.map((item) => (
                   <div key={item.category}>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-sm text-slate-300 font-medium">{item.category}</span>
-                      <span className={`text-sm font-bold ${
-                        item.score >= 98 ? 'text-emerald-400' :
-                        item.score >= 94 ? 'text-cyan-400' :
-                        'text-amber-400'
-                      }`}>
+                      <span
+                        className={`text-sm font-bold ${
+                          item.score >= 98
+                            ? 'text-emerald-400'
+                            : item.score >= 94
+                              ? 'text-cyan-400'
+                              : 'text-amber-400'
+                        }`}
+                      >
                         {item.score}/100
                       </span>
                     </div>
@@ -474,7 +713,7 @@ export default function ProductionReadinessPage({ onBack }: ProductionReadinessP
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-sm text-white font-semibold">Average</span>
                     <span className="text-sm font-bold text-emerald-400">
-                      {Math.round(securityScores.reduce((a, b) => a + b.score, 0) / securityScores.length)}/100
+                      {Math.round(baseSecurityScores.reduce((a, b) => a + b.score, 0) / baseSecurityScores.length)}/100
                     </span>
                   </div>
                   <ProgressBar
@@ -497,46 +736,86 @@ export default function ProductionReadinessPage({ onBack }: ProductionReadinessP
           >
             <p className="text-sm text-slate-400 mb-5">
               All required and optional environment variables for production deployment.
+              {!envStatusMap && !loading && ' (Admin access required to check status)'}
             </p>
             <div className="overflow-x-auto rounded-xl border border-slate-700/50">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-800/60 border-b border-slate-700/50">
                     <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Variable</th>
+                    <th className="text-center px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Required</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Description</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
-                  {envVars.map((env) => (
-                    <tr key={env.name} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="px-4 py-3">
-                        <code className="text-xs font-mono text-slate-200 bg-slate-800/60 px-2 py-1 rounded">
-                          {env.name}
-                        </code>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {env.required ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/15 text-red-400 border border-red-500/20">
-                            <Key className="w-3 h-3" />
-                            Required
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/15 text-slate-400 border border-slate-500/20">
-                            Optional
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-400">{env.description}</td>
-                    </tr>
-                  ))}
+                  {loading
+                    ? Array.from({ length: 7 }).map((_, i) => (
+                        <tr key={i} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-5 w-36" />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Skeleton className="h-5 w-14 mx-auto" />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Skeleton className="h-5 w-16 mx-auto" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-28" />
+                          </td>
+                        </tr>
+                      ))
+                    : envVarsWithStatus.map((env) => (
+                        <tr key={env.name} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-4 py-3">
+                            <code className="text-xs font-mono text-slate-200 bg-slate-800/60 px-2 py-1 rounded">
+                              {env.name}
+                            </code>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {env.required ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/15 text-red-400 border border-red-500/20">
+                                <Key className="w-3 h-3" />
+                                Required
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/15 text-slate-400 border border-slate-500/20">
+                                Optional
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {env.isSet === undefined ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/10 text-slate-500 border border-slate-500/15">
+                                —
+                              </span>
+                            ) : env.isSet ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Set
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/15 text-red-400 border border-red-500/20">
+                                <AlertTriangle className="w-3 h-3" />
+                                Not Set
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-400">{env.description}</td>
+                        </tr>
+                      ))}
                 </tbody>
               </table>
             </div>
             <div className="mt-4 flex items-center gap-2 p-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/10">
               <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
               <span className="text-sm text-amber-300 font-medium">
-                4 required variables must be set before production deployment
+                {envStatusMap
+                  ? allRequiredSet
+                    ? 'All required environment variables are configured'
+                    : `${requiredEnvCount - setRequiredCount} required variable(s) must be set before production deployment`
+                  : `${requiredEnvCount} required variables must be set before production deployment`}
               </span>
             </div>
           </SectionCard>
@@ -570,7 +849,9 @@ export default function ProductionReadinessPage({ onBack }: ProductionReadinessP
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-cyan-500/[0.06] border border-cyan-500/10">
                   <ShieldCheck className="w-5 h-5 text-cyan-400 flex-shrink-0" />
                   <div>
-                    <div className="text-xs text-cyan-300 font-medium">Score: {overallScore}/100 (Grade {grade})</div>
+                    <div className="text-xs text-cyan-300 font-medium">
+                      Score: {overallScore}/100 (Grade {grade})
+                    </div>
                     <div className="text-[11px] text-slate-500">Security assessment</div>
                   </div>
                 </div>
@@ -582,6 +863,27 @@ export default function ProductionReadinessPage({ onBack }: ProductionReadinessP
                   </div>
                 </div>
               </div>
+
+              {stats && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                  <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/30 text-center">
+                    <div className="text-lg font-bold text-emerald-400">{formatNumber(stats.users.total)}</div>
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Users</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/30 text-center">
+                    <div className="text-lg font-bold text-cyan-400">{formatNumber(stats.businesses.total)}</div>
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Businesses</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/30 text-center">
+                    <div className="text-lg font-bold text-purple-400">{formatNumber(stats.bookings.total)}</div>
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Bookings</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/30 text-center">
+                    <div className="text-lg font-bold text-amber-400">{formatCurrency(stats.revenue.total)}</div>
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Revenue</div>
+                  </div>
+                </div>
+              )}
 
               <div className="text-center pt-4 border-t border-slate-700/30">
                 <p className="text-xs text-slate-500">

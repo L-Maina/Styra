@@ -1007,3 +1007,57 @@ Rewrite CareersPage.tsx to be fully dynamic — fetch jobs from API, show loadin
 - **Files created**: `src/app/api/faqs/route.ts`, `src/app/api/site-settings/route.ts`
 - **Files modified**: `src/components/pages/SupportPage.tsx` (full rewrite), `prisma/seed.ts` (added FAQ + settings seeds)
 - **Lint**: Clean (0 errors)
+
+---
+## Task ID: PRESS-PAGE-DYNAMIC - Rebuild PressPage to be fully dynamic
+### Work Task
+Rebuild PressPage to fetch data from APIs instead of using hardcoded values, following the AboutPage pattern with loading skeletons, error states, and fallback defaults.
+
+### Work Summary
+
+**1. Updated `prisma/seed.ts`** — Added 4 new platform settings:
+- `company_name`: "Styra"
+- `company_tagline`: Full tagline string
+- `company_description`: Company description paragraph
+- `press_email`: "press@styra.app"
+- Also renamed `phone_number` → `phone` for consistency with Footer/AboutPage convention
+- Total settings: 9 (was 5)
+
+**2. Updated `src/app/api/site-settings/route.ts`** — Added computed stats:
+- Now runs 4 parallel DB queries: `user.count(business)`, `user.count(customer)`, `business.findMany(distinct city)`, `review.aggregate(avg rating)`
+- Returns `stats` object alongside `settings` map: `{ total_providers, total_customers, total_cities, avg_rating, total_reviews }`
+- Stats are best-effort (wrapped in try/catch) — won't break the whole endpoint if a query fails
+- Benefits both AboutPage (which already expected `data.stats`) and PressPage
+
+**3. Rewrote `src/components/pages/PressPage.tsx`** — Full dynamic rebuild:
+- Added `PressPageProps` interface with `onNavigate?: (page: string) => void`
+- `SETTINGS_DEFAULTS` for instant render with zero layout shift (matches Footer pattern)
+- `useState` + `useEffect` + `useCallback` for data fetching from `/api/site-settings`
+- `loading` state shows `StatsSkeleton`, `HeroSkeleton`, `ContactSkeleton` (GlassCard + Skeleton)
+- `error` state shows error banner with `AlertCircle` icon + Retry button
+- Dynamic data: company name, tagline, press email, stats (from API)
+- Hardcoded brand content: Brand Colors section, Logo Usage section, Press mentions, Press Kit
+- Stats use API data when available, fallback to hardcoded values when loading fails
+- Contact email uses `press@styra.app` as fallback when API doesn't have `press_email`
+- Uses existing glass components: GlassCard, GlassButton, GlassBadge, GradientText, FadeIn, Skeleton
+- Contact Us button now functional — opens mailto link
+
+**4. Updated `src/app/page.tsx`** — Pass `onNavigate={navigate}` to PressPage
+
+### Design Patterns Followed
+- `useState` + `useEffect` for data fetching (matches AboutPage)
+- `useCallback` for fetch function to enable Retry button
+- Loading skeletons using `Skeleton` + `GlassCard`
+- Fallback defaults for instant render (matches Footer pattern)
+- Glass components for visual consistency
+- Props: `{ onNavigate?: (page: string) => void }`
+
+### Files Modified
+- `prisma/seed.ts` — added 4 new platform settings, renamed `phone_number` → `phone`
+- `src/app/api/site-settings/route.ts` — added computed stats (providers, customers, cities, avg rating)
+- `src/components/pages/PressPage.tsx` — full rewrite (static → dynamic)
+- `src/app/page.tsx` — pass `onNavigate={navigate}` to PressPage
+
+### Issues Encountered
+- `bun run db:push` fails due to pre-existing schema mismatch (prisma says `provider = "postgresql"` but `DATABASE_URL` points to SQLite file). This is a known project issue documented in worklog. Seed changes will take effect on next successful db push/reset.
+- Lint: Clean (0 errors)

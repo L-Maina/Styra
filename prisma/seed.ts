@@ -238,8 +238,12 @@ async function main() {
 
   // ── 6. Seed Platform Settings (upsert by key) ─────────────────────
   const settingEntries = [
+    { key: 'company_name', value: 'Styra' },
+    { key: 'company_tagline', value: 'Your Style, On Demand. Discover grooming services across Kenya, book instantly, and look your best every day.' },
+    { key: 'company_description', value: 'Styra is Kenya\'s leading grooming marketplace, connecting customers with verified barbers, salons, and grooming professionals. Founded with a mission to modernize the grooming industry in Africa, Styra provides a seamless platform for discovering, booking, and reviewing grooming services.' },
     { key: 'support_email', value: 'support@styra.app' },
-    { key: 'phone_number', value: '+254 712 345 678' },
+    { key: 'press_email', value: 'press@styra.app' },
+    { key: 'phone', value: '+254 712 345 678' },
     { key: 'address', value: 'Nairobi, Kenya' },
     { key: 'business_hours', value: 'Mon-Fri 8am-6pm EAT' },
     { key: 'site_name', value: 'Styra' },
@@ -251,7 +255,7 @@ async function main() {
       create: entry,
     });
   }
-  console.log('✅ Seeded 5 platform settings');
+  console.log('✅ Seeded 9 platform settings');
 
   // ── 7. Seed FAQs (skip if any exist) ─────────────────────────────
   const faqCount = await prisma.fAQ.count();

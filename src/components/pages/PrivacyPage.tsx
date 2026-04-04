@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, 
@@ -18,18 +18,30 @@ import {
   Settings,
   ToggleLeft,
   ToggleRight,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { 
   GlassCard, 
   GlassButton, 
   GradientText,
-  FadeIn
+  FadeIn,
+  Skeleton,
 } from '@/components/ui/custom/glass-components';
 
 interface PrivacyPageProps {
   onBack: () => void;
+  onNavigate?: (page: string) => void;
 }
+
+/* ── Fallback defaults for instant render (no layout shift) ── */
+const DEFAULTS = {
+  siteName: 'Styra',
+  privacyEmail: 'privacy@styra.app',
+  phone: '+254 712 345 678',
+  address: 'Westlands Business Park, Westlands, Nairobi, Kenya',
+  lastUpdated: 'January 15, 2025',
+};
 
 const privacySections = [
   {
@@ -185,12 +197,46 @@ const cookieTypes = [
   },
 ];
 
-export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => {
-  const lastUpdated = 'January 15, 2025';
+export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack, onNavigate }) => {
+  /* ── Dynamic data state ── */
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  /* ── Cookie modal state ── */
   const [showCookieModal, setShowCookieModal] = useState(false);
   const [cookieSettings, setCookieSettings] = useState(cookieTypes);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
 
+  /* ── Fetch site settings from API ── */
+  const fetchSettings = useCallback(async () => {
+    setLoadingSettings(true);
+    setFetchError(null);
+    try {
+      const keys = 'site_name,privacy_email,phone_number,address,privacy_last_updated';
+      const res = await fetch(`/api/site-settings?keys=${encodeURIComponent(keys)}`);
+      if (!res.ok) throw new Error('Failed to fetch settings');
+      const json = await res.json();
+      if (json.success) setSettings(json.data.settings ?? {});
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to load settings');
+    } finally {
+      setLoadingSettings(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  /* ── Derived values with fallback defaults (no layout shift) ── */
+  const siteName = settings.site_name || DEFAULTS.siteName;
+  const privacyEmail = settings.privacy_email || DEFAULTS.privacyEmail;
+  const phone = settings.phone_number || DEFAULTS.phone;
+  const address = settings.address || DEFAULTS.address;
+  const lastUpdated = settings.privacy_last_updated || DEFAULTS.lastUpdated;
+
+  /* ── Cookie handlers ── */
   const handleToggleCookie = (id: string) => {
     setCookieSettings(prev => 
       prev.map(cookie => 
@@ -244,22 +290,54 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => {
           <h1 className="text-4xl font-bold mb-4">
             <GradientText>Privacy Policy</GradientText>
           </h1>
-          <p className="text-muted-foreground">
-            Last updated: {lastUpdated}
-          </p>
+          {loadingSettings ? (
+            <Skeleton className="h-4 w-40 mx-auto" />
+          ) : (
+            <p className="text-muted-foreground">
+              Last updated: {lastUpdated}
+            </p>
+          )}
         </FadeIn>
 
         {/* Introduction */}
         <FadeIn delay={0.1}>
           <GlassCard variant="bordered" className="mb-8">
             <p className="text-muted-foreground">
-              At Styra, we take your privacy seriously. This Privacy Policy explains how we 
+              At {siteName}, we take your privacy seriously. This Privacy Policy explains how we 
               collect, use, disclose, and safeguard your information when you use our platform. 
-              Please read this policy carefully. By using Styra, you consent to the practices 
+              Please read this policy carefully. By using {siteName}, you consent to the practices 
               described in this policy.
             </p>
           </GlassCard>
         </FadeIn>
+
+        {/* Error Banner (non-blocking) */}
+        <AnimatePresence>
+          {fetchError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-8 p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-destructive">Failed to load site settings</p>
+                  <p className="text-xs text-muted-foreground">{fetchError}</p>
+                </div>
+              </div>
+              <GlassButton
+                variant="outline"
+                size="sm"
+                leftIcon={<RefreshCw className="h-4 w-4" />}
+                onClick={fetchSettings}
+              >
+                Retry
+              </GlassButton>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Sections */}
         {privacySections.map((section, index) => (
@@ -344,17 +422,25 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => {
           <GlassCard variant="elevated">
             <div className="flex items-start gap-4">
               <Bell className="h-6 w-6 text-primary flex-shrink-0" />
-              <div>
+              <div className="flex-1">
                 <h3 className="font-semibold mb-2">Questions or Concerns?</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   If you have questions about this Privacy Policy or wish to exercise your rights, 
                   please contact our Data Protection Officer:
                 </p>
-                <div className="space-y-1 text-sm">
-                  <p><strong>Email:</strong> privacy@styra.app</p>
-                  <p><strong>Phone:</strong> +254 712 345 678</p>
-                  <p><strong>Address:</strong> Westlands Business Park, Westlands, Nairobi, Kenya</p>
-                </div>
+                {loadingSettings ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-64" />
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-4 w-80" />
+                  </div>
+                ) : (
+                  <div className="space-y-1 text-sm">
+                    <p><strong>Email:</strong> {privacyEmail}</p>
+                    <p><strong>Phone:</strong> {phone}</p>
+                    <p><strong>Address:</strong> {address}</p>
+                  </div>
+                )}
               </div>
             </div>
           </GlassCard>
@@ -381,7 +467,7 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="glass-modal rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl"
+              className="bg-background/95 border border-border/50 shadow-xl rounded-2xl w-full max-w-lg overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}

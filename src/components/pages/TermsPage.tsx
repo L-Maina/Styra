@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, 
   Scale, 
@@ -12,18 +12,30 @@ import {
   Ban,
   RefreshCw,
   MessageSquare,
-  Gavel
+  Gavel,
+  AlertCircle,
 } from 'lucide-react';
 import { 
   GlassCard, 
   GlassButton, 
   GradientText,
-  FadeIn
+  FadeIn,
+  Skeleton,
 } from '@/components/ui/custom/glass-components';
 
 interface TermsPageProps {
   onBack: () => void;
+  onNavigate?: (page: string) => void;
 }
+
+/* ── Fallback defaults for instant render (no layout shift) ── */
+const DEFAULTS = {
+  siteName: 'Styra',
+  legalEmail: 'legal@styra.app',
+  phone: '+254 712 345 678',
+  address: 'Westlands Business Park, Westlands, Nairobi, Kenya',
+  lastUpdated: 'January 15, 2025',
+};
 
 const termsSections = [
   {
@@ -141,8 +153,39 @@ Upon termination, you will lose access to your account and any associated data. 
   },
 ];
 
-export const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
-  const lastUpdated = 'January 15, 2025';
+export const TermsPage: React.FC<TermsPageProps> = ({ onBack, onNavigate }) => {
+  /* ── Dynamic data state ── */
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  /* ── Fetch site settings from API ── */
+  const fetchSettings = useCallback(async () => {
+    setLoadingSettings(true);
+    setFetchError(null);
+    try {
+      const keys = 'site_name,legal_email,phone_number,address,terms_last_updated';
+      const res = await fetch(`/api/site-settings?keys=${encodeURIComponent(keys)}`);
+      if (!res.ok) throw new Error('Failed to fetch settings');
+      const json = await res.json();
+      if (json.success) setSettings(json.data.settings ?? {});
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to load settings');
+    } finally {
+      setLoadingSettings(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  /* ── Derived values with fallback defaults (no layout shift) ── */
+  const siteName = settings.site_name || DEFAULTS.siteName;
+  const legalEmail = settings.legal_email || DEFAULTS.legalEmail;
+  const phone = settings.phone_number || DEFAULTS.phone;
+  const address = settings.address || DEFAULTS.address;
+  const lastUpdated = settings.terms_last_updated || DEFAULTS.lastUpdated;
 
   return (
     <div className="min-h-screen bg-background">
@@ -155,21 +198,53 @@ export const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
           <h1 className="text-4xl font-bold mb-4">
             <GradientText>Terms of Service</GradientText>
           </h1>
-          <p className="text-muted-foreground">
-            Last updated: {lastUpdated}
-          </p>
+          {loadingSettings ? (
+            <Skeleton className="h-4 w-40 mx-auto" />
+          ) : (
+            <p className="text-muted-foreground">
+              Last updated: {lastUpdated}
+            </p>
+          )}
         </FadeIn>
 
         {/* Introduction */}
         <FadeIn delay={0.1}>
           <GlassCard variant="bordered" className="mb-8">
             <p className="text-muted-foreground">
-              Welcome to Styra! These Terms of Service govern your use of our platform and 
-              services. By accessing or using Styra, you agree to be bound by these terms. 
+              Welcome to {siteName}! These Terms of Service govern your use of our platform and 
+              services. By accessing or using {siteName}, you agree to be bound by these terms. 
               Please read them carefully before using our services.
             </p>
           </GlassCard>
         </FadeIn>
+
+        {/* Error Banner (non-blocking) */}
+        <AnimatePresence>
+          {fetchError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-8 p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-destructive">Failed to load site settings</p>
+                  <p className="text-xs text-muted-foreground">{fetchError}</p>
+                </div>
+              </div>
+              <GlassButton
+                variant="outline"
+                size="sm"
+                leftIcon={<RefreshCw className="h-4 w-4" />}
+                onClick={fetchSettings}
+              >
+                Retry
+              </GlassButton>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Sections */}
         {termsSections.map((section, index) => (
@@ -194,8 +269,8 @@ export const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
             <h2 className="text-xl font-semibold mb-4">Intellectual Property</h2>
             <div className="space-y-3 text-sm text-muted-foreground">
               <p>
-                Styra and its associated trademarks, logos, and content are the property of 
-                Styra Inc. and are protected by intellectual property laws.
+                {siteName} and its associated trademarks, logos, and content are the property of 
+                {siteName} Inc. and are protected by intellectual property laws.
               </p>
               <p>
                 You may not use our trademarks or branding without prior written consent. User-generated 
@@ -229,7 +304,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
                 <p className="text-sm text-muted-foreground">
                   We reserve the right to modify these terms at any time. We will notify users of 
                   significant changes via email and through our platform. Your continued use of 
-                  Styra after changes become effective constitutes acceptance of the revised terms.
+                  {siteName} after changes become effective constitutes acceptance of the revised terms.
                 </p>
               </div>
             </div>
@@ -243,11 +318,19 @@ export const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
             <p className="text-sm text-muted-foreground mb-4">
               If you have any questions about these Terms of Service, please contact us:
             </p>
-            <div className="space-y-1 text-sm">
-              <p><strong>Email:</strong> legal@styra.app</p>
-              <p><strong>Phone:</strong> +254 712 345 678</p>
-              <p><strong>Address:</strong> Westlands Business Park, Westlands, Nairobi, Kenya</p>
-            </div>
+            {loadingSettings ? (
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-64 mx-auto" />
+                <Skeleton className="h-4 w-48 mx-auto" />
+                <Skeleton className="h-4 w-80 mx-auto" />
+              </div>
+            ) : (
+              <div className="space-y-1 text-sm">
+                <p><strong>Email:</strong> {legalEmail}</p>
+                <p><strong>Phone:</strong> {phone}</p>
+                <p><strong>Address:</strong> {address}</p>
+              </div>
+            )}
           </GlassCard>
         </FadeIn>
       </div>

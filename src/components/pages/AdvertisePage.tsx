@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Megaphone, 
-  Target, 
+import {
+  Megaphone,
+  Target,
   Users,
   TrendingUp,
   DollarSign,
@@ -22,15 +22,25 @@ import {
   Wallet,
   Smartphone,
   Lock,
+  Crown,
+  Rocket,
+  Eye,
+  MousePointer,
+  ShoppingCart,
+  AlertCircle,
+  RefreshCw,
+  Mail,
+  MapPin,
 } from 'lucide-react';
 import { useAuthStore } from '@/store';
-import { 
-  GlassCard, 
-  GlassButton, 
+import {
+  GlassCard,
+  GlassButton,
   GlassInput,
   GradientText,
   FadeIn,
-  GlassBadge
+  GlassBadge,
+  Skeleton,
 } from '@/components/ui/custom/glass-components';
 import { toast } from 'sonner';
 
@@ -42,7 +52,7 @@ interface AdvertisePageProps {
 // Payment method types
 type PaymentMethodType = 'card' | 'paypal' | 'mpesa';
 
-// Liquid Glass Modal Component - defined outside main component
+// Liquid Glass Modal Component — defined outside main component
 const LiquidGlassModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -73,25 +83,25 @@ const LiquidGlassModal: React.FC<{
           animate={{ opacity: 1 }}
           className="absolute inset-0 bg-black/60 backdrop-blur-md"
         />
-        
-        {/* Modal Content - Liquid Glass Style */}
+
+        {/* Modal Content — Solid background with glass feel */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
-          className={`relative w-full ${sizeClasses[size]} rounded-2xl shadow-2xl overflow-hidden`}
+          className={`relative w-full ${sizeClasses[size]} rounded-2xl overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Liquid glass base layer */}
-          <div className="absolute inset-0 glass-modal rounded-2xl" />
-          
+          {/* Solid glass base layer — avoids backdrop-blur issues */}
+          <div className="absolute inset-0 bg-background/95 border border-border/50 shadow-xl rounded-2xl" />
+
           {/* Glass reflection */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent h-1/3 dark:from-white/10 rounded-t-2xl" />
-          
+          <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent h-1/3 dark:from-white/10 rounded-t-2xl pointer-events-none" />
+
           {/* Outer glow */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-3xl blur-xl opacity-50" />
-          
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-3xl blur-xl opacity-50 pointer-events-none" />
+
           {/* Content */}
           <div className="relative z-10 text-foreground">
             {children}
@@ -102,12 +112,7 @@ const LiquidGlassModal: React.FC<{
   );
 };
 
-const audienceStats = [
-  { value: '500K+', label: 'Monthly Active Users', icon: Users },
-  { value: '50K+', label: 'Daily Bookings', icon: ShoppingCart },
-  { value: '25-45', label: 'Primary Age Group', icon: Target },
-  { value: '85%', label: 'Mobile Users', icon: Globe },
-];
+/* ── Hardcoded product data ── */
 
 const adOptions = [
   {
@@ -229,27 +234,35 @@ const successStories = [
   },
 ];
 
-// Import icons that are used but not imported yet
-import { 
-  Crown,
-  Rocket,
-  Eye,
-  MousePointer,
-  ShoppingCart
-} from 'lucide-react';
+/* ── Helper: format numbers with commas ── */
+const formatNumber = (n: number): string => {
+  return n.toLocaleString();
+};
 
 export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate }) => {
   const { isAuthenticated, user } = useAuthStore();
-  
+
   // Check if user is a provider
   const hasProviderRole = user?.roles?.includes('BUSINESS_OWNER') || user?.role === 'BUSINESS_OWNER';
-  
+
+  /* ── Dynamic data state ── */
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [stats, setStats] = useState<{
+    total_providers: number;
+    total_customers: number;
+    total_cities: number;
+    avg_rating: number;
+  } | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  /* ── UI state ── */
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [showOnboardingPrompt, setShowOnboardingPrompt] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  
+
   // Payment state
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('card');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -261,19 +274,85 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
 
   const selectedPlanData = adOptions.find(p => p.id === selectedPlan);
 
+  /* ── Fetch site-settings + stats from API ── */
+  const fetchSettings = useCallback(async () => {
+    setLoadingStats(true);
+    setFetchError(null);
+    try {
+      const keys = 'site_name,ads_email,phone_number';
+      const res = await fetch(`/api/site-settings?keys=${encodeURIComponent(keys)}`);
+      if (!res.ok) throw new Error(`Failed to fetch settings (${res.status})`);
+      const json = await res.json();
+      if (json.success) {
+        setSettings(json.data.settings ?? {});
+        setStats(json.data.stats ?? null);
+      } else {
+        throw new Error(json.error || 'Unknown error');
+      }
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to load platform data');
+    } finally {
+      setLoadingStats(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  /* ── Derived values from settings (with fallback defaults) ── */
+  const companyName = settings.site_name || 'Styra';
+  const adsEmail = settings.ads_email || 'ads@styra.app';
+  const contactPhone = settings.phone_number || '+254 712 345 678';
+
+  /* ── Dynamic audience stats from API ── */
+  const audienceStats: {
+    value: string;
+    label: string;
+    icon: React.ElementType;
+  }[] = stats
+    ? [
+        {
+          value: `${formatNumber(stats.total_providers)}+`,
+          label: 'Service Providers',
+          icon: Users,
+        },
+        {
+          value: `${formatNumber(stats.total_customers)}+`,
+          label: 'Registered Customers',
+          icon: ShoppingCart,
+        },
+        {
+          value: `${formatNumber(stats.total_cities)}+`,
+          label: 'Cities Covered',
+          icon: MapPin,
+        },
+        {
+          value: stats.avg_rating > 0 ? `${stats.avg_rating.toFixed(1)} ★` : 'N/A',
+          label: 'Average Rating',
+          icon: Star,
+        },
+      ]
+    : [
+        { value: '500K+', label: 'Monthly Active Users', icon: Users },
+        { value: '50K+', label: 'Daily Bookings', icon: ShoppingCart },
+        { value: '25-45', label: 'Primary Age Group', icon: Target },
+        { value: '85%', label: 'Mobile Users', icon: Globe },
+      ];
+
   const handleGetStarted = (planId: string) => {
     if (!isAuthenticated) {
       setSelectedPlan(planId);
       setShowSignInPrompt(true);
       return;
     }
-    
+
     if (!hasProviderRole) {
       setSelectedPlan(planId);
       setShowOnboardingPrompt(true);
       return;
     }
-    
+
     // Logged-in provider - go directly to payment
     setSelectedPlan(planId);
     setShowPaymentModal(true);
@@ -312,14 +391,14 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
     }
 
     setIsProcessing(true);
-    
+
     // Simulate payment processing
     await new Promise(resolve => setTimeout(resolve, 2500));
-    
+
     setIsProcessing(false);
     setShowPaymentModal(false);
     setShowSuccessModal(true);
-    
+
     toast.success('Payment successful! Your advertising plan is now active.');
   };
 
@@ -335,7 +414,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
         {/* Hero */}
         <FadeIn className="text-center mb-12">
-          <motion.div 
+          <motion.div
             className="w-20 h-20 rounded-2xl gradient-bg flex items-center justify-center mx-auto mb-6 shadow-glow"
             whileHover={{ scale: 1.05, rotate: 5 }}
             transition={{ type: 'spring', stiffness: 300 }}
@@ -343,36 +422,69 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
             <Megaphone className="h-10 w-10 text-white" />
           </motion.div>
           <h1 className="text-4xl font-bold mb-4">
-            Advertise with <GradientText>Styra</GradientText>
+            Advertise with <GradientText>{companyName}</GradientText>
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-            Connect with millions of customers actively searching for grooming services. 
+            Connect with millions of customers actively searching for grooming services.
             Grow your business with targeted advertising.
           </p>
         </FadeIn>
 
         {/* Audience Stats */}
         <FadeIn delay={0.1}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-            {audienceStats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+          {/* Loading Skeletons */}
+          {loadingStats && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-xl border border-border/50 p-5 text-center space-y-3">
+                  <Skeleton className="h-6 w-6 rounded-full mx-auto" />
+                  <Skeleton className="h-7 w-20 mx-auto" />
+                  <Skeleton className="h-3 w-28 mx-auto" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Error State */}
+          {!loadingStats && fetchError && (
+            <div className="text-center py-10 mb-12">
+              <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <p className="text-muted-foreground mb-2">Failed to load platform stats</p>
+              <p className="text-sm text-muted-foreground mb-4">{fetchError}</p>
+              <GlassButton
+                variant="outline"
+                size="sm"
+                leftIcon={<RefreshCw className="h-4 w-4" />}
+                onClick={fetchSettings}
               >
-                <GlassCard 
-                  variant="elevated" 
-                  className="text-center relative overflow-hidden"
-                  glow
+                Retry
+              </GlassButton>
+            </div>
+          )}
+
+          {/* Dynamic Stats */}
+          {!loadingStats && !fetchError && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+              {audienceStats.map((stat, index) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                 >
-                  <stat.icon className="h-6 w-6 mx-auto mb-2 text-primary-light" />
-                  <div className="text-2xl font-bold gradient-text">{stat.value}</div>
-                  <div className="text-sm text-muted-foreground">{stat.label}</div>
-                </GlassCard>
-              </motion.div>
-            ))}
-          </div>
+                  <GlassCard
+                    variant="elevated"
+                    className="text-center relative overflow-hidden"
+                    glow
+                  >
+                    <stat.icon className="h-6 w-6 mx-auto mb-2 text-primary-light" />
+                    <div className="text-2xl font-bold gradient-text">{stat.value}</div>
+                    <div className="text-sm text-muted-foreground">{stat.label}</div>
+                  </GlassCard>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </FadeIn>
 
         {/* Advertising Formats */}
@@ -389,8 +501,8 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
                 >
                   <GlassCard hover className="text-center h-full group relative overflow-hidden">
                     <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                    
-                    <div 
+
+                    <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 transition-transform group-hover:scale-110"
                       style={{ backgroundColor: `${format.color}20` }}
                     >
@@ -420,7 +532,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
                 transition={{ delay: index * 0.1 }}
                 className="h-full"
               >
-                <GlassCard 
+                <GlassCard
                   variant={option.popular ? 'gradient' : 'elevated'}
                   hover
                   glow={option.popular}
@@ -435,18 +547,16 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
                     </div>
                   )}
 
-
-                  
                   <div className="relative z-10 flex flex-col h-full">
                     {/* Header */}
                     <div className="flex items-center gap-3 mb-4">
-                      <div 
+                      <div
                         className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
                         style={{ backgroundColor: `${option.color}15` }}
                       >
-                        <option.icon 
-                          className="h-6 w-6" 
-                          style={{ color: option.color }} 
+                        <option.icon
+                          className="h-6 w-6"
+                          style={{ color: option.color }}
                         />
                       </div>
                       <div className="min-w-0">
@@ -498,8 +608,8 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
                     </ul>
 
                     {/* Button at bottom */}
-                    <GlassButton 
-                      variant={option.popular ? 'primary' : 'outline'} 
+                    <GlassButton
+                      variant={option.popular ? 'primary' : 'outline'}
                       className="w-full mt-auto"
                       onClick={() => handleGetStarted(option.id)}
                       rightIcon={<ChevronRight className="h-4 w-4" />}
@@ -518,7 +628,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
           <GlassCard variant="bordered" className="mb-12 relative overflow-hidden">
             <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
             <div className="absolute -left-10 -top-10 w-32 h-32 bg-secondary/5 rounded-full blur-2xl" />
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
               <div>
                 <h2 className="text-2xl font-bold mb-4">Why Advertise with Us?</h2>
@@ -561,8 +671,8 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
               <div className="flex items-center justify-center">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
                   {roiStats.map((stat, index) => (
-                    <motion.div 
-                      key={stat.label} 
+                    <motion.div
+                      key={stat.label}
                       className="glass-card rounded-xl p-4 text-center hover:bg-[var(--glass-bg-hover)] transition-all duration-300"
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -592,7 +702,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
               >
                 <GlassCard hover className="relative overflow-hidden group">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
+
                   <div className="relative z-10">
                     <div className="absolute top-4 right-4 flex items-center gap-2">
                       <GlassBadge variant="success" className="text-sm">+{story.increase} bookings</GlassBadge>
@@ -617,26 +727,26 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
           </div>
         </FadeIn>
 
-        {/* Contact Info */}
+        {/* Contact Info — Dynamic */}
         <FadeIn delay={0.6}>
           <div className="mt-8 text-center">
             <p className="text-muted-foreground mb-3">
               Prefer to talk? Reach our advertising team directly:
             </p>
             <div className="flex flex-wrap justify-center gap-6 text-sm">
-              <a 
-                href="mailto:ads@styra.app" 
+              <a
+                href={`mailto:${adsEmail}`}
                 className="flex items-center gap-2 text-primary hover:underline hover:text-primary/80 transition-colors"
               >
-                <Globe className="h-4 w-4" />
-                ads@styra.app
+                <Mail className="h-4 w-4" />
+                {adsEmail}
               </a>
-              <a 
-                href="tel:+254712345678" 
+              <a
+                href={`tel:${contactPhone.replace(/\s/g, '')}`}
                 className="flex items-center gap-2 text-primary hover:underline hover:text-primary/80 transition-colors"
               >
                 <Building2 className="h-4 w-4" />
-                +254 712 345 678
+                {contactPhone}
               </a>
             </div>
           </div>
@@ -667,7 +777,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
               You need to be signed in to subscribe to an advertising plan.
             </p>
           </div>
-          
+
           {selectedPlanData && (
             <div className="p-4 rounded-xl bg-muted/50 border border-border mb-6">
               <p className="text-sm text-muted-foreground">Selected Plan:</p>
@@ -676,8 +786,8 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
           )}
 
           <div className="flex flex-col gap-3">
-            <GlassButton 
-              variant="primary" 
+            <GlassButton
+              variant="primary"
               className="w-full"
               onClick={() => {
                 setShowSignInPrompt(false);
@@ -687,8 +797,8 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
             >
               Sign In / Sign Up
             </GlassButton>
-            <GlassButton 
-              variant="ghost" 
+            <GlassButton
+              variant="ghost"
               className="w-full"
               onClick={() => setShowSignInPrompt(false)}
             >
@@ -718,10 +828,10 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
             </div>
             <h2 className="text-xl font-semibold mb-2">Become a Partner</h2>
             <p className="text-muted-foreground">
-              You need to register as a service provider to advertise on Styra.
+              You need to register as a service provider to advertise on {companyName}.
             </p>
           </div>
-          
+
           {selectedPlanData && (
             <div className="p-4 rounded-xl bg-muted/50 border border-border mb-6">
               <p className="text-sm text-muted-foreground">Selected Plan:</p>
@@ -730,8 +840,8 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
           )}
 
           <div className="flex flex-col gap-3">
-            <GlassButton 
-              variant="primary" 
+            <GlassButton
+              variant="primary"
               className="w-full"
               onClick={() => {
                 setShowOnboardingPrompt(false);
@@ -741,8 +851,8 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
             >
               Start Onboarding
             </GlassButton>
-            <GlassButton 
-              variant="ghost" 
+            <GlassButton
+              variant="ghost"
               className="w-full"
               onClick={() => setShowOnboardingPrompt(false)}
             >
@@ -777,7 +887,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
               {selectedPlanData && (
                 <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 mb-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div 
+                    <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center"
                       style={{ backgroundColor: `${selectedPlanData.color}20` }}
                     >
@@ -977,7 +1087,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
           {selectedPlanData && (
             <div className="p-4 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 mb-6 text-left">
               <div className="flex items-center gap-3">
-                <div 
+                <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ backgroundColor: `${selectedPlanData.color}20` }}
                 >

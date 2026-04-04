@@ -796,6 +796,7 @@ export default function HomePage() {
           <PrivacyPage
             key="privacy"
             onBack={() => navigate('home')}
+            onNavigate={navigate}
           />
         );
 
@@ -804,6 +805,7 @@ export default function HomePage() {
           <TermsPage
             key="terms"
             onBack={() => navigate('home')}
+            onNavigate={navigate}
           />
         );
 
@@ -880,6 +882,7 @@ export default function HomePage() {
           <ProductionReadinessPage
             key="production-report"
             onBack={() => navigate('home')}
+            onNavigate={navigate}
           />
         );
 
@@ -976,7 +979,7 @@ export default function HomePage() {
 
       case 'press':
         return (
-          <PressPage key="press" />
+          <PressPage key="press" onNavigate={navigate} />
         );
 
       case 'api-docs':

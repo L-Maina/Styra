@@ -25,8 +25,36 @@ export async function GET(request: NextRequest) {
       settingsMap[s.key] = s.value;
     }
 
+    // Compute platform stats in a single parallel call
+    let stats = null;
+    try {
+      const [providers, customers, businesses] = await Promise.all([
+        db.user.count({ where: { role: 'business' } }),
+        db.user.count({ where: { role: 'customer' } }),
+        db.business.findMany({ select: { city: true }, distinct: ['city'] }),
+      ]);
+
+      // Get average rating from reviews
+      const reviewStats = await db.review.aggregate({
+        _avg: { rating: true },
+        _count: true,
+      });
+
+      stats = {
+        total_providers: providers,
+        total_customers: customers,
+        total_cities: businesses.length,
+        avg_rating: reviewStats._avg.rating ?? 0,
+        total_reviews: reviewStats._count,
+      };
+    } catch {
+      // Stats are best-effort — don't fail the whole request
+      stats = null;
+    }
+
     return successResponse({
       settings: settingsMap,
+      stats,
       raw: settings,
       total: settings.length,
     });
