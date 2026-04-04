@@ -175,7 +175,8 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
   }
 
   if (error instanceof Prisma.PrismaClientValidationError) {
-    return errorResponse('Invalid data provided', 400);
+    console.error(`[Prisma Validation Error] ${error.message}`);
+    return errorResponse('Invalid data provided', 400, error.message.substring(0, 300));
   }
 
   // Generic errors — detect common database issues

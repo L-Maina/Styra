@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const users = await db.user.findMany({
       where,
       include: {
-        business: {
+        businesses: {
           select: {
             id: true,
             name: true,
@@ -86,10 +86,10 @@ export async function GET(request: NextRequest) {
         totalSpent: paymentMap.get(user.id) || 0,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
-        business: user.business ? {
-          id: user.business.id,
-          name: user.business.name,
-          isVerified: user.business.isVerified,
+        business: user.businesses && user.businesses.length > 0 ? {
+          id: user.businesses[0].id,
+          name: user.businesses[0].name,
+          isVerified: user.businesses[0].isVerified,
         } : undefined,
       };
     });
