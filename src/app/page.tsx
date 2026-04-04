@@ -829,7 +829,7 @@ export default function HomePage() {
         return (
           <BlogPage
             key="blog"
-            onBack={() => navigate('home')}
+            onNavigate={navigate}
           />
         );
 

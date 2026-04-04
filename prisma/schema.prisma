@@ -867,3 +867,62 @@ model PlatformSetting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ── CMS: FAQ ───────────────────────────────────────────────
+
+model FAQ {
+  id          String   @id @default(cuid())
+  question    String
+  answer      String
+  category    String   @default("general")
+  order       Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ── CMS: Team Members ──────────────────────────────────────
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  name      String
+  role      String
+  bio       String?
+  image     String?
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ── CMS: Jobs / Careers ─────────────────────────────────────
+
+model Job {
+  id            String   @id @default(cuid())
+  title         String
+  department    String
+  location      String   @default("Nairobi, Kenya")
+  type          String   @default("Full-time")
+  description   String
+  requirements  String
+  status        String   @default("OPEN") // OPEN, CLOSED, DRAFT
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  applications  JobApplication[]
+}
+
+model JobApplication {
+  id        String   @id @default(cuid())
+  jobId     String
+  name      String
+  email     String
+  phone     String?
+  resume    String?
+  coverLetter String?
+  status    String   @default("PENDING") // PENDING, REVIEWED, SHORTLISTED, REJECTED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}

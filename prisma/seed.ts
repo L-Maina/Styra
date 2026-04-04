@@ -164,6 +164,119 @@ async function main() {
     console.log('✅ Created 6 staff members');
   }
 
+  // ── 5. Create Job Listings (skip if any exist) ────────────────────
+  const jobCount = await prisma.job.count();
+  if (jobCount > 0) {
+    console.log(`✅ ${jobCount} jobs already exist — skipping`);
+  } else {
+    await prisma.job.createMany({
+      data: [
+        {
+          title: 'Senior Frontend Engineer',
+          department: 'Engineering',
+          location: 'Nairobi, Kenya',
+          type: 'Full-time',
+          description: 'Build and maintain our web and mobile applications using React, Next.js, and TypeScript. You\'ll work on features used by thousands of users daily.',
+          requirements: JSON.stringify([
+            '5+ years of React/Next.js experience',
+            'Strong TypeScript skills',
+            'Experience with Tailwind CSS and component libraries',
+            'Familiarity with Node.js APIs',
+            'Portfolio of shipped products',
+          ]),
+          status: 'OPEN',
+        },
+        {
+          title: 'Product Designer',
+          department: 'Design',
+          location: 'Nairobi, Kenya',
+          type: 'Full-time',
+          description: 'Design intuitive and beautiful user experiences for our marketplace platform. You\'ll own the end-to-end design process from research to handoff.',
+          requirements: JSON.stringify([
+            '3+ years of product design experience',
+            'Proficiency in Figma or similar tools',
+            'Experience with design systems',
+            'Strong understanding of mobile-first design',
+            'UX research experience',
+          ]),
+          status: 'OPEN',
+        },
+        {
+          title: 'Growth Marketing Lead',
+          department: 'Marketing',
+          location: 'Nairobi, Kenya',
+          type: 'Full-time',
+          description: 'Lead our user acquisition and retention strategies. You\'ll develop and execute marketing campaigns that drive growth across Kenya.',
+          requirements: JSON.stringify([
+            '4+ years in growth or performance marketing',
+            'Experience with digital marketing channels',
+            'Data-driven approach to decision making',
+            'Experience in the African market',
+            'Strong analytical skills',
+          ]),
+          status: 'OPEN',
+        },
+        {
+          title: 'Customer Success Manager',
+          department: 'Operations',
+          location: 'Nairobi, Kenya',
+          type: 'Full-time',
+          description: 'Ensure our service providers and customers have an exceptional experience on Styra. You\'ll handle onboarding, support, and relationship management.',
+          requirements: JSON.stringify([
+            '2+ years in customer success or support',
+            'Excellent communication skills',
+            'Experience with CRM tools',
+            'Problem-solving mindset',
+            'Empathy and patience',
+          ]),
+          status: 'OPEN',
+        },
+      ],
+    });
+    console.log('✅ Created 4 job listings');
+  }
+
+  // ── 6. Seed Platform Settings (upsert by key) ─────────────────────
+  const settingEntries = [
+    { key: 'support_email', value: 'support@styra.app' },
+    { key: 'phone_number', value: '+254 712 345 678' },
+    { key: 'address', value: 'Nairobi, Kenya' },
+    { key: 'business_hours', value: 'Mon-Fri 8am-6pm EAT' },
+    { key: 'site_name', value: 'Styra' },
+  ];
+  for (const entry of settingEntries) {
+    await prisma.platformSetting.upsert({
+      where: { key: entry.key },
+      update: { value: entry.value },
+      create: entry,
+    });
+  }
+  console.log('✅ Seeded 5 platform settings');
+
+  // ── 7. Seed FAQs (skip if any exist) ─────────────────────────────
+  const faqCount = await prisma.fAQ.count();
+  if (faqCount > 0) {
+    console.log(`✅ ${faqCount} FAQs already exist — skipping`);
+  } else {
+    await prisma.fAQ.createMany({
+      data: [
+        { question: 'How do I book an appointment?', answer: 'Simply browse our marketplace or map to find a service provider, select your desired service, choose an available time slot, and complete your booking with our secure payment system. You\'ll receive a confirmation email and SMS with all the details.', category: 'booking', order: 1, isPublished: true },
+        { question: 'Can I reschedule or cancel my appointment?', answer: 'Yes! You can reschedule or cancel your appointment through your dashboard up to 24 hours before the scheduled time for a full refund. Cancellations within 24 hours may incur a fee of up to 50% of the service price.', category: 'booking', order: 2, isPublished: true },
+        { question: 'What if my service provider cancels?', answer: 'If a provider cancels your appointment, you\'ll receive a full refund automatically. We\'ll also help you find an alternative provider if you\'d like.', category: 'booking', order: 3, isPublished: true },
+        { question: 'What payment methods do you accept?', answer: 'We accept all major credit and debit cards (Visa, Mastercard, American Express), PayPal, Apple Pay, Google Pay, and M-Pesa in supported regions. All payments are processed securely through our PCI-compliant payment system.', category: 'payments', order: 1, isPublished: true },
+        { question: 'When will I receive my refund?', answer: 'Refunds are typically processed within 3-5 business days and will appear on your original payment method. The exact timing depends on your bank or payment provider.', category: 'payments', order: 2, isPublished: true },
+        { question: 'Is my payment information secure?', answer: 'Absolutely. We use industry-standard encryption and never store your complete card details. All transactions are processed through PCI DSS compliant payment processors.', category: 'payments', order: 3, isPublished: true },
+        { question: 'How do I create an account?', answer: 'Click "Sign Up" on our homepage, enter your email address and create a password, or sign up quickly using Google or Facebook. You\'ll need to verify your email to complete registration.', category: 'account', order: 1, isPublished: true },
+        { question: 'I forgot my password. What should I do?', answer: 'Click "Forgot Password" on the login page and enter your email address. We\'ll send you a link to reset your password. The link expires after 24 hours for security.', category: 'account', order: 2, isPublished: true },
+        { question: 'How do I delete my account?', answer: 'Go to Settings > Account > Delete Account in your dashboard. Note that this action is irreversible and you\'ll lose access to your booking history and saved providers.', category: 'account', order: 3, isPublished: true },
+        { question: 'How do I become a service provider?', answer: 'Click "Become a Provider" and complete the onboarding process. You\'ll need to provide your business information, services offered, pricing, and any required licenses. Our team will review your application within 2-3 business days.', category: 'provider', order: 1, isPublished: true },
+        { question: 'What fees does Styra charge?', answer: 'Styra charges a commission fee on completed bookings, which varies by subscription plan. Free tier providers pay 15%, Premium tier pays 10%, and Featured tier pays 8%. Detailed fee structures are available in your provider dashboard.', category: 'provider', order: 2, isPublished: true },
+        { question: 'How do I receive my earnings?', answer: 'Earnings are automatically transferred to your linked bank account on a weekly basis. You can also request instant payouts for a small fee. Minimum payout threshold is KES 2,500.', category: 'provider', order: 3, isPublished: true },
+      ],
+    });
+    console.log('✅ Created 12 FAQs');
+  }
+
   // ── Summary ────────────────────────────────────────────────────────
   console.log('\n📊 Seed Summary:');
   console.log('  - Admin:     admin@styra.app / password123');

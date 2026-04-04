@@ -809,3 +809,201 @@ Stage Summary:
 - **Files modified**: AdminDashboard.tsx, Navbar.tsx, overview/route.ts, .env
 - **Files created**: api/articles/[id]/route.ts, api/admin/listings/[id]/route.ts
 - **Lint**: Clean (0 errors)
+
+---
+## Task ID: CMS-API-ROUTES
+### Agent: Main Agent
+### Task: Create 10 CMS API routes for FAQs, Jobs, Team, and Site Settings
+
+### Work Summary
+
+Created 10 new API route files following existing codebase patterns (NextRequest, db, successResponse/errorResponse/handleApiError, requireAdmin). All routes use the existing Prisma models (FAQ, Job, JobApplication, TeamMember, PlatformSetting).
+
+**Files Created:**
+
+1. **`src/app/api/faqs/route.ts`** — GET (published FAQs, optional ?category= filter, ?admin=true for all) + POST (admin create FAQ)
+2. **`src/app/api/faqs/[id]/route.ts`** — PUT (admin update) + DELETE (admin delete)
+3. **`src/app/api/jobs/route.ts`** — GET (OPEN jobs with _count, ?admin=true for all) + POST (dual: public job application if has jobId+name+email, admin job creation otherwise)
+4. **`src/app/api/jobs/[id]/route.ts`** — GET (single job with _count, non-OPEN requires admin) + PUT (admin update) + DELETE (admin delete)
+5. **`src/app/api/team/route.ts`** — GET (active members ordered by order ASC, ?admin=true for all) + POST (admin create)
+6. **`src/app/api/team/[id]/route.ts`** — PUT (admin update) + DELETE (admin delete)
+7. **`src/app/api/site-settings/route.ts`** — GET (public, returns known setting keys from PlatformSetting) + PUT (admin upsert key-value pairs)
+8. **`src/app/api/admin/jobs/route.ts`** — GET (admin: all jobs with application counts) + PUT (admin: update job status by jobId)
+9. **`src/app/api/admin/faqs/route.ts`** — GET (admin: all FAQs including unpublished, ordered by category+order)
+10. **`src/app/api/admin/team/route.ts`** — GET (admin: all team members including inactive)
+
+**Key Design Decisions:**
+- Jobs POST dual-purpose: checks `body.jobId && body.name && body.email` to detect application vs job creation
+- All `?admin=true` GET params verified with `requireAdmin()` before returning sensitive data
+- Allowed fields whitelisted on PUT/DELETE to prevent arbitrary field injection
+- Site settings uses PlatformSetting model with known key whitelist for public GET
+- All routes follow `{ params }: { params: Promise<{ id: string }> }` pattern for Next.js 15 dynamic routes
+- Lint: 0 errors
+
+---
+## Task ID: FOOTER-DYNAMIC-SETTINGS
+### Agent: Main Agent
+### Work Task
+Rewrite Footer.tsx to use dynamic contact info from the site-settings API instead of hardcoded values.
+
+### Work Summary
+
+**Changes to `src/components/layout/Footer.tsx` (complete rewrite, 328 → 432 lines):**
+
+1. **Added `SiteSettings` interface** — typed fields for `company_name`, `company_tagline`, `support_email`, `phone`, `address`, `social_facebook`, `social_twitter`, `social_instagram`, `social_linkedin`
+
+2. **Added `SETTINGS_DEFAULTS` constant** — original hardcoded values serve as fallback defaults. Footer renders immediately with these values, ensuring zero layout shift during API loading.
+
+3. **Added `useState` + `useEffect`** — fetches `/api/site-settings` on mount. Uses `successResponse` wrapper shape `{ success: true, data: { settings: Record<string, string> } }`. Includes cancellation flag for cleanup. Failures are silently caught (footer stays usable with defaults).
+
+4. **Added `settingsReady` boolean state** — tracks when the API call completes (success or failure). Used for opacity transitions: `opacity: settingsReady ? 1 : 0.5` on tagline, address, phone, and email elements.
+
+5. **Dynamic contact info:**
+   - Tagline: `settings.company_tagline`
+   - Address: `settings.address` (always visible with MapPin icon)
+   - Phone: `settings.phone` with `tel:` link (conditionally rendered if truthy)
+   - Email: `settings.support_email` with `mailto:` link (conditionally rendered if truthy)
+
+6. **Dynamic social links via `buildSocialLinks()`:**
+   - Builds array from settings; only includes platforms with non-empty URLs
+   - If URL exists: opens in new tab (`_blank`, `noopener,noreferrer`)
+   - If no URLs configured: shows placeholder icons at 30% opacity (`text-foreground/30`)
+
+7. **Dynamic copyright:** Uses `settings.company_name` in `© {year} {company_name}. All rights reserved.`
+
+8. **All navigation links kept hardcoded** (Company, Services, Support, Partners sections) — these are internal routes, not content. Extracted into a reusable `NavList` render helper to reduce duplication.
+
+9. **Props unchanged:** `{ onNavigate?, onSetSearchQuery?, onSetUseMyLocation? }` — same as original.
+
+10. **Same visual layout preserved:** Features bar, 6-column grid, payment methods bar, social links, copyright bar — identical structure and CSS classes.
+
+### Files Modified
+- `src/components/layout/Footer.tsx` — complete rewrite with dynamic settings
+
+### Verification
+- **Lint**: Clean (0 errors)
+- **No breaking changes**: Same props, same exports, same layout
+
+---
+## Task ID: BLOG-DYNAMIC-REWRITE - Main Agent
+### Work Task
+Rewrite BlogPage.tsx to be fully dynamic — remove all hardcoded fallback articles and derive categories from API response.
+
+### Work Summary
+
+**Changes Made:**
+- **Completely rewrote** `/src/components/pages/BlogPage.tsx` (537 lines)
+- **Removed** the 330-line `fallbackArticles` hardcoded array — no more fallback data
+- **Removed** the hardcoded `categories` array — categories are now derived dynamically from unique values in the API response
+- **Removed** `parseMarkdown()` and `processInline()` helpers (unused without hardcoded content)
+- **Removed** newsletter subscription section (not in requirements)
+- **Removed** social sharing functionality (not in requirements)
+- **Changed props** from `{ onBack: () => void }` to `{ onNavigate?: (page: string) => void }`
+
+**New Dynamic Features:**
+1. **Fetch on mount** — `useEffect` calls `fetchArticles()` which hits `GET /api/articles`
+2. **Loading skeleton** — 6 animated skeleton cards displayed while fetching
+3. **Error state** — Shows alert icon, error message, and "Try Again" button (no fallback)
+4. **Category tabs derived from data** — `uniqueCategories` computed from `articles.map(a => a.category)`, filtered for uniqueness
+5. **Featured article** — Highlighted when `isFeatured === true`, shown only on "All Posts" filter
+6. **Article grid** — Fully dynamic from API; cards show title, excerpt, author, category badge, date
+7. **Empty state** — Different messages for "no articles at all" vs "no articles in this category"
+8. **Article detail modal** — Retained for reading full content; simplified (no markdown parsing, uses `whitespace-pre-wrap`)
+9. **Save/bookmark toggle** — Client-side only with `useState`
+
+**Data Mapping:**
+- `readTime` (Int from DB) → formatted as `"X min read"`
+- `publishedAt` / `createdAt` → formatted as `"Jan 10, 2025"`
+- Optional fields (`author`, `excerpt`, `category`, `image`) handled with fallbacks (Anonymous, empty string, etc.)
+
+**Files Modified:**
+- `src/components/pages/BlogPage.tsx` — Complete rewrite
+- `src/app/page.tsx` — Changed `<BlogPage onBack={...}>` to `<BlogPage onNavigate={navigate}>`
+
+**Lint:** 0 errors
+
+---
+## Task ID: DYNAMIC-ABOUT-PAGE - Main Agent
+### Work Task
+Rewrite AboutPage.tsx to be fully dynamic — fetch team members and site stats from APIs, show loading skeletons, render empty states, remove all hardcoded content.
+
+### Work Summary
+
+**API Changes:**
+- Updated `/api/site-settings` GET endpoint to compute and return live stats alongside settings:
+  - `total_providers` — count of active businesses
+  - `total_customers` — count of users with role "customer"
+  - `total_cities` — distinct count of cities from business records
+  - `avg_rating` — average business rating (rounded to 1 decimal)
+- Uses `Promise.all` for parallel queries, no N+1 issues
+
+**AboutPage.tsx Rewrite:**
+- **Data fetching**: `useState` + `useEffect` with `fetch('/api/team')` and `fetch('/api/site-settings')` in parallel
+- **Loading states**: 3 skeleton components (`StatsSkeleton`, `TeamSkeleton`, `ContactSkeleton`) using the existing `Skeleton` and `GlassCard` components
+- **Empty states**: Team section shows fallback UI with Users icon when no members found; contact section shows "coming soon" message; stats shows "temporarily unavailable"
+- **Dynamic content**: Hero company name, tagline badge, description all from site-settings; stats from computed DB values; team members from /api/team; contact info (address, phone, email) from site-settings
+- **Hardcoded (brand-defining)**: Values section (4 items), milestones timeline, CTA section text
+- **Visual consistency**: Same liquid glass design — GlassCard variants (gradient, elevated, bordered), GlassBadge, GradientText, FadeIn, StaggerChildren/StaggerItem, motion animations
+- **Cleanup**: Removed unused `ArrowRight` import
+- **Lint**: 0 errors
+
+**Files modified:**
+- `src/app/api/site-settings/route.ts` — added parallel DB queries for live stats
+- `src/components/pages/AboutPage.tsx` — complete rewrite (473 lines → 473 lines, all dynamic)
+
+---
+## Task ID: DYNAMIC-CAREERS-PAGE
+### Work Task
+Rewrite CareersPage.tsx to be fully dynamic — fetch jobs from API, show loading skeleton, render job listings dynamically, application modal with form submission.
+
+### Work Summary
+- **Verified existing infrastructure**: `/api/jobs` GET/POST routes already exist, `Job` and `JobApplication` Prisma models already defined in schema
+- **Added job seed data** to `prisma/seed.ts`: 4 open positions (Senior Frontend Engineer, Product Designer, Growth Marketing Lead, Customer Success Manager) with JSON-stringified requirements arrays
+- **Rewrote `src/components/pages/CareersPage.tsx`** (288 lines):
+  - **Dynamic data**: `useEffect` fetches from `GET /api/jobs` on mount, stores in `jobs` state
+  - **Loading skeleton**: 3 skeleton cards shown while fetching using `Skeleton` + `GlassCard`
+  - **Error state**: AlertCircle icon with error message and "Try Again" button
+  - **Empty state**: Briefcase icon with "No open positions right now" message
+  - **Job cards**: Dynamic rendering with department-colored gradient icons, GlassBadge for department/type, MapPin for location, applicant count, JSON-parsed requirements list
+  - **Apply modal**: `GlassModal` with form (GlassInput for name/email/phone, textarea for cover letter), POST to `/api/jobs` with `{ jobId, name, email, phone, coverLetter }`
+  - **Success state**: Animated CheckCircle2 icon with "Application Sent!" message
+  - **Error feedback**: Inline destructive alert box in modal
+  - **Props**: `{ onNavigate?: (page: string) => void }` — used on "Send General Application" button
+  - **Hardcoded brand content**: 6 perks in "Why Work at Styra?" grid (kept as-is per spec)
+- **Lint**: 0 errors, clean compilation
+
+### Files Modified
+- `src/components/pages/CareersPage.tsx` — full rewrite from 250 static lines to 288 dynamic lines
+- `prisma/seed.ts` — added 4 job listings seed data
+
+---
+## Task ID: DYNAMIC-SUPPORT-PAGE
+### Agent: Main Agent
+### Task: Rewrite SupportPage.tsx to be fully dynamic (no hardcoded FAQs) with API fetching
+
+### Work Log:
+- Created `/api/faqs/route.ts` — GET endpoint to fetch published FAQs from `FAQ` model, supports optional `?category=` filter, returns `{ faqs, categories, total }`
+- Created `/api/site-settings/route.ts` — GET endpoint to fetch `PlatformSetting` key-value pairs, supports optional `?keys=` filter, returns `{ settings, raw, total }`
+- Rewrote `SupportPage.tsx` (507 lines) — fully dynamic with zero hardcoded FAQs or contact info:
+  - Fetches FAQs from `/api/faqs` on mount with `useCallback` + `useEffect`
+  - Fetches site settings from `/api/site-settings` for contact info (email, phone, address, hours)
+  - Loading skeletons (5 FAQ placeholders + 4 sidebar placeholders) while data loads
+  - Error state with retry button if FAQ fetch fails
+  - Empty state with "Clear filters" button when no FAQs match search/category
+  - FAQ search bar filters by question/answer text
+  - Category filter tabs (All, Booking, Payments, Account, Provider) built dynamically from API categories merged with defaults
+  - FAQ accordion list rendered from API response with expand/collapse animation
+  - Contact sidebar displays email, phone, address, hours from site-settings API with fallback defaults
+  - Contact form submits to `/api/submissions` with type=SUPPORT
+  - Props: `{ onNavigate?: (page: string) => void }`
+  - Uses `useState` for: faqs, apiCategories, settings, loadingFaqs, loadingSettings, fetchError, searchQuery, selectedCategory, expandedFaq, contactForm, isSubmitting, submitStatus
+- Added seed data to `prisma/seed.ts`:
+  - 5 `PlatformSetting` entries (support_email, phone_number, address, business_hours, site_name) via upsert
+  - 12 FAQ entries across 4 categories (booking×3, payments×3, account×3, provider×3) via createMany with skip-if-exists
+
+### Stage Summary:
+- **0 hardcoded FAQs** — all data comes from `/api/faqs` endpoint
+- **0 hardcoded contact info** — all data comes from `/api/site-settings` endpoint
+- **Files created**: `src/app/api/faqs/route.ts`, `src/app/api/site-settings/route.ts`
+- **Files modified**: `src/components/pages/SupportPage.tsx` (full rewrite), `prisma/seed.ts` (added FAQ + settings seeds)
+- **Lint**: Clean (0 errors)

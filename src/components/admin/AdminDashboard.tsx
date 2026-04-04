@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 // ============================================
 
 type SectionId = 'overview' | 'revenue' | 'users' | 'businesses' | 'bookings' |
-  'listings' | 'disputes-reports' | 'claims-support' | 'content' | 'advertisements' | 'settings';
+  'listings' | 'disputes-reports' | 'claims-support' | 'content' | 'advertisements' | 'settings' | 'faq' | 'careers' | 'team';
 
 interface AdminUser {
   id: string; email: string; name: string; phone?: string; role: string;
@@ -204,6 +204,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   const [displayArticles, setDisplayArticles] = useState<AdminArticle[]>([]);
   const [displayAds, setDisplayAds] = useState<any[]>([]);
   const [displayPageContent, setDisplayPageContent] = useState<PageContent[]>([]);
+  const [displayFaqs, setDisplayFaqs] = useState<any[]>([]);
+  const [displayJobs, setDisplayJobs] = useState<any[]>([]);
+  const [displayTeamMembers, setDisplayTeamMembers] = useState<any[]>([]);
   const [settings, setSettings] = useState<PlatformSettings>({
     platformFee: 15, minWithdrawal: 50, maintenanceMode: false,
     emailNotifications: true, smsNotifications: false,
@@ -371,6 +374,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         }
         case 'revenue': {
           await fetchOverview();
+          break;
+        }
+        case 'faq': {
+          const [faqRes] = await Promise.all([
+            api.request<Record<string, any>>('/faqs', { params: { admin: 'true' } }),
+          ]);
+          setDisplayFaqs(faqRes.data?.faqs || []);
+          break;
+        }
+        case 'careers': {
+          const [jobRes] = await Promise.all([
+            api.request<Record<string, any>>('/jobs', { params: { admin: 'true' } }),
+          ]);
+          setDisplayJobs(jobRes.data?.jobs || []);
+          break;
+        }
+        case 'team': {
+          const [teamRes] = await Promise.all([
+            api.request<Record<string, any>>('/team', { params: { admin: 'true' } }),
+          ]);
+          setDisplayTeamMembers(teamRes.data?.members || []);
           break;
         }
       }
@@ -829,6 +853,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         { id: 'claims-support' as SectionId, label: 'Claims & Support', icon: LifeBuoy, count: (overviewData?.pending.claims || 0) + (overviewData?.pending.tickets || 0) },
         { id: 'content' as SectionId, label: 'Content', icon: BookOpen },
         { id: 'advertisements' as SectionId, label: 'Advertisements', icon: Megaphone, count: overviewData?.pending.ads },
+        { id: 'faq' as SectionId, label: 'FAQ', icon: MessageCircle },
+        { id: 'careers' as SectionId, label: 'Careers', icon: Briefcase },
+        { id: 'team' as SectionId, label: 'Team', icon: Users },
         { id: 'settings' as SectionId, label: 'Settings', icon: Settings },
       ],
     },
@@ -1036,6 +1063,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                 {activeSection === 'content' && renderContent()}
                 {activeSection === 'advertisements' && renderAdvertisements()}
                 {activeSection === 'settings' && renderSettings()}
+                {activeSection === 'faq' && renderFaq()}
+                {activeSection === 'careers' && renderCareers()}
+                {activeSection === 'team' && renderTeam()}
               </>
             )}
           </motion.div>
@@ -2303,6 +2333,190 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         <GlassButton variant="primary" size="lg" onClick={handleSaveSettings} isLoading={isProcessing}>
           <Save className="h-4 w-4" /> Save Settings
         </GlassButton>
+      </div>
+    </div>
+  );
+
+  // ============================================
+  // SECTION: FAQ MANAGEMENT
+  // ============================================
+
+  const renderFaq = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-primary" /> FAQ Management
+          <GlassBadge variant="default">{displayFaqs.length} items</GlassBadge>
+        </h2>
+        <GlassButton variant="primary" size="sm" onClick={() => toast.info('Create FAQ: coming soon')}>
+          <Plus className="h-4 w-4" /> Add FAQ
+        </GlassButton>
+      </div>
+      <GlassCard className="p-6" hover={false}>
+        {isLoading && !dataFetched['faq'] ? (
+          <TableSkeleton />
+        ) : displayFaqs.length > 0 ? (
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-card/90 backdrop-blur-sm">
+                <tr className="text-left text-muted-foreground border-b border-white/10">
+                  <th className="pb-3 font-medium">Question</th>
+                  <th className="pb-3 font-medium">Answer</th>
+                  <th className="pb-3 font-medium">Category</th>
+                  <th className="pb-3 font-medium">Published</th>
+                  <th className="pb-3 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {displayFaqs.map((faq: any) => (
+                  <tr key={faq.id} className="hover:bg-muted/20">
+                    <td className="py-3 pr-4 max-w-[250px]"><p className="font-medium truncate">{faq.question}</p></td>
+                    <td className="py-3 pr-4 max-w-[300px]"><p className="text-muted-foreground text-xs line-clamp-2">{faq.answer}</p></td>
+                    <td className="py-3 pr-4"><GlassBadge variant="default">{faq.category}</GlassBadge></td>
+                    <td className="py-3 pr-4">
+                      <GlassBadge variant={faq.isPublished ? 'success' : 'destructive'}>
+                        {faq.isPublished ? 'Published' : 'Draft'}
+                      </GlassBadge>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <div className="flex items-center gap-1">
+                        <GlassButton size="icon" variant="ghost" onClick={() => toast.info('Edit FAQ: coming soon')} title="Edit">
+                          <Edit className="h-3.5 w-3.5" />
+                        </GlassButton>
+                        <GlassButton size="icon" variant="ghost" onClick={() => {
+                          if (confirm('Delete this FAQ?')) {
+                            api.request(`/faqs/${faq.id}`, { method: 'DELETE', noRetry: true })
+                              .then(() => { setDisplayFaqs(prev => prev.filter((f: any) => f.id !== faq.id)); toast.success('FAQ deleted'); })
+                              .catch(() => toast.error('Failed to delete'));
+                          }
+                        }} title="Delete" className="hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </GlassButton>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState icon={MessageCircle} title="No FAQs yet" description="Create FAQ items to help your users." />
+        )}
+      </GlassCard>
+    </div>
+  );
+
+  // ============================================
+  // SECTION: CAREERS MANAGEMENT
+  // ============================================
+
+  const renderCareers = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Briefcase className="h-5 w-5 text-primary" /> Job Listings
+          <GlassBadge variant="default">{displayJobs.length} positions</GlassBadge>
+        </h2>
+        <GlassButton variant="primary" size="sm" onClick={() => toast.info('Create Job: coming soon')}>
+          <Plus className="h-4 w-4" /> Add Job
+        </GlassButton>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        {isLoading && !dataFetched['careers'] ? (
+          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)
+        ) : displayJobs.length > 0 ? (
+          displayJobs.map((job: any) => (
+            <GlassCard key={job.id} className="p-5" hover={false}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="font-semibold truncate">{job.title}</h3>
+                    <GlassBadge variant={job.status === 'OPEN' ? 'success' : job.status === 'CLOSED' ? 'destructive' : 'default'}>
+                      {job.status}
+                    </GlassBadge>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+                    <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{job.department}</span>
+                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{job.location}</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{job.type}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{job.description}</p>
+                  {job._count?.applications > 0 && (
+                    <p className="text-xs text-primary mt-2">{job._count.applications} applicant{job._count.applications !== 1 ? 's' : ''}</p>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <GlassButton size="icon" variant="ghost" onClick={() => toast.info('Edit Job: coming soon')} title="Edit">
+                    <Edit className="h-4 w-4" />
+                  </GlassButton>
+                </div>
+              </div>
+            </GlassCard>
+          ))
+        ) : (
+          <div className="col-span-2">
+            <EmptyState icon={Briefcase} title="No jobs listed" description="Create job openings to attract talent." />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ============================================
+  // SECTION: TEAM MANAGEMENT
+  // ============================================
+
+  const renderTeam = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Users className="h-5 w-5 text-primary" /> Team Members
+          <GlassBadge variant="default">{displayTeamMembers.length} members</GlassBadge>
+        </h2>
+        <GlassButton variant="primary" size="sm" onClick={() => toast.info('Add Team Member: coming soon')}>
+          <Plus className="h-4 w-4" /> Add Member
+        </GlassButton>
+      </div>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {isLoading && !dataFetched['team'] ? (
+          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)
+        ) : displayTeamMembers.length > 0 ? (
+          displayTeamMembers.map((member: any) => (
+            <GlassCard key={member.id} className="p-5" hover={false}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg">
+                  {member.name?.[0] || '?'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold truncate">{member.name}</h3>
+                  <p className="text-sm text-muted-foreground">{member.role}</p>
+                </div>
+                <GlassBadge variant={member.isActive ? 'success' : 'destructive'}>
+                  {member.isActive ? 'Active' : 'Inactive'}
+                </GlassBadge>
+              </div>
+              {member.bio && <p className="text-sm text-muted-foreground line-clamp-2">{member.bio}</p>}
+              <div className="flex justify-end mt-3 gap-1">
+                <GlassButton size="icon" variant="ghost" onClick={() => toast.info('Edit Member: coming soon')} title="Edit">
+                  <Edit className="h-3.5 w-3.5" />
+                </GlassButton>
+                <GlassButton size="icon" variant="ghost" onClick={() => {
+                  if (confirm('Remove this team member?')) {
+                    api.request(`/team/${member.id}`, { method: 'DELETE', noRetry: true })
+                      .then(() => { setDisplayTeamMembers(prev => prev.filter((m: any) => m.id !== member.id)); toast.success('Member removed'); })
+                      .catch(() => toast.error('Failed to remove'));
+                  }
+                }} title="Remove" className="hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </GlassButton>
+              </div>
+            </GlassCard>
+          ))
+        ) : (
+          <div className="col-span-3">
+            <EmptyState icon={Users} title="No team members" description="Add team members to display on the About page." />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -904,14 +904,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                                     onClick={() => handleNavigate('admin-dashboard', 'content')}
                                   />
                                   <MenuItem
-                                    icon={Bell}
-                                    label="Notifications"
-                                    onClick={() => handleNavigate('admin-dashboard', 'overview')}
-                                  />
-                                  <MenuItem
                                     icon={AlertCircle}
                                     label="Disputes"
-                                    onClick={() => handleNavigate('admin-dashboard', 'disputes')}
+                                    onClick={() => handleNavigate('admin-dashboard', 'disputes-reports')}
                                   />
                                 </>
                               )}
@@ -920,13 +915,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                               
                               <MenuItem
                                 icon={Settings}
-                                label="Settings"
-                                onClick={openSettings}
+                                label="Platform Settings"
+                                onClick={() => handleNavigate('admin-dashboard', 'settings')}
                               />
                               <MenuItem
-                                icon={HelpCircle}
-                                label="Help & Support"
-                                onClick={() => handleNavigate('support')}
+                                icon={Globe}
+                                label="View Website"
+                                onClick={() => handleNavigate('home')}
                               />
 
                               <div className="border-t border-border/50 my-1" />
