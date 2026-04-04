@@ -1061,3 +1061,100 @@ Rebuild PressPage to fetch data from APIs instead of using hardcoded values, fol
 ### Issues Encountered
 - `bun run db:push` fails due to pre-existing schema mismatch (prisma says `provider = "postgresql"` but `DATABASE_URL` points to SQLite file). This is a known project issue documented in worklog. Seed changes will take effect on next successful db push/reset.
 - Lint: Clean (0 errors)
+
+---
+## Task ID: 18-SECTION-REBUILD-COMPLETE
+### Agent: Main Agent + 5 Subagents
+### Task: Complete the 18-section rebuild - convert all remaining static pages to dynamic CMS
+
+### Work Summary
+
+**Pages Rebuilt (5 static → dynamic):**
+
+1. **PressPage** (241 → ~280 lines)
+   - Dynamic stats (total_providers, total_customers, total_cities, avg_rating) from `/api/site-settings`
+   - Dynamic company name, tagline, press email from site-settings
+   - Loading skeletons for hero, stats, contact sections
+   - Error state with retry button
+   - Fallback defaults for instant render (zero layout shift)
+   - `onNavigate` prop added
+
+2. **PrivacyPage** (514 → ~530 lines)
+   - Dynamic contact info (privacy email, phone, address) from `/api/site-settings`
+   - Dynamic "Last updated" date from `privacy_last_updated` setting
+   - Loading skeletons for date and contact info
+   - Error state with retry button
+   - Cookie modal: replaced `glass-modal` with `bg-background/95 border border-border/50 shadow-xl`
+   - `onNavigate` prop added
+
+3. **TermsPage** (258 → ~290 lines)
+   - Dynamic legal contact info (legal email, phone, address) from `/api/site-settings`
+   - Dynamic "Last updated" date from `terms_last_updated` setting
+   - Dynamic company name in introduction and IP sections
+   - Loading skeletons for date and contact info
+   - Error state with retry button
+   - `onNavigate` prop added
+
+4. **AdvertisePage** (1021 → ~1050 lines)
+   - Dynamic audience stats from API (total_providers, total_customers, total_cities, avg_rating)
+   - Dynamic company name, ads email, contact phone from `/api/site-settings`
+   - Loading skeleton grid for audience stats
+   - Error state with retry button
+   - LiquidGlassModal: replaced `glass-modal` with solid background
+   - Consolidated duplicate lucide-react imports
+   - `onNavigate` prop already existed, verified working
+
+5. **ProductionReadinessPage** (598 → ~530 lines)
+   - Dynamic platform stats from `/api/admin/stats` (users, businesses, bookings, revenue)
+   - Dynamic env var check from `/api/admin/env-check` (new API route)
+   - Dynamic security score adjusted based on env var coverage
+   - Loading skeletons for stat cards, score ring, env var table
+   - Auth-aware: shows admin access warning for non-admin users
+   - `onNavigate` prop added
+
+**New API Route Created:**
+- `src/app/api/admin/env-check/route.ts` — GET endpoint that checks which production env vars are configured (admin-only), returns `Record<string, boolean>` without exposing values
+
+**Enhanced Existing API:**
+- `src/app/api/site-settings/route.ts` — Added computed stats (total_providers, total_customers, total_cities, avg_rating, total_reviews) via parallel DB queries
+
+**Seed Data Added:**
+- `prisma/seed.ts` — Added settings: company_name, company_tagline, company_description, press_email
+
+### Files Modified (10 files, +1184 -289 lines)
+- `src/components/pages/PressPage.tsx` — Full rewrite (static → dynamic)
+- `src/components/pages/PrivacyPage.tsx` — Full rewrite (static → dynamic)
+- `src/components/pages/TermsPage.tsx` — Full rewrite (static → dynamic)
+- `src/components/pages/AdvertisePage.tsx` — Full rewrite (static → dynamic)
+- `src/components/pages/ProductionReadinessPage.tsx` — Full rewrite (static → dynamic)
+- `src/app/page.tsx` — Added onNavigate props to all 5 pages
+- `src/app/api/site-settings/route.ts` — Added computed platform stats
+- `src/app/api/admin/env-check/route.ts` — New admin API route
+- `prisma/seed.ts` — Added seed data for new settings
+- `worklog.md` — Updated
+
+### Verification
+- **Lint**: 0 errors (clean pass)
+- **Dev server**: Compiles successfully, responds 200
+- **GitHub push**: Successful (168c6cb..4163c8d main → main)
+
+### 18-Section Rebuild — COMPLETE
+All 18 sections/pages of the Styra application are now dynamic and CMS-driven:
+1. ✅ Home (Hero, Featured, Categories, CTA)
+2. ✅ Marketplace (Search, Filter, Browse)
+3. ✅ Business Profile (Services, Staff, Reviews)
+4. ✅ Booking System
+5. ✅ Payment System
+6. ✅ Customer Dashboard
+7. ✅ Business Dashboard
+8. ✅ Admin Dashboard (14 sidebar sections)
+9. ✅ Chat System
+10. ✅ About Page (dynamic)
+11. ✅ Blog Page (dynamic)
+12. ✅ Careers Page (dynamic)
+13. ✅ Support Page (dynamic)
+14. ✅ Press Page (dynamic) ← NEW
+15. ✅ Privacy Page (dynamic) ← NEW
+16. ✅ Terms Page (dynamic) ← NEW
+17. ✅ Advertise Page (dynamic) ← NEW
+18. ✅ Production Readiness Page (dynamic) ← NEW
