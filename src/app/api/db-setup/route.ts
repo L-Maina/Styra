@@ -6,6 +6,66 @@ import { Pool } from 'pg';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+/**
+ * Split SQL into individual statements, handling DO $$ ... END $$; blocks.
+ * Plain semicolons split statements, but semicolons inside DO blocks are kept.
+ */
+function splitSqlStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = '';
+  let inDoBlock = false;
+  let depth = 0;
+
+  const lines = sql.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.match(/^DO\s+\$\$/i)) {
+      inDoBlock = true;
+      depth = 1;
+      current += line + '\n';
+      continue;
+    }
+
+    if (inDoBlock) {
+      current += line + '\n';
+      if (trimmed.includes('$$')) depth--;
+      if (depth <= 0 && trimmed.match(/^END\s+\$\$/i)) {
+        inDoBlock = false;
+        // The statement ends after END $$;
+        const semiIdx = current.lastIndexOf(';');
+        if (semiIdx !== -1) {
+          const stmt = current.substring(0, semiIdx + 1).trim();
+          if (stmt.length > 0) statements.push(stmt);
+          current = current.substring(semiIdx + 1);
+        } else {
+          const stmt = current.trim();
+          if (stmt.length > 0) statements.push(stmt);
+          current = '';
+        }
+      }
+      continue;
+    }
+
+    // Normal line — check for semicolons
+    const semiIdx = line.lastIndexOf(';');
+    if (semiIdx !== -1) {
+      current += line.substring(0, semiIdx);
+      const stmt = current.trim();
+      if (stmt.length > 0) statements.push(stmt);
+      current = line.substring(semiIdx + 1);
+    } else {
+      current += line + '\n';
+    }
+  }
+
+  // Flush remaining
+  const remaining = current.trim();
+  if (remaining.length > 0) statements.push(remaining);
+
+  return statements;
+}
+
 // Read the SQL schema at build time
 const schemaSql = readFileSync(
   join(process.cwd(), 'prisma', 'schema.sql'),
@@ -45,12 +105,10 @@ export async function POST() {
     const test = await client.query('SELECT 1 as ok, current_database() as db');
     const dbName = test.rows[0].db;
 
-    // Split SQL on semicolons — don't filter by comment prefix (CREATE TABLE
-    // statements have -- comments before them which would be filtered out)
-    const statements = schemaSql
-      .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+    // Split SQL on semicolons — handle DO $$ blocks properly.
+    // DO $$ ... END $$; contains inner semicolons that must NOT be split.
+    // We use a regex that splits on ';' only when NOT inside a DO $$ block.
+    const statements = splitSqlStatements(schemaSql);
 
     let created = 0;
     let skipped = 0;
@@ -134,6 +192,8 @@ export async function GET() {
       'AdminReport', 'SupportTicket', 'TicketReply', 'FormSubmission',
       'WebhookEvent', 'AnalyticsEvent', 'RateLimit', 'Media',
       'TimeSlot', 'PageContent', 'BlogArticle', 'PlatformSetting',
+      // CMS tables (added in migration)
+      'BrandKit', 'PressKit', 'FAQ', 'TeamMember', 'Job', 'JobApplication',
     ];
 
     const existingNames = new Set(tables.map(t => t.tablename));
