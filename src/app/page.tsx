@@ -1035,11 +1035,14 @@ export default function HomePage() {
         )}
       </main>
 
-      <Footer 
-        onNavigate={navigate} 
-        onSetSearchQuery={setSearchQuery}
-        onSetUseMyLocation={() => setUseMyLocation(true)}
-      />
+      {/* Hide site footer on admin dashboard — admin has its own sidebar layout */}
+      {currentPage !== 'admin-dashboard' && (
+        <Footer 
+          onNavigate={navigate} 
+          onSetSearchQuery={setSearchQuery}
+          onSetUseMyLocation={() => setUseMyLocation(true)}
+        />
+      )}
 
       {/* ─── Floating / Fixed Position Components ───────────────────────── */}
 
