@@ -12,7 +12,6 @@ import { requireAdmin } from '@/lib/api-rbac';
 // GET - Retrieve brand kit info
 export async function GET() {
   try {
-    // @ts-expect-error brandKit table exists in DB but not in generated Prisma client
     const kits = await db.brandKit.findMany({
       orderBy: { createdAt: 'desc' },
       take: 1,
@@ -24,7 +23,8 @@ export async function GET() {
 
     return successResponse({ brandKit: kits[0] });
   } catch (error) {
-    return handleApiError(error);
+    // Gracefully handle if the table doesn't exist yet
+    return successResponse({ brandKit: null });
   }
 }
 
@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
       return errorResponse('File URL is required', 400);
     }
 
-    // @ts-expect-error brandKit table exists in DB but not in generated Prisma client
     const kit = await db.brandKit.create({
       data: {
         name: name || 'Styra Brand Kit',
@@ -70,7 +69,6 @@ export async function DELETE(request: NextRequest) {
       return errorResponse('Brand kit ID is required', 400);
     }
 
-    // @ts-expect-error brandKit table exists in DB but not in generated Prisma client
     await db.brandKit.delete({ where: { id } });
     return successResponse({ message: 'Brand kit deleted successfully' });
   } catch (error: unknown) {

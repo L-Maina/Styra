@@ -23,6 +23,7 @@ import {
   GlassBadge,
   Skeleton,
 } from '@/components/ui/custom/glass-components';
+import { toast } from 'sonner';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -131,6 +132,8 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
   const [stats, setStats] = useState<SiteStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [brandKitUrl, setBrandKitUrl] = useState<string | null>(null);
+  const [pressKitUrl, setPressKitUrl] = useState<string | null>(null);
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
@@ -153,6 +156,16 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
         address: raw.address || prev.address,
       }));
       setStats(json.data.stats ?? null);
+
+      // Fetch brand kit and press kit
+      try {
+        const kitRes = await fetch('/api/brand-kit');
+        if (kitRes.ok) {
+          const kitJson = await kitRes.json();
+          setBrandKitUrl(kitJson.data?.brandKit?.fileUrl || null);
+          setPressKitUrl(kitJson.data?.pressKit?.fileUrl || null);
+        }
+      } catch { /* ignore */ }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load settings');
     } finally {
@@ -370,6 +383,13 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
                 variant="outline"
                 size="sm"
                 leftIcon={<Download className="h-4 w-4" />}
+                onClick={() => {
+                  if (brandKitUrl) {
+                    window.open(brandKitUrl, '_blank');
+                  } else {
+                    toast.info('Brand kit coming soon');
+                  }
+                }}
               >
                 Download Brand Kit
               </GlassButton>
@@ -418,6 +438,13 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
             <GlassButton
               variant="primary"
               leftIcon={<Download className="h-4 w-4" />}
+              onClick={() => {
+                if (pressKitUrl) {
+                  window.open(pressKitUrl, '_blank');
+                } else {
+                  toast.info('Press kit coming soon');
+                }
+              }}
             >
               Download Press Kit
             </GlassButton>

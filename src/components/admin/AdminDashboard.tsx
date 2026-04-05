@@ -12,7 +12,7 @@ import {
   Trash2, Filter, ShieldCheck, Unlock, Inbox, FileWarning, User, Tag,
   Menu, ChevronLeft, LayoutDashboard, Briefcase, Ticket, BookOpen, Gavel,
   Megaphone, MessageCircle, Plus, ChevronRight, Save, Palette,
-  Webhook as WebhookIcon,
+  Webhook as WebhookIcon, Image as ImageIcon,
 } from 'lucide-react';
 import {
   GlassCard, GlassButton, GlassInput, GlassBadge, FadeIn, GlassModal, Skeleton,
@@ -273,7 +273,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
 
   const [showArticleModal, setShowArticleModal] = useState(false);
   const [editingArticle, setEditingArticle] = useState<AdminArticle | null>(null);
-  const [articleForm, setArticleForm] = useState({ title: '', slug: '', excerpt: '', content: '', category: '', tags: '', isFeatured: false, isPublished: false });
+  const [articleForm, setArticleForm] = useState({ title: '', slug: '', excerpt: '', content: '', category: '', tags: '', isFeatured: false, isPublished: false, image: '', readTime: 5 });
 
   const [showAdModal, setShowAdModal] = useState(false);
   const [editingAd, setEditingAd] = useState<any>(null);
@@ -724,10 +724,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         tags: (article as any).tags || '',
         isFeatured: (article as any).isFeatured || false,
         isPublished: article.status === 'PUBLISHED',
+        image: (article as any).image || '',
+        readTime: (article as any).readTime || 5,
       });
     } else {
       setEditingArticle(null);
-      setArticleForm({ title: '', slug: '', excerpt: '', content: '', category: '', tags: '', isFeatured: false, isPublished: false });
+      setArticleForm({ title: '', slug: '', excerpt: '', content: '', category: '', tags: '', isFeatured: false, isPublished: false, image: '', readTime: 5 });
     }
     setShowArticleModal(true);
   };
@@ -749,6 +751,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             tags: articleForm.tags,
             isFeatured: articleForm.isFeatured,
             isPublished: articleForm.isPublished,
+            image: articleForm.image,
+            readTime: articleForm.readTime,
           }),
         });
         toast.success('Article updated');
@@ -764,6 +768,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             tags: articleForm.tags,
             isFeatured: articleForm.isFeatured,
             isPublished: articleForm.isPublished,
+            image: articleForm.image,
+            readTime: articleForm.readTime,
           }),
         });
         toast.success('Article created');
@@ -2156,7 +2162,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             <Newspaper className="h-5 w-5 text-primary" /> Blog Articles
           </h2>
           <GlassButton variant="primary" size="sm" onClick={() => openArticleModal()}>
-            <Plus className="h-4 w-4" /> Create Article
+            <Plus className="h-4 w-4" /> Add Article
           </GlassButton>
         </div>
         <GlassCard className="p-6" hover={false}>
@@ -2190,6 +2196,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                       <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(a.updatedAt)}</td>
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-1">
+                          {a.status === 'PUBLISHED' ? (
+                            <GlassButton size="icon" variant="ghost" onClick={async () => {
+                              try {
+                                await api.request(`/articles/${a.id}`, { method: 'PUT', body: JSON.stringify({ isPublished: false }) });
+                                fetchSectionData('content');
+                                toast.success('Article unpublished');
+                              } catch { toast.error('Failed to unpublish'); }
+                            }} title="Unpublish" className="hover:text-yellow-500">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                            </GlassButton>
+                          ) : (
+                            <GlassButton size="icon" variant="ghost" onClick={async () => {
+                              try {
+                                await api.request(`/articles/${a.id}`, { method: 'PUT', body: JSON.stringify({ isPublished: true }) });
+                                fetchSectionData('content');
+                                toast.success('Article published');
+                              } catch { toast.error('Failed to publish'); }
+                            }} title="Approve / Publish" className="hover:text-green-500">
+                              <CheckCircle className="h-3.5 w-3.5" />
+                            </GlassButton>
+                          )}
                           <GlassButton size="icon" variant="ghost" onClick={() => openArticleModal(a)} title="Edit">
                             <Edit className="h-3.5 w-3.5" />
                           </GlassButton>
@@ -3192,6 +3219,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       {/* Article Create/Edit Modal */}
       <GlassModal isOpen={showArticleModal} onClose={() => setShowArticleModal(false)} title={editingArticle ? 'Edit Article' : 'Create Article'} size="xl">
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+          {/* Cover Image */}
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Cover Image</label>
+            {articleForm.image ? (
+              <div className="relative rounded-xl overflow-hidden mb-2">
+                <img src={articleForm.image} alt="Cover" className="w-full h-48 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setArticleForm(f => ({ ...f, image: '' }))}
+                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div
+                className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.onchange = async (e: any) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setArticleForm(f => ({ ...f, image: reader.result as string }));
+                    };
+                    reader.readAsDataURL(file);
+                  };
+                  input.click();
+                }}
+              >
+                <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Click to upload cover image</p>
+                <p className="text-xs text-muted-foreground">PNG, JPG up to 5MB</p>
+              </div>
+            )}
+          </div>
           <div>
             <label className="text-sm font-medium block mb-1.5">Title *</label>
             <GlassInput
@@ -3256,6 +3323,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                 value={articleForm.tags}
                 onChange={(e) => setArticleForm(f => ({ ...f, tags: e.target.value }))}
                 placeholder="grooming, style, tips"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Read Time (minutes)</label>
+              <GlassInput
+                type="number"
+                min={1}
+                value={articleForm.readTime}
+                onChange={(e) => setArticleForm(f => ({ ...f, readTime: parseInt(e.target.value) || 5 }))}
+                placeholder="5"
               />
             </div>
           </div>

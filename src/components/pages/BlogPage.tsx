@@ -165,7 +165,7 @@ export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
   const filteredPosts =
     selectedCategory === 'all'
       ? regularArticles
-      : regularArticles.filter((a) => a.category === selectedCategory);
+      : articles.filter((a) => a.category === selectedCategory);
 
   /* ---- Handlers ---- */
   const openArticle = useCallback((article: BlogPost) => {

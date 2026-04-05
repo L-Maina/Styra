@@ -5,11 +5,13 @@ import { motion } from 'framer-motion';
 import {
   Briefcase, MapPin, DollarSign, Heart, TrendingUp, Users, Sparkles,
   ArrowRight, CheckCircle2, Clock, Send, User, Mail, Phone, AlertCircle,
+  Link, Paperclip, CalendarDays,
 } from 'lucide-react';
 import {
   GlassCard, GlassButton, GlassInput, GlassBadge, GlassModal,
   FadeIn, Skeleton, GradientText,
 } from '@/components/ui/custom/glass-components';
+import { toast } from 'sonner';
 
 interface Job {
   id: string; title: string; department: string; location: string;
@@ -43,6 +45,7 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
   const [fetchError, setFetchError] = useState('');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showGeneralModal, setShowGeneralModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [submitMsg, setSubmitMsg] = useState('');
@@ -50,6 +53,14 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [coverLetter, setCoverLetter] = useState('');
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [portfolio, setPortfolio] = useState('');
+  const [linkedin, setLinkedin] = useState('');
+  const [expectedSalary, setExpectedSalary] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [noticePeriod, setNoticePeriod] = useState('');
+  const [generalSubmitStatus, setGeneralSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [generalSubmitting, setGeneralSubmitting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +83,46 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
     setSelectedJob(job); setShowModal(true);
     setSubmitStatus('idle'); setSubmitMsg('');
     setName(''); setEmail(''); setPhone(''); setCoverLetter('');
+    setCvFile(null); setPortfolio(''); setLinkedin('');
+    setExpectedSalary(''); setStartDate(''); setNoticePeriod('');
   }, []);
+
+  const resetGeneralForm = useCallback(() => {
+    setGeneralSubmitStatus('idle');
+    setName(''); setEmail(''); setPhone(''); setCoverLetter('');
+    setCvFile(null); setPortfolio(''); setLinkedin('');
+    setExpectedSalary(''); setStartDate(''); setNoticePeriod('');
+  }, []);
+
+  const handleGeneralApply = useCallback(async () => {
+    if (!name.trim() || !email.trim()) { toast.error('Name and email are required'); return; }
+    setGeneralSubmitting(true); setGeneralSubmitStatus('idle');
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(), email: email.trim(),
+          phone: phone.trim() || null,
+          coverLetter: coverLetter.trim() || null,
+          resume: cvFile?.name || null,
+          portfolio: portfolio.trim() || null,
+          linkedin: linkedin.trim() || null,
+          expectedSalary: expectedSalary.trim() || null,
+          startDate: startDate || null,
+          noticePeriod: noticePeriod || null,
+          isGeneral: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit');
+      setGeneralSubmitStatus('success');
+      toast.success('Application submitted!');
+    } catch (err) {
+      setGeneralSubmitStatus('error');
+      toast.error(err instanceof Error ? err.message : 'Something went wrong');
+    } finally { setGeneralSubmitting(false); }
+  }, [name, email, phone, coverLetter, cvFile, portfolio, linkedin, expectedSalary, startDate, noticePeriod]);
 
   const closeModal = useCallback(() => { setShowModal(false); setSelectedJob(null); }, []);
 
@@ -83,7 +133,18 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
       const res = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: selectedJob.id, name: name.trim(), email: email.trim(), phone: phone.trim() || null, coverLetter: coverLetter.trim() || null }),
+        body: JSON.stringify({
+          jobId: selectedJob.id,
+          name: name.trim(), email: email.trim(),
+          phone: phone.trim() || null,
+          coverLetter: coverLetter.trim() || null,
+          resume: cvFile?.name || null,
+          portfolio: portfolio.trim() || null,
+          linkedin: linkedin.trim() || null,
+          expectedSalary: expectedSalary.trim() || null,
+          startDate: startDate || null,
+          noticePeriod: noticePeriod || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit');
@@ -91,7 +152,7 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
     } catch (err) {
       setSubmitStatus('error'); setSubmitMsg(err instanceof Error ? err.message : 'Something went wrong');
     } finally { setSubmitting(false); }
-  }, [selectedJob, name, email, phone, coverLetter]);
+  }, [selectedJob, name, email, phone, coverLetter, cvFile, portfolio, linkedin, expectedSalary, startDate, noticePeriod]);
 
   const SkeletonCard = () => (
     <GlassCard className="p-6" hover={false}>
@@ -226,7 +287,7 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
             <p className="text-muted-foreground max-w-md mx-auto mb-6">
               We&apos;re always looking for talented people. Send us your resume and we&apos;ll reach out when a suitable position opens up.
             </p>
-            <GlassButton variant="outline" leftIcon={<Briefcase className="h-4 w-4" />} onClick={() => onNavigate?.('contact')}>
+            <GlassButton variant="outline" leftIcon={<Briefcase className="h-4 w-4" />} onClick={() => { resetGeneralForm(); setShowGeneralModal(true); }}>
               Send General Application
             </GlassButton>
           </GlassCard>
@@ -247,7 +308,7 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
             <GlassButton variant="outline" onClick={closeModal}>Close</GlassButton>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
             {submitStatus === 'error' && (
               <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-xl p-3">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" /><span>{submitMsg}</span>
@@ -266,6 +327,42 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
               <GlassInput placeholder="+254 700 000 000" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} leftIcon={<Phone className="h-4 w-4" />} />
             </div>
             <div>
+              <label className="block text-sm font-medium mb-1.5">CV / Resume</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => { if (e.target.files?.[0]) setCvFile(e.target.files[0]); }}
+                  className="text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                />
+                {cvFile && <span className="text-xs text-muted-foreground truncate max-w-[150px]">{cvFile.name}</span>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Portfolio URL</label>
+                <GlassInput placeholder="https://..." value={portfolio} onChange={(e) => setPortfolio(e.target.value)} leftIcon={<Link className="h-4 w-4" />} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">LinkedIn Profile</label>
+                <GlassInput placeholder="linkedin.com/in/..." value={linkedin} onChange={(e) => setLinkedin(e.target.value)} leftIcon={<Link className="h-4 w-4" />} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Expected Salary</label>
+                <GlassInput placeholder="KES 80,000" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value)} leftIcon={<DollarSign className="h-4 w-4" />} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Start Date</label>
+                <GlassInput placeholder="2025-02-01" value={startDate} onChange={(e) => setStartDate(e.target.value)} leftIcon={<CalendarDays className="h-4 w-4" />} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Notice Period</label>
+                <GlassInput placeholder="30 days" value={noticePeriod} onChange={(e) => setNoticePeriod(e.target.value)} leftIcon={<Clock className="h-4 w-4" />} />
+              </div>
+            </div>
+            <div>
               <label className="block text-sm font-medium mb-1.5">Cover Letter</label>
               <textarea placeholder="Tell us why you're a great fit for this role..." value={coverLetter}
                 onChange={(e) => setCoverLetter(e.target.value)} rows={4}
@@ -275,6 +372,89 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
               <GlassButton variant="outline" onClick={closeModal} className="flex-1">Cancel</GlassButton>
               <GlassButton variant="primary" onClick={handleSubmit} isLoading={submitting}
                 disabled={!name.trim() || !email.trim()} rightIcon={!submitting ? <Send className="h-4 w-4" /> : undefined} className="flex-1">
+                Submit Application
+              </GlassButton>
+            </div>
+          </div>
+        )}
+      </GlassModal>
+
+      {/* General Application Modal */}
+      <GlassModal isOpen={showGeneralModal} onClose={() => setShowGeneralModal(false)} title="General Application" description="Submit your resume for future opportunities" size="lg">
+        {generalSubmitStatus === 'success' ? (
+          <div className="text-center py-6">
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15 }}>
+              <CheckCircle2 className="h-14 w-14 text-green-400 mx-auto mb-4" />
+            </motion.div>
+            <p className="text-lg font-semibold mb-2">Application Received!</p>
+            <p className="text-sm text-muted-foreground mb-6">We'll reach out when a suitable role opens up.</p>
+            <GlassButton variant="outline" onClick={() => { setShowGeneralModal(false); resetGeneralForm(); }}>Close</GlassButton>
+          </div>
+        ) : (
+          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+            {generalSubmitStatus === 'error' && (
+              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-xl p-3">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" /><span>Failed to submit. Please try again.</span>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Full Name *</label>
+              <GlassInput placeholder="John Mwangi" value={name} onChange={(e) => setName(e.target.value)} leftIcon={<User className="h-4 w-4" />} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Email *</label>
+              <GlassInput placeholder="john@example.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} leftIcon={<Mail className="h-4 w-4" />} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Phone</label>
+              <GlassInput placeholder="+254 700 000 000" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} leftIcon={<Phone className="h-4 w-4" />} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">CV / Resume</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => { if (e.target.files?.[0]) setCvFile(e.target.files[0]); }}
+                  className="text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                />
+                {cvFile && <span className="text-xs text-muted-foreground truncate max-w-[150px]">{cvFile.name}</span>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Portfolio URL</label>
+                <GlassInput placeholder="https://..." value={portfolio} onChange={(e) => setPortfolio(e.target.value)} leftIcon={<Link className="h-4 w-4" />} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">LinkedIn Profile</label>
+                <GlassInput placeholder="linkedin.com/in/..." value={linkedin} onChange={(e) => setLinkedin(e.target.value)} leftIcon={<Link className="h-4 w-4" />} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Expected Salary</label>
+                <GlassInput placeholder="KES 80,000" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value)} leftIcon={<DollarSign className="h-4 w-4" />} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Start Date</label>
+                <GlassInput placeholder="2025-02-01" value={startDate} onChange={(e) => setStartDate(e.target.value)} leftIcon={<CalendarDays className="h-4 w-4" />} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Notice Period</label>
+                <GlassInput placeholder="30 days" value={noticePeriod} onChange={(e) => setNoticePeriod(e.target.value)} leftIcon={<Clock className="h-4 w-4" />} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Cover Letter</label>
+              <textarea placeholder="Tell us about yourself and the kind of roles you're interested in..." value={coverLetter}
+                onChange={(e) => setCoverLetter(e.target.value)} rows={4}
+                className="flex w-full rounded-xl border border-border bg-background/50 backdrop-blur-sm px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-[box-shadow,border-color] duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none" />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <GlassButton variant="outline" onClick={() => setShowGeneralModal(false)} className="flex-1">Cancel</GlassButton>
+              <GlassButton variant="primary" onClick={handleGeneralApply} isLoading={generalSubmitting}
+                disabled={!name.trim() || !email.trim()} rightIcon={!generalSubmitting ? <Send className="h-4 w-4" /> : undefined} className="flex-1">
                 Submit Application
               </GlassButton>
             </div>
