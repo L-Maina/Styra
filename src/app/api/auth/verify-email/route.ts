@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     // Mark user as email verified
     await db.user.update({
       where: { id: userId },
-      data: { emailVerified: new Date() },
+      data: { isVerified: true },
     });
 
     // Create a session for the newly verified user

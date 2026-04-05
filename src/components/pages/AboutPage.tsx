@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import {
   Users,
   Award,
@@ -17,6 +18,13 @@ import {
   BookOpen,
   TrendingUp,
   CheckCircle2,
+  Sparkles,
+  Zap,
+  Rocket,
+  Gem,
+  Leaf,
+  Handshake,
+  Compass,
 } from 'lucide-react';
 import {
   GlassCard,
@@ -28,6 +36,7 @@ import {
   StaggerItem,
   Skeleton,
 } from '@/components/ui/custom/glass-components';
+import { cn } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -56,27 +65,81 @@ interface SiteStats {
   avg_rating: number;
 }
 
+interface ValueItem {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+interface MilestoneItem {
+  year: string;
+  event: string;
+}
+
 interface AboutPageProps {
   onBack: () => void;
   onNavigate?: (page: string) => void;
 }
 
-// ── Brand values (hardcoded — brand-defining) ────────────────
+// ── Icon lookup map (CMS stores icon name as string) ───────
 
-const values = [
-  { icon: Heart, title: 'Customer First', description: 'Every decision we make starts with our customers in mind.' },
-  { icon: Target, title: 'Excellence', description: 'We strive for the highest quality in everything we do.' },
-  { icon: Users, title: 'Community', description: 'Building bridges between providers and customers.' },
-  { icon: Lightbulb, title: 'Innovation', description: 'Constantly improving to serve you better.' },
+const ICON_MAP: Record<string, LucideIcon> = {
+  Heart,
+  Target,
+  Users,
+  Lightbulb,
+  Star,
+  Shield,
+  Sparkles,
+  Zap,
+  Rocket,
+  Gem,
+  Leaf,
+  Handshake,
+  Compass,
+  Award,
+  Globe,
+};
+
+// ── Fallback defaults (used when CMS data is unavailable) ──
+
+const DEFAULT_VALUES: ValueItem[] = [
+  { icon: 'Heart', title: 'Customer First', description: 'Every decision we make starts with our customers in mind.' },
+  { icon: 'Target', title: 'Excellence', description: 'We strive for the highest quality in everything we do.' },
+  { icon: 'Users', title: 'Community', description: 'Building bridges between providers and customers.' },
+  { icon: 'Lightbulb', title: 'Innovation', description: 'Constantly improving to serve you better.' },
 ];
 
-const milestones = [
+const DEFAULT_MILESTONES: MilestoneItem[] = [
   { year: '2020', event: 'Styra founded in Nairobi, Kenya' },
   { year: '2021', event: 'Expanded to major cities across Kenya' },
   { year: '2022', event: 'Launched mobile apps, reached 1M+ bookings' },
   { year: '2023', event: 'Regional expansion to Uganda, Tanzania, and Rwanda' },
   { year: '2024', event: '10,000+ verified service providers on platform' },
 ];
+
+const DEFAULT_STORY = {
+  paragraphs: [
+    'was born from a simple frustration: finding a great barber or stylist in Nairobi shouldn\'t require hours of research, phone calls, and trial and error. Our founders experienced this firsthand and decided to build a better way.',
+    'What started as a simple booking platform has evolved into a comprehensive ecosystem that empowers service providers to grow their businesses while giving customers unprecedented access to quality grooming services.',
+    'Today, we\'re proud to serve customers and businesses across East Africa, all while staying true to our founding principle: making self-care accessible to everyone.',
+  ],
+};
+
+// ── Helpers ─────────────────────────────────────────────────
+
+function resolveIcon(iconName: string): LucideIcon {
+  return ICON_MAP[iconName] || Heart;
+}
+
+function tryParseJSON<T>(raw: string | undefined | null): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
 
 // ── Skeleton loaders ─────────────────────────────────────────
 
@@ -128,14 +191,20 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [loadingSettings, setLoadingSettings] = useState(true);
 
+  // CMS-driven content (values, milestones, story)
+  const [cmsValues, setCmsValues] = useState<ValueItem[] | null>(null);
+  const [cmsMilestones, setCmsMilestones] = useState<MilestoneItem[] | null>(null);
+  const [cmsStory, setCmsStory] = useState<{ paragraphs: string[] } | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
     async function fetchData() {
       try {
-        const [teamRes, settingsRes] = await Promise.all([
+        const [teamRes, settingsRes, cmsRes] = await Promise.all([
           fetch('/api/team'),
           fetch('/api/site-settings'),
+          fetch('/api/site-settings?keys=about_values,about_milestones,about_story'),
         ]);
 
         if (cancelled) return;
@@ -154,6 +223,20 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
             setStats(settingsJson.data.stats ?? null);
           }
         }
+
+        // Parse CMS-specific keys for about page content
+        if (cmsRes.ok) {
+          const cmsJson = await cmsRes.json();
+          if (cmsJson?.success && cmsJson?.data?.settings) {
+            const s = cmsJson.data.settings as Record<string, string>;
+            const parsedValues = tryParseJSON<ValueItem[]>(s.about_values);
+            const parsedMilestones = tryParseJSON<MilestoneItem[]>(s.about_milestones);
+            const parsedStory = tryParseJSON<{ paragraphs: string[] }>(s.about_story);
+            if (Array.isArray(parsedValues) && parsedValues.length > 0) setCmsValues(parsedValues);
+            if (Array.isArray(parsedMilestones) && parsedMilestones.length > 0) setCmsMilestones(parsedMilestones);
+            if (parsedStory && Array.isArray(parsedStory.paragraphs) && parsedStory.paragraphs.length > 0) setCmsStory(parsedStory);
+          }
+        }
       } catch {
         // Silent fail — page renders with empty states
       } finally {
@@ -167,6 +250,11 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
     fetchData();
     return () => { cancelled = true; };
   }, []);
+
+  // Use CMS values with fallback to defaults
+  const values = useMemo(() => cmsValues ?? DEFAULT_VALUES, [cmsValues]);
+  const milestones = useMemo(() => cmsMilestones ?? DEFAULT_MILESTONES, [cmsMilestones]);
+  const storyParagraphs = useMemo(() => cmsStory?.paragraphs ?? DEFAULT_STORY.paragraphs, [cmsStory]);
 
   const companyName = settings.company_name || 'Styra';
   const companyTagline = settings.company_tagline;
@@ -258,20 +346,17 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
               <h2 className="text-2xl font-bold">Our Story</h2>
             </div>
             <div className="prose prose-slate max-w-none">
-              <p className="text-muted-foreground mb-4">
-                {companyName} was born from a simple frustration: finding a great barber or stylist
-                in Nairobi shouldn&apos;t require hours of research, phone calls, and trial and error.
-                Our founders experienced this firsthand and decided to build a better way.
-              </p>
-              <p className="text-muted-foreground mb-4">
-                What started as a simple booking platform has evolved into a comprehensive ecosystem
-                that empowers service providers to grow their businesses while giving customers
-                unprecedented access to quality grooming services.
-              </p>
-              <p className="text-muted-foreground">
-                Today, we&apos;re proud to serve customers and businesses across East Africa,
-                all while staying true to our founding principle: making self-care accessible to everyone.
-              </p>
+              {storyParagraphs.map((paragraph, idx) => (
+                <p
+                  key={idx}
+                  className={cn(
+                    'text-muted-foreground',
+                    idx < storyParagraphs.length - 1 ? 'mb-4' : '',
+                  )}
+                >
+                  {idx === 0 ? companyName : null}{paragraph}
+                </p>
+              ))}
             </div>
           </GlassCard>
         </FadeIn>
@@ -283,25 +368,28 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
             <p className="text-muted-foreground mt-2">The principles that guide everything we do</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-            {values.map((value, index) => (
-              <motion.div
-                key={value.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <GlassCard variant="bordered" hover className="text-center h-full">
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    className="w-16 h-16 rounded-2xl gradient-bg flex items-center justify-center mx-auto mb-4 shadow-lg"
-                  >
-                    <value.icon className="h-8 w-8 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold mb-2 text-lg">{value.title}</h3>
-                  <p className="text-sm text-muted-foreground">{value.description}</p>
-                </GlassCard>
-              </motion.div>
-            ))}
+            {values.map((value, index) => {
+              const ValueIcon = resolveIcon(value.icon);
+              return (
+                <motion.div
+                  key={value.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <GlassCard variant="bordered" hover className="text-center h-full">
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      className="w-16 h-16 rounded-2xl gradient-bg flex items-center justify-center mx-auto mb-4 shadow-lg"
+                    >
+                      <ValueIcon className="h-8 w-8 text-white" />
+                    </motion.div>
+                    <h3 className="font-semibold mb-2 text-lg">{value.title}</h3>
+                    <p className="text-sm text-muted-foreground">{value.description}</p>
+                  </GlassCard>
+                </motion.div>
+              );
+            })}
           </div>
         </FadeIn>
 
@@ -408,7 +496,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
                 variant="primary"
                 size="lg"
                 leftIcon={<CheckCircle2 className="h-5 w-5" />}
-                onClick={(e) => { e.stopPropagation(); onNavigate?.('onboarding'); }}
+                onClick={(e?: { stopPropagation: () => void }) => { e?.stopPropagation(); onNavigate?.('onboarding'); }}
                 className="shadow-glow"
               >
                 Become a Provider
@@ -417,7 +505,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
                 variant="outline"
                 size="lg"
                 leftIcon={<Users className="h-5 w-5" />}
-                onClick={(e) => { e.stopPropagation(); onNavigate?.('marketplace'); }}
+                onClick={(e?: { stopPropagation: () => void }) => { e?.stopPropagation(); onNavigate?.('marketplace'); }}
               >
                 Find Services
               </GlassButton>

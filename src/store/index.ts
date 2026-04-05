@@ -800,7 +800,7 @@ export const countryNames: Record<string, string> = {
 };
 
 // Complete timezone to country mapping for auto-detection
-const timezoneToCountry: Record<string, string> = {
+export const timezoneToCountry: Record<string, string> = {
   // Africa
   'Africa/Abidjan': 'CI', 'Africa/Accra': 'GH', 'Africa/Addis_Ababa': 'ET',
   'Africa/Algiers': 'DZ', 'Africa/Asmara': 'ER', 'Africa/Bamako': 'ML',

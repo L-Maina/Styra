@@ -44,12 +44,10 @@ export async function POST(
           bookingId: id,
           rating,
           comment: comment || null,
-          isVerified: true,
         },
         update: {
           rating,
           comment: comment || undefined,
-          isVerified: true,
           updatedAt: new Date(),
         },
       });

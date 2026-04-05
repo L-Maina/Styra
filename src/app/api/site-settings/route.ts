@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Compute platform stats in a single parallel call
-    let stats = null;
+    let stats: Record<string, unknown> | null = null;
     try {
       const [providers, customers, businesses] = await Promise.all([
         db.user.count({ where: { role: 'business' } }),
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         total_customers: customers,
         total_cities: businesses.length,
         avg_rating: reviewStats._avg.rating ?? 0,
-        total_reviews: reviewStats._count,
+        total_reviews: reviewStats._count as number,
       };
     } catch {
       // Stats are best-effort — don't fail the whole request

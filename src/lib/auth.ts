@@ -3,6 +3,16 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { db } from './db';
 
+// ── Auth User Type ─────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: string;
+  userId?: string;
+  tokenVersion?: number;
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'styra-dev-secret-change-in-production';
 const JWT_EXPIRES_IN = '7d';
 

@@ -6,7 +6,7 @@ import {
   type TransactionFilters,
 } from '@/lib/transaction-log';
 import { successResponse, paginatedResponse, handleApiError } from '@/lib/api-utils';
-import type { TransactionLogType, TransactionLogStatus } from '@prisma/client';
+import type { TransactionLogType, TransactionLogStatus } from '@/lib/transaction-log';
 
 const VALID_TYPES: TransactionLogType[] = [
   'PAYMENT_IN',

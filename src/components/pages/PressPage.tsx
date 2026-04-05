@@ -268,8 +268,8 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
                 <GlassButton
                   variant="primary"
                   leftIcon={<Mail className="h-4 w-4" />}
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(e?: { stopPropagation: () => void }) => {
+                    e?.stopPropagation();
                     window.location.href = `mailto:${pressEmail}`;
                   }}
                 >

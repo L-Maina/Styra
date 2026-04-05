@@ -33,11 +33,10 @@ export async function GET(
         phone: true,
         avatar: true,
         role: true,
-        emailVerified: true,
-        phoneVerified: true,
+        isVerified: true,
         createdAt: true,
         updatedAt: true,
-        business: {
+        businesses: {
           include: {
             services: true,
             _count: { select: { bookings: true, reviews: true } },

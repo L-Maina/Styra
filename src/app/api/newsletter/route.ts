@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
           title: 'New Newsletter Subscription',
           message: `${normalizedEmail} has subscribed to the newsletter`,
           type: 'SYSTEM_ALERT',
-          data: JSON.stringify({ email: normalizedEmail }),
+          link: JSON.stringify({ email: normalizedEmail }),
         },
       });
     });

@@ -24,7 +24,7 @@ export async function POST(
       include: {
         business: { select: { id: true, ownerId: true, name: true } },
         customer: { select: { id: true, name: true } },
-        payment: { select: { id: true, status: true, amount: true } },
+        payments: { select: { id: true, status: true, amount: true }, take: 1 },
       },
     });
 
@@ -74,7 +74,7 @@ export async function POST(
           title: 'Service Verified',
           message: `Customer has verified service completion for booking ${id.slice(0, 8)}. Payment has been released to your wallet.`,
           type: 'VERIFICATION_UPDATE',
-          data: JSON.stringify({ bookingId: id, customerName: booking.customer?.name }),
+          link: JSON.stringify({ bookingId: id }),
         },
       });
     } catch {
@@ -89,7 +89,7 @@ export async function POST(
           title: 'Verification Recorded',
           message: `Your verification for booking ${id.slice(0, 8)} has been recorded. Thank you for confirming!`,
           type: 'VERIFICATION_UPDATE',
-          data: JSON.stringify({ bookingId: id }),
+          link: JSON.stringify({ bookingId: id }),
         },
       });
     } catch {

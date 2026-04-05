@@ -22,18 +22,8 @@ export async function GET() {
         avatar: true,
         phone: true,
         role: true,
-        emailVerified: true,
-        phoneVerified: true,
+        isVerified: true,
         createdAt: true,
-        business: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            verificationStatus: true,
-            subscriptionPlan: true,
-          },
-        },
       },
     });
 

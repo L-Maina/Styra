@@ -23,8 +23,6 @@ export async function GET(request: NextRequest) {
       wallet: {
         id: wallet.id,
         balance: wallet.balance,
-        pendingBalance: wallet.pendingBalance,
-        heldBalance: wallet.heldBalance,
         currency: wallet.currency,
         updatedAt: wallet.updatedAt,
       },

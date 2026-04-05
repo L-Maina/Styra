@@ -48,9 +48,9 @@ export async function POST(
           data: {
             userId: admin.id,
             title: 'New Dispute Filed',
-            message: `A new dispute has been filed for booking ${id.slice(0, 8)} by customer ${user.name || user.email}. Amount: $${result.dispute.amount.toFixed(2)}`,
+            message: `A new dispute has been filed for booking ${id.slice(0, 8)} by customer ${user.name || user.email}.`,
             type: 'SYSTEM_ALERT',
-            data: JSON.stringify({
+            link: JSON.stringify({
               disputeId: result.dispute.id,
               bookingId: id,
               customerId: user.id,

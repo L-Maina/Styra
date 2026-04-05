@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
 // Create staff member
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireBusinessOwner();
     const body = await request.json();
     const validated = createStaffSchema.parse(body);
+    const user = await requireBusinessOwner(validated.businessId);
 
     // Verify business ownership
     const business = await db.business.findUnique({

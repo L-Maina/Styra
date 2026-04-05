@@ -227,7 +227,7 @@ async function handlePaymentSucceeded(
   eventId: string
 ): Promise<WebhookResult> {
   const payment = await db.payment.findFirst({
-    where: { transactionId: paymentIntent.id },
+    where: { transactionRef: paymentIntent.id },
   });
 
   if (!payment) {
@@ -243,8 +243,8 @@ async function handlePaymentSucceeded(
       where: { id: payment.id },
       data: {
         status: 'COMPLETED',
-        metadata: JSON.stringify({
-          ...(payment.metadata ? JSON.parse(payment.metadata) : {}),
+        description: JSON.stringify({
+          ...(payment.description ? JSON.parse(payment.description) : {}),
           stripeEventId: eventId,
           stripeChargeId: paymentIntent.latest_charge,
         }),
@@ -260,7 +260,7 @@ async function handlePaymentSucceeded(
       data: {
         userId: payment.userId,
         title: 'Payment Successful',
-        message: `Your payment of ${payment.currency} ${payment.amount} was successful`,
+        message: `Your payment of ${'KES'} ${payment.amount} was successful`,
         type: 'PAYMENT_SUCCESS',
       },
     });
@@ -269,7 +269,7 @@ async function handlePaymentSucceeded(
   // Hold payment in escrow after successful payment
   try {
     const platformFee = await calculatePlatformFee(payment.amount);
-    await holdInEscrow(payment.bookingId, payment.id, payment.amount, platformFee, payment.currency);
+    await holdInEscrow(payment.bookingId, payment.id, payment.amount, platformFee, 'KES');
   } catch (escrowError) {
     console.error('Escrow hold failed:', escrowError);
     // Don't fail the webhook — escrow is async/secondary
@@ -287,7 +287,7 @@ async function handlePaymentFailed(
   eventId: string
 ): Promise<WebhookResult> {
   const payment = await db.payment.findFirst({
-    where: { transactionId: paymentIntent.id },
+    where: { transactionRef: paymentIntent.id },
   });
 
   if (!payment) {
@@ -305,8 +305,8 @@ async function handlePaymentFailed(
       where: { id: payment.id },
       data: {
         status: 'FAILED',
-        metadata: JSON.stringify({
-          ...(payment.metadata ? JSON.parse(payment.metadata) : {}),
+        description: JSON.stringify({
+          ...(payment.description ? JSON.parse(payment.description) : {}),
           stripeEventId: eventId,
           failureMessage,
         }),
@@ -317,7 +317,7 @@ async function handlePaymentFailed(
       data: {
         userId: payment.userId,
         title: 'Payment Failed',
-        message: `Your payment of ${payment.currency} ${payment.amount} failed: ${failureMessage}`,
+        message: `Your payment of ${'KES'} ${payment.amount} failed: ${failureMessage}`,
         type: 'PAYMENT_FAILED',
       },
     });
@@ -325,7 +325,7 @@ async function handlePaymentFailed(
 
   // 🔔 ALERT: Payment failure via webhook
   alertPaymentFailed(payment.id, payment.amount, failureMessage, {
-    currency: payment.currency,
+    currency: 'KES',
     userId: payment.userId,
     bookingId: payment.bookingId,
     provider: 'STRIPE',
@@ -361,8 +361,8 @@ async function handleCheckoutCompleted(
       where: { id: payment.id },
       data: {
         status: 'COMPLETED',
-        metadata: JSON.stringify({
-          ...(payment.metadata ? JSON.parse(payment.metadata) : {}),
+        description: JSON.stringify({
+          ...(payment.description ? JSON.parse(payment.description) : {}),
           stripeEventId: eventId,
         }),
       },
@@ -377,7 +377,7 @@ async function handleCheckoutCompleted(
       data: {
         userId: payment.userId,
         title: 'Payment Successful',
-        message: `Your payment of ${payment.currency} ${payment.amount} was successful`,
+        message: `Your payment of ${'KES'} ${payment.amount} was successful`,
         type: 'PAYMENT_SUCCESS',
       },
     });
@@ -403,7 +403,7 @@ async function handleChargeRefunded(
   }
 
   const payment = await db.payment.findFirst({
-    where: { transactionId: paymentIntentId },
+    where: { transactionRef: paymentIntentId },
   });
 
   if (!payment) {
@@ -419,8 +419,8 @@ async function handleChargeRefunded(
       where: { id: payment.id },
       data: {
         status: 'REFUNDED',
-        metadata: JSON.stringify({
-          ...(payment.metadata ? JSON.parse(payment.metadata) : {}),
+        description: JSON.stringify({
+          ...(payment.description ? JSON.parse(payment.description) : {}),
           stripeEventId: eventId,
         }),
       },
@@ -430,7 +430,7 @@ async function handleChargeRefunded(
       data: {
         userId: payment.userId,
         title: 'Payment Refunded',
-        message: `Your payment of ${payment.currency} ${payment.amount} has been refunded`,
+        message: `Your payment of ${'KES'} ${payment.amount} has been refunded`,
         type: 'PAYMENT_FAILED',
       },
     });
@@ -438,7 +438,7 @@ async function handleChargeRefunded(
 
   // 🔔 ALERT: Refund via webhook
   alertPaymentRefunded(payment.id, payment.amount, {
-    currency: payment.currency,
+    currency: 'KES',
     userId: payment.userId,
     bookingId: payment.bookingId,
     provider: 'STRIPE',
@@ -464,7 +464,7 @@ async function handleDisputeCreated(
   }
 
   const payment = await db.payment.findFirst({
-    where: { metadata: { contains: chargeId } },
+    where: { description: { contains: chargeId } },
   });
 
   if (!payment) {
@@ -489,7 +489,7 @@ async function handleDisputeCreated(
 
   // 🔔 ALERT: Dispute — critical payment event
   alertPaymentFailed(payment.id, payment.amount, `Stripe dispute created: ${dispute.reason}`, {
-    currency: payment.currency,
+    currency: 'KES',
     userId: payment.userId,
     bookingId: payment.bookingId,
     provider: 'STRIPE',

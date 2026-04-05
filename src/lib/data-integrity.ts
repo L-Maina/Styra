@@ -10,7 +10,7 @@ export async function checkDataIntegrity() {
   // Check bookings with non-existent services
   const bookings = await db.booking.findMany({ select: { id: true, serviceId: true } });
   for (const booking of bookings) {
-    const service = await db.service.findUnique({ where: { id: booking.serviceId }, select: { id: true } });
+    const service = await db.service.findUnique({ where: { id: booking.serviceId ?? undefined }, select: { id: true } });
     if (!service) issues.push(`Booking ${booking.id} references non-existent service ${booking.serviceId}`);
   }
 

@@ -42,10 +42,10 @@ export async function GET(
       id: payment.id,
       bookingId: payment.bookingId,
       amount: payment.amount,
-      currency: payment.currency,
-      paymentMethod: payment.paymentMethod,
+      currency: 'KES',
+      paymentMethod: payment.method,
       status: payment.status,
-      transactionId: payment.transactionId,
+      transactionId: payment.transactionRef,
       createdAt: payment.createdAt,
       updatedAt: payment.updatedAt,
       booking: payment.booking,
@@ -91,8 +91,7 @@ export async function PATCH(
         where: { id },
         data: {
           status: newStatus as 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REFUNDED',
-          metadata: JSON.stringify({
-            ...(payment.metadata ? JSON.parse(payment.metadata) : {}),
+          description: JSON.stringify({
             adminUpdatedBy: admin.id,
             adminUpdatedByName: admin.name || admin.email,
             adminNotes: adminNotes || '',
@@ -112,7 +111,7 @@ export async function PATCH(
           data: {
             userId: payment.userId,
             title: 'Payment Confirmed',
-            message: `Your payment of ${payment.currency} ${payment.amount} has been manually confirmed by an administrator`,
+            message: `Your payment of KES ${payment.amount} has been manually confirmed by an administrator`,
             type: 'PAYMENT_SUCCESS',
           },
         });
@@ -121,7 +120,7 @@ export async function PATCH(
           data: {
             userId: payment.userId,
             title: 'Payment Refunded',
-            message: `Your payment of ${payment.currency} ${payment.amount} has been refunded`,
+            message: `Your payment of KES ${payment.amount} has been refunded`,
             type: 'PAYMENT_FAILED',
           },
         });
@@ -130,7 +129,7 @@ export async function PATCH(
           data: {
             userId: payment.userId,
             title: 'Payment Failed',
-            message: `Your payment of ${payment.currency} ${payment.amount} has been marked as failed`,
+            message: `Your payment of KES ${payment.amount} has been marked as failed`,
             type: 'PAYMENT_FAILED',
           },
         });

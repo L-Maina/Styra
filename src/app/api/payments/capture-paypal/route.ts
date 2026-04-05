@@ -6,35 +6,20 @@ import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils'
 import { capturePayPalOrder } from '@/lib/paypal';
 import { holdInEscrow, calculatePlatformFee } from '@/lib/escrow';
 
-/**
- * POST /api/payments/capture-paypal
- *
- * Captures an approved PayPal order and updates the payment status.
- * Requires authentication — the user must own the payment.
- *
- * Body: { orderId: string }
- *
- * This endpoint provides a synchronous capture path. The PayPal webhook
- * (PAYMENT.CAPTURE.COMPLETED) will also fire and serves as the primary
- * confirmation mechanism. This endpoint acts as a backup for clients
- * that need an immediate response.
- */
 const capturePayPalSchema = z.object({
   orderId: z.string().min(1, 'PayPal order ID is required'),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    // Block admin from capturing payments
     const user = await blockRole('admin');
     const body = await request.json();
     const validated = capturePayPalSchema.parse(body);
 
-    // Find the payment associated with this PayPal order
     const payment = await db.payment.findFirst({
       where: {
-        transactionId: validated.orderId,
-        paymentMethod: 'PAYPAL',
+        providerRef: validated.orderId,
+        method: 'PAYPAL',
       },
       include: {
         booking: {
@@ -50,12 +35,10 @@ export async function POST(request: NextRequest) {
       return errorResponse('Payment not found for this PayPal order', 404);
     }
 
-    // Verify the user owns this payment (admin can capture any payment)
     if (payment.userId !== user.id && user.role !== 'ADMIN') {
       return errorResponse('This payment does not belong to you', 403);
     }
 
-    // Don't double-capture already completed payments
     if (payment.status === 'COMPLETED') {
       return successResponse({
         paymentId: payment.id,
@@ -64,24 +47,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Attempt real PayPal capture
     const captureResult = await capturePayPalOrder(validated.orderId);
 
     if (!captureResult) {
       return errorResponse(
         'Failed to capture PayPal order. The payment may still be processing — check status later.',
-        502
+        502,
       );
     }
 
-    // Check capture status
     if (captureResult.status !== 'COMPLETED') {
       await db.payment.update({
         where: { id: payment.id },
         data: {
           status: 'FAILED',
-          metadata: JSON.stringify({
-            ...safeJsonParse(payment.metadata),
+          description: JSON.stringify({
             captureStatus: captureResult.status,
             captureId: captureResult.captureId,
             captureAttemptedAt: new Date().toISOString(),
@@ -91,18 +71,17 @@ export async function POST(request: NextRequest) {
 
       return errorResponse(
         `PayPal capture returned status: ${captureResult.status}`,
-        400
+        400,
       );
     }
 
-    // Success — update payment, booking, and create notification atomically
     await db.$transaction(async (tx) => {
       await tx.payment.update({
         where: { id: payment.id },
         data: {
           status: 'COMPLETED',
-          metadata: JSON.stringify({
-            ...safeJsonParse(payment.metadata),
+          providerRef: captureResult.captureId,
+          description: JSON.stringify({
             captureId: captureResult.captureId,
             captureStatus: captureResult.status,
             captureAmount: captureResult.amount,
@@ -127,13 +106,11 @@ export async function POST(request: NextRequest) {
       });
     });
 
-    // Hold payment in escrow after successful PayPal capture
     try {
       const platformFee = await calculatePlatformFee(payment.amount);
-      await holdInEscrow(payment.bookingId, payment.id, payment.amount, platformFee, payment.currency);
+      await holdInEscrow(payment.bookingId, payment.id, payment.amount, platformFee, 'KES');
     } catch (escrowError) {
       console.error('Escrow hold failed:', escrowError);
-      // Don't fail the capture — escrow is async/secondary
     }
 
     return successResponse({
@@ -149,9 +126,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Safely parse JSON string, returning empty object on failure.
- */
 function safeJsonParse(str: string | null | undefined): Record<string, unknown> {
   if (!str) return {};
   try {

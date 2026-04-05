@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { requireBusinessOwner } from '@/lib/auth';
+import { requireAuth, requireRole } from '@/lib/auth';
 import { triggerPayout } from '@/lib/payout';
 import { db } from '@/lib/db';
 import { successResponse, handleApiError } from '@/lib/api-utils';
@@ -19,7 +19,7 @@ const triggerPayoutSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireBusinessOwner();
+    const user = await requireRole('business_owner', 'admin');
     const body = await request.json();
     const { bookingId } = triggerPayoutSchema.parse(body);
 
@@ -34,12 +34,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Non-admin users must own the business
-    if (user.role !== 'ADMIN' && booking.business.ownerId !== user.id) {
-      return handleApiError(new Error('Forbidden'));
+    const normalizedRole = (user.role || '').toUpperCase();
+    if (normalizedRole !== 'ADMIN' && booking.business.ownerId !== user.userId) {
+      return handleApiError(new Error('You do not own this business'));
     }
 
     // Trigger payout (validates booking status, payment, idempotency internally)
-    const result = await triggerPayout(bookingId, user.id);
+    const result = await triggerPayout(bookingId, user.userId);
 
     return successResponse({
       payout: result.payout,

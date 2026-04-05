@@ -274,7 +274,7 @@ export async function releaseFromEscrow(
         title: 'Funds Released',
         message: `Payment for booking ${bookingId.slice(0, 8)} has been released to your wallet. Amount: ${escrowTx.currency} ${escrowTx.providerAmount.toFixed(2)}`,
         type: 'SYSTEM_ALERT',
-        data: JSON.stringify({
+        link: JSON.stringify({
           bookingId,
           amount: escrowTx.providerAmount,
           reason,
@@ -382,12 +382,6 @@ export async function refundFromEscrow(
         await tx.wallet.update({
           where: { id: wallet.id },
           data: { balance: { decrement: refundAmount } },
-        });
-      } else if (wallet.pendingBalance >= refundAmount) {
-        // Funds are in pending balance
-        await tx.wallet.update({
-          where: { id: wallet.id },
-          data: { pendingBalance: { decrement: refundAmount } },
         });
       } else if (wallet.balance >= refundAmount) {
         // Fallback to available balance
@@ -509,7 +503,7 @@ export async function getEscrowSummary(): Promise<EscrowSummary> {
 export async function calculatePlatformFee(amount: number): Promise<number> {
   const setting = await db.platformSetting.findFirst();
 
-  const feePercentage = setting?.platformFee ?? 15.0;
+  const feePercentage = setting ? parseFloat(setting.value) : 15.0;
 
   // Round to 2 decimal places
   return Math.round(amount * (feePercentage / 100) * 100) / 100;

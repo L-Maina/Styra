@@ -76,7 +76,7 @@ export async function POST(
           title: 'Service Completed',
           message: `Your ${booking.service?.name || 'service'} at ${booking.business.name} has been marked as completed. Please verify the service within 24 hours to release payment to the provider.`,
           type: 'VERIFICATION_UPDATE',
-          data: JSON.stringify({
+          link: JSON.stringify({
             bookingId: id,
             businessName: booking.business.name,
             serviceName: booking.service?.name,

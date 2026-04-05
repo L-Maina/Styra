@@ -27,11 +27,10 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { GlassCard, GlassBadge, GlassButton, GlassInput } from '@/components/ui/custom/glass-components';
 import {
   Accordion,
   AccordionContent,
@@ -83,18 +82,18 @@ interface ApiCategory {
 // ─── Method Colors ────────────────────────────────────────────────────────────
 
 const METHOD_COLORS: Record<HttpMethod, { bg: string; text: string; border: string }> = {
-  GET: { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30' },
-  POST: { bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30' },
-  PUT: { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30' },
-  PATCH: { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30' },
-  DELETE: { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/30' },
+  GET: { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/30' },
+  POST: { bg: 'bg-blue-500/15', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/30' },
+  PUT: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/30' },
+  PATCH: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/30' },
+  DELETE: { bg: 'bg-red-500/15', text: 'text-red-600 dark:text-red-400', border: 'border-red-500/30' },
 };
 
-const AUTH_COLORS: Record<AuthLevel, string> = {
-  Public: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-  Auth: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-  'Business Owner': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-  Admin: 'bg-red-500/20 text-red-300 border-red-500/30',
+const AUTH_COLORS: Record<AuthLevel, { bg: string; text: string; border: string }> = {
+  Public: { bg: 'bg-muted/50', text: 'text-muted-foreground', border: 'border-border' },
+  Auth: { bg: 'bg-purple-500/15 dark:bg-purple-500/20', text: 'text-purple-600 dark:text-purple-300', border: 'border-purple-500/30' },
+  'Business Owner': { bg: 'bg-cyan-500/15 dark:bg-cyan-500/20', text: 'text-cyan-600 dark:text-cyan-300', border: 'border-cyan-500/30' },
+  Admin: { bg: 'bg-red-500/15 dark:bg-red-500/20', text: 'text-red-600 dark:text-red-300', border: 'border-red-500/30' },
 };
 
 // ─── API Data ─────────────────────────────────────────────────────────────────
@@ -1674,18 +1673,18 @@ function CodeBlock({ code, title }: { code: string; title?: string }) {
   }, [code]);
 
   return (
-    <div className="rounded-lg border border-slate-700/50 overflow-hidden bg-slate-900/80">
+    <div className="rounded-xl border border-border overflow-hidden bg-zinc-950 dark:bg-slate-900/90">
       {title && (
-        <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/50 bg-slate-800/60">
-          <span className="text-xs font-medium text-slate-400">{title}</span>
+        <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 dark:border-slate-700/50 bg-zinc-900 dark:bg-slate-800/60">
+          <span className="text-xs font-medium text-zinc-400 dark:text-slate-400">{title}</span>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-slate-400 hover:text-zinc-200 dark:hover:text-slate-200 transition-colors"
           >
             {copied ? (
               <>
-                <Check className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Copied</span>
+                <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
+                <span className="text-emerald-500 dark:text-emerald-400">Copied</span>
               </>
             ) : (
               <>
@@ -1697,7 +1696,7 @@ function CodeBlock({ code, title }: { code: string; title?: string }) {
         </div>
       )}
       <pre className="p-4 overflow-x-auto text-[13px] leading-relaxed">
-        <code className="text-slate-300 font-mono">{code}</code>
+        <code className="text-zinc-300 dark:text-slate-300 font-mono">{code}</code>
       </pre>
     </div>
   );
@@ -1706,10 +1705,10 @@ function CodeBlock({ code, title }: { code: string; title?: string }) {
 // ─── Status Code Colors ──────────────────────────────────────────────────────
 
 function getStatusCodeColor(code: number): string {
-  if (code >= 200 && code < 300) return 'text-emerald-400 bg-emerald-500/10';
-  if (code >= 300 && code < 400) return 'text-blue-400 bg-blue-500/10';
-  if (code >= 400 && code < 500) return 'text-amber-400 bg-amber-500/10';
-  return 'text-red-400 bg-red-500/10';
+  if (code >= 200 && code < 300) return 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10';
+  if (code >= 300 && code < 400) return 'text-blue-600 dark:text-blue-400 bg-blue-500/10';
+  if (code >= 400 && code < 500) return 'text-amber-600 dark:text-amber-400 bg-amber-500/10';
+  return 'text-red-600 dark:text-red-400 bg-red-500/10';
 }
 
 // ─── Endpoint Card ───────────────────────────────────────────────────────────
@@ -1723,7 +1722,7 @@ function EndpointCard({ endpoint }: { endpoint: ApiEndpoint }) {
   if (endpoint.requestBody) {
     accordionItems.push(
       <AccordionItem key="request" value="request">
-        <AccordionTrigger className="text-sm text-slate-300 hover:text-white py-3">
+        <AccordionTrigger className="text-sm text-foreground hover:text-foreground py-3">
           Request Body
         </AccordionTrigger>
         <AccordionContent>
@@ -1736,35 +1735,35 @@ function EndpointCard({ endpoint }: { endpoint: ApiEndpoint }) {
   if (endpoint.queryParameters && endpoint.queryParameters.length > 0) {
     accordionItems.push(
       <AccordionItem key="query" value="query">
-        <AccordionTrigger className="text-sm text-slate-300 hover:text-white py-3">
+        <AccordionTrigger className="text-sm text-foreground hover:text-foreground py-3">
           Query Parameters
         </AccordionTrigger>
         <AccordionContent>
-          <div className="rounded-lg border border-slate-700/50 overflow-hidden">
+          <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-700/50 bg-slate-800/40">
-                  <th className="text-left px-4 py-2.5 text-slate-400 font-medium">Name</th>
-                  <th className="text-left px-4 py-2.5 text-slate-400 font-medium">Type</th>
-                  <th className="text-left px-4 py-2.5 text-slate-400 font-medium">Required</th>
-                  <th className="text-left px-4 py-2.5 text-slate-400 font-medium hidden sm:table-cell">Description</th>
+                <tr className="border-b border-border bg-muted/40">
+                  <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Name</th>
+                  <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Type</th>
+                  <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Required</th>
+                  <th className="text-left px-4 py-2.5 text-muted-foreground font-medium hidden sm:table-cell">Description</th>
                 </tr>
               </thead>
               <tbody>
                 {endpoint.queryParameters.map((param) => (
-                  <tr key={param.name} className="border-b border-slate-700/30 last:border-0">
+                  <tr key={param.name} className="border-b border-border/50 last:border-0">
                     <td className="px-4 py-2.5">
-                      <code className="text-xs bg-slate-800 px-1.5 py-0.5 rounded text-purple-300">{param.name}</code>
+                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-purple-600 dark:text-purple-300">{param.name}</code>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-400 text-xs">{param.type}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs">{param.type}</td>
                     <td className="px-4 py-2.5">
                       {param.required ? (
-                        <span className="text-xs text-red-400 font-medium">Required</span>
+                        <span className="text-xs text-red-500 dark:text-red-400 font-medium">Required</span>
                       ) : (
-                        <span className="text-xs text-slate-500">Optional</span>
+                        <span className="text-xs text-muted-foreground">Optional</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-slate-400 text-xs hidden sm:table-cell">{param.description}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs hidden sm:table-cell">{param.description}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1777,7 +1776,7 @@ function EndpointCard({ endpoint }: { endpoint: ApiEndpoint }) {
 
   accordionItems.push(
     <AccordionItem key="response" value="response">
-      <AccordionTrigger className="text-sm text-slate-300 hover:text-white py-3">
+      <AccordionTrigger className="text-sm text-foreground hover:text-foreground py-3">
         Response Example
       </AccordionTrigger>
       <AccordionContent>
@@ -1788,7 +1787,7 @@ function EndpointCard({ endpoint }: { endpoint: ApiEndpoint }) {
 
   accordionItems.push(
     <AccordionItem key="status" value="status">
-      <AccordionTrigger className="text-sm text-slate-300 hover:text-white py-3">
+      <AccordionTrigger className="text-sm text-foreground hover:text-foreground py-3">
         Status Codes
       </AccordionTrigger>
       <AccordionContent>
@@ -1798,7 +1797,7 @@ function EndpointCard({ endpoint }: { endpoint: ApiEndpoint }) {
               <span className={`inline-flex items-center justify-center w-14 h-6 rounded-md text-xs font-mono font-bold ${getStatusCodeColor(sc.code)}`}>
                 {sc.code}
               </span>
-              <span className="text-slate-400">{sc.description}</span>
+              <span className="text-muted-foreground">{sc.description}</span>
             </div>
           ))}
         </div>
@@ -1807,8 +1806,8 @@ function EndpointCard({ endpoint }: { endpoint: ApiEndpoint }) {
   );
 
   return (
-    <Card className="border-slate-700/50 bg-slate-900/40 backdrop-blur-sm hover:border-slate-600/50 transition-colors">
-      <CardHeader className="pb-3">
+    <GlassCard variant="bordered" hover={false} className="!p-0 overflow-hidden">
+      <div className="p-6 pb-3">
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span
@@ -1816,23 +1815,23 @@ function EndpointCard({ endpoint }: { endpoint: ApiEndpoint }) {
             >
               {endpoint.method}
             </span>
-            <code className="text-sm text-slate-200 font-mono break-all">{endpoint.path}</code>
+            <code className="text-sm text-foreground font-mono break-all">{endpoint.path}</code>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${authColor}`}>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${authColor.bg} ${authColor.text} ${authColor.border}`}>
               <Shield className="h-3 w-3 mr-1" />
               {endpoint.auth}
             </span>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <p className="text-sm text-slate-400 leading-relaxed mb-4">{endpoint.description}</p>
+      </div>
+      <div className="px-6 pb-6 pt-0">
+        <p className="text-sm text-muted-foreground leading-relaxed mb-4">{endpoint.description}</p>
         <Accordion type="multiple" defaultValue={[]} className="w-full">
           {accordionItems}
         </Accordion>
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   );
 }
 
@@ -1854,13 +1853,13 @@ function SidebarCategory({
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm transition-all ${
         isActive
-          ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
-          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+          ? 'bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent'
       }`}
     >
-      <span className={isActive ? 'text-purple-400' : 'text-slate-500'}>{category.icon}</span>
+      <span className={isActive ? 'text-purple-500 dark:text-purple-400' : 'text-muted-foreground/60'}>{category.icon}</span>
       <span className="flex-1 truncate font-medium">{category.name}</span>
-      <span className={`text-xs tabular-nums ${isActive ? 'text-purple-400/70' : 'text-slate-600'}`}>
+      <span className={`text-xs tabular-nums ${isActive ? 'text-purple-500/70 dark:text-purple-400/70' : 'text-muted-foreground/40'}`}>
         {endpointCount}
       </span>
     </button>
@@ -1920,43 +1919,43 @@ export function ApiDocumentation({ onBack }: ApiDocumentationProps) {
   }, [activeCategoryData, filteredCategories]);
 
   const METHOD_FILTERS: { value: HttpMethod | 'ALL'; label: string; color: string }[] = [
-    { value: 'ALL', label: 'All', color: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
-    { value: 'GET', label: 'GET', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
-    { value: 'POST', label: 'POST', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-    { value: 'PUT', label: 'PUT', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-    { value: 'PATCH', label: 'PATCH', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-    { value: 'DELETE', label: 'DELETE', color: 'bg-red-500/20 text-red-300 border-red-500/30' },
+    { value: 'ALL', label: 'All', color: 'bg-muted text-foreground border-border' },
+    { value: 'GET', label: 'GET', color: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30' },
+    { value: 'POST', label: 'POST', color: 'bg-blue-500/20 text-blue-600 dark:text-blue-300 border-blue-500/30' },
+    { value: 'PUT', label: 'PUT', color: 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/30' },
+    { value: 'PATCH', label: 'PATCH', color: 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/30' },
+    { value: 'DELETE', label: 'DELETE', color: 'bg-red-500/20 text-red-600 dark:text-red-300 border-red-500/30' },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-full flex flex-col bg-background text-foreground">
       {/* Decorative background effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/5 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/5 dark:bg-purple-600/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/5 dark:bg-cyan-600/5 rounded-full blur-3xl" />
       </div>
 
       {/* Header */}
-      <div className="sticky top-0 z-50 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl">
+      <div className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Button
+              <GlassButton
                 variant="ghost"
                 size="sm"
                 onClick={onBack}
-                className="text-slate-400 hover:text-white -ml-2"
+                className="text-muted-foreground hover:text-foreground -ml-2"
+                leftIcon={<ArrowLeft className="h-4 w-4" />}
               >
-                <ArrowLeft className="h-4 w-4 mr-1.5" />
                 Back
-              </Button>
-              <Separator orientation="vertical" className="h-6 bg-slate-700" />
+              </GlassButton>
+              <Separator orientation="vertical" className="h-6 bg-border" />
               <div>
                 <div className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-purple-400" />
-                  <h1 className="text-lg sm:text-xl font-bold text-white">API Documentation</h1>
+                  <BookOpen className="h-5 w-5 text-purple-500 dark:text-purple-400" />
+                  <h1 className="text-lg sm:text-xl font-bold text-foreground">API Documentation</h1>
                 </div>
-                <p className="text-xs text-slate-500 hidden sm:block">
+                <p className="text-xs text-muted-foreground hidden sm:block">
                   Styra Platform REST API Reference
                 </p>
               </div>
@@ -1965,24 +1964,24 @@ export function ApiDocumentation({ onBack }: ApiDocumentationProps) {
             {/* Search bar (desktop) */}
             <div className="hidden md:flex items-center gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search endpoints..."
-                  className="w-64 h-9 pl-9 bg-slate-900/60 border-slate-700/50 text-sm text-slate-200 placeholder:text-slate-600 focus:ring-purple-500/30 focus:border-purple-500/40"
+                  className="w-64 h-9 pl-9 bg-muted/50 border-border text-sm text-foreground placeholder:text-muted-foreground/60 focus:ring-purple-500/30 focus:border-purple-500/40"
                 />
               </div>
-              <Badge variant="outline" className="bg-purple-500/10 text-purple-300 border-purple-500/20 text-xs">
+              <GlassBadge variant="primary" className="text-xs">
                 {totalEndpoints} endpoints
-              </Badge>
+              </GlassBadge>
             </div>
 
             {/* Mobile menu toggle */}
             <Button
               variant="ghost"
               size="sm"
-              className="md:hidden text-slate-400 hover:text-white"
+              className="md:hidden text-muted-foreground hover:text-foreground"
               onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
             >
               {mobileSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -1992,30 +1991,30 @@ export function ApiDocumentation({ onBack }: ApiDocumentationProps) {
           {/* Mobile search */}
           <div className="md:hidden mt-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search endpoints..."
-                className="w-full h-9 pl-9 bg-slate-900/60 border-slate-700/50 text-sm text-slate-200 placeholder:text-slate-600 focus:ring-purple-500/30"
+                className="w-full h-9 pl-9 bg-muted/50 border-border text-sm text-foreground placeholder:text-muted-foreground/60 focus:ring-purple-500/30"
               />
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <Badge variant="outline" className="bg-purple-500/10 text-purple-300 border-purple-500/20 text-xs">
+              <GlassBadge variant="primary" className="text-xs">
                 {totalEndpoints} endpoints
-              </Badge>
+              </GlassBadge>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-screen-2xl mx-auto flex">
+      <div className="max-w-screen-2xl mx-auto flex flex-1 min-h-0">
         {/* Sidebar - Desktop */}
-        <aside className="hidden md:block w-64 lg:w-72 shrink-0 border-r border-slate-800/60">
+        <aside className="hidden md:block w-64 lg:w-72 shrink-0 border-r border-border">
           <div className="sticky top-[73px] h-[calc(100vh-73px)]">
             <ScrollArea className="h-full">
               <div className="p-4 space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 px-3 mb-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-3 mb-3">
                   Categories
                 </p>
                 {API_CATEGORIES.map((category) => {
@@ -2042,10 +2041,10 @@ export function ApiDocumentation({ onBack }: ApiDocumentationProps) {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setMobileSidebarOpen(false)}
             />
-            <div className="absolute top-[73px] left-0 w-72 h-[calc(100vh-73px)] bg-slate-950 border-r border-slate-800/60 shadow-2xl">
+            <div className="absolute top-[73px] left-0 w-72 h-[calc(100vh-73px)] bg-background border-r border-border shadow-2xl">
               <ScrollArea className="h-full">
                 <div className="p-4 space-y-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 px-3 mb-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-3 mb-3">
                     Categories
                   </p>
                   {API_CATEGORIES.map((category) => {
@@ -2067,25 +2066,25 @@ export function ApiDocumentation({ onBack }: ApiDocumentationProps) {
         )}
 
         {/* Main content */}
-        <main className="flex-1 min-w-0">
+        <main className="flex-1 min-w-0 overflow-y-auto">
           {activeCategoryData ? (
             <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
               {/* Category header */}
               <div className="mb-6">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-purple-500/15 border border-purple-500/20 text-purple-400">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-purple-500/15 border border-purple-500/20 text-purple-500 dark:text-purple-400">
                     {activeCategoryData.icon}
                   </div>
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white">{activeCategoryData.name}</h2>
-                    <p className="text-sm text-slate-500">{activeCategoryData.description}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground">{activeCategoryData.name}</h2>
+                    <p className="text-sm text-muted-foreground">{activeCategoryData.description}</p>
                   </div>
                 </div>
               </div>
 
               {/* Method filter */}
               <div className="flex flex-wrap items-center gap-2 mb-6">
-                <Filter className="h-4 w-4 text-slate-500" />
+                <Filter className="h-4 w-4 text-muted-foreground" />
                 {METHOD_FILTERS.map((filter) => (
                   <button
                     key={filter.value}
@@ -2093,7 +2092,7 @@ export function ApiDocumentation({ onBack }: ApiDocumentationProps) {
                     className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border transition-all ${
                       methodFilter === filter.value
                         ? filter.color
-                        : 'bg-slate-900/40 text-slate-500 border-slate-700/30 hover:text-slate-300'
+                        : 'bg-muted/40 text-muted-foreground border-border hover:text-foreground'
                     }`}
                   >
                     {filter.label}
@@ -2101,7 +2100,7 @@ export function ApiDocumentation({ onBack }: ApiDocumentationProps) {
                 ))}
               </div>
 
-              <Separator className="mb-6 bg-slate-800/60" />
+              <Separator className="mb-6 bg-border" />
 
               {/* Endpoints list */}
               {activeCategoryData.endpoints.length > 0 ? (
@@ -2112,27 +2111,27 @@ export function ApiDocumentation({ onBack }: ApiDocumentationProps) {
                 </div>
               ) : (
                 <div className="text-center py-16">
-                  <Search className="h-12 w-12 text-slate-700 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-400 mb-2">No endpoints found</h3>
-                  <p className="text-sm text-slate-500">
+                  <Search className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No endpoints found</h3>
+                  <p className="text-sm text-muted-foreground/60">
                     Try adjusting your search or filter criteria
                   </p>
                 </div>
               )}
 
               {/* Footer info */}
-              <div className="mt-12 pt-6 border-t border-slate-800/60">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 text-sm text-slate-500">
+              <div className="mt-12 pt-6 border-t border-border">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Hash className="h-4 w-4" />
-                    <span>Base URL: <code className="text-xs bg-slate-800 px-1.5 py-0.5 rounded text-purple-300">https://api.styra.app</code></span>
+                    <span>Base URL: <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-purple-600 dark:text-purple-300">https://api.styra.app</code></span>
                   </div>
                   <div className="flex items-center gap-2">
                     <ExternalLink className="h-4 w-4" />
-                    <span>API version: <code className="text-xs bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">v1</code></span>
+                    <span>API version: <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-cyan-600 dark:text-cyan-300">v1</code></span>
                   </div>
                 </div>
-                <p className="mt-3 text-xs text-slate-600">
+                <p className="mt-3 text-xs text-muted-foreground/60">
                   All endpoints return JSON. Authenticated requests require a session cookie (set on login). 
                   CSRF token required for POST/PUT/PATCH/DELETE requests. Rate limits apply to all endpoints.
                 </p>
@@ -2140,7 +2139,7 @@ export function ApiDocumentation({ onBack }: ApiDocumentationProps) {
             </div>
           ) : (
             <div className="flex items-center justify-center h-64">
-              <p className="text-slate-500">No category selected</p>
+              <p className="text-muted-foreground">No category selected</p>
             </div>
           )}
         </main>

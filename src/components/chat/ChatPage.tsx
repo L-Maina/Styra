@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -44,26 +44,36 @@ interface ChatPageProps {
   onNavigate?: (page: string) => void;
 }
 
-interface Message {
+// Types matching the API response
+interface ApiConversation {
   id: string;
-  senderId: string;
-  content: string;
-  timestamp: Date;
-  isRead: boolean;
-  type: 'text' | 'image' | 'file';
-  fileUrl?: string;
-  fileName?: string;
+  participant1: string;
+  participant2: string;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  unreadCount: number;
+  otherUser?: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  messages?: ApiMessage[];
 }
 
-interface Conversation {
+interface ApiMessage {
   id: string;
-  businessId: string;
-  businessName: string;
-  businessAvatar?: string;
-  lastMessage: string;
-  lastMessageTime: Date;
-  unreadCount: number;
-  messages: Message[];
+  conversationId: string;
+  senderId: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  sender?: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
 }
 
 // Emoji data
@@ -95,13 +105,16 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
   const isAuthenticated = !!user;
 
   // Conversations state
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [conversations, setConversations] = useState<ApiConversation[]>([]);
+  const [messages, setMessages] = useState<ApiMessage[]>([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch conversations from API
-  const fetchConversations = async () => {
-    setIsLoading(true);
+  // ─── Fetch conversations list ─────────────────────────────────
+  const fetchConversations = useCallback(async () => {
+    setIsLoadingConversations(true);
     setError(null);
     try {
       const res = await fetch('/api/conversations', {
@@ -119,31 +132,79 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversations');
     } finally {
-      setIsLoading(false);
+      setIsLoadingConversations(false);
     }
-  };
+  }, []);
 
+  // ─── Fetch messages for a specific conversation ───────────────
+  const fetchMessages = useCallback(async (conversationId: string) => {
+    setIsLoadingMessages(true);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}?limit=100`, {
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to load messages (${res.status})`);
+      }
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setMessages(json.data);
+      } else {
+        setMessages([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch messages:', err);
+      setMessages([]);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }, []);
+
+  // Initial conversations load
   useEffect(() => {
     if (isAuthenticated) {
       fetchConversations();
     } else {
-      setIsLoading(false);
+      setIsLoadingConversations(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchConversations]);
+
+  // ─── Load messages when conversation is selected ──────────────
+  useEffect(() => {
+    if (selectedConversation && isAuthenticated) {
+      fetchMessages(selectedConversation);
+    } else {
+      setMessages([]);
+    }
+  }, [selectedConversation, isAuthenticated, fetchMessages]);
+
+  // ─── Poll for new messages every 4 seconds ────────────────────
+  useEffect(() => {
+    if (!selectedConversation || !isAuthenticated) return;
+
+    const pollInterval = setInterval(() => {
+      fetchMessages(selectedConversation);
+      // Also refresh conversation list to update unread counts
+      fetchConversations();
+    }, 4000);
+
+    return () => clearInterval(pollInterval);
+  }, [selectedConversation, isAuthenticated, fetchMessages, fetchConversations]);
 
   const selectedConv = conversations.find((c) => c.id === selectedConversation);
 
   const filteredConversations = conversations.filter((c) =>
-    c.businessName.toLowerCase().includes(searchQuery.toLowerCase())
+    c.otherUser?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
-  }, [selectedConv?.messages]);
+  }, [messages.length]);
 
   // Call duration timer
   useEffect(() => {
@@ -156,7 +217,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
     return () => clearInterval(interval);
   }, [isCallActive, showCallModal]);
 
-  const handleSendMessage = (type: 'text' | 'image' | 'file' = 'text', fileData?: { url: string; name: string }) => {
+  // ─── Send message via API ─────────────────────────────────────
+  const handleSendMessage = async (type: 'text' | 'image' | 'file' = 'text', fileData?: { url: string; name: string }) => {
     // Require authentication to send messages
     if (!isAuthenticated) {
       setShowAuthPrompt(true);
@@ -166,58 +228,46 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
     if (!message.trim() && type === 'text' && !fileData) return;
     if (!selectedConversation) return;
 
-    const newMessage: Message = {
-      id: `m-${Date.now()}`,
-      senderId: 'user',
-      content: type === 'text' ? message : fileData?.name || '',
-      timestamp: new Date(),
-      isRead: true,
-      type,
-      fileUrl: fileData?.url,
-      fileName: fileData?.name,
-    };
+    const content = type === 'text' ? message.trim() : (fileData?.name || '');
+    if (!content) return;
 
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === selectedConversation
-          ? {
-              ...c,
-              messages: [...c.messages, newMessage],
-              lastMessage: type === 'text' ? message : `📎 ${fileData?.name}`,
-              lastMessageTime: new Date(),
-            }
-          : c
-      )
-    );
-
+    setIsSendingMessage(true);
     setMessage('');
     setShowEmojiPicker(false);
 
-    // Simulate reply
-    setTimeout(() => {
-      const reply: Message = {
-        id: `m-${Date.now()}-reply`,
-        senderId: selectedConv?.businessId || '',
-        content: 'Thanks for your message! We\'ll get back to you shortly.',
-        timestamp: new Date(),
-        isRead: false,
-        type: 'text',
-      };
+    try {
+      const res = await fetch(`/api/conversations/${selectedConversation}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ content }),
+      });
 
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === selectedConversation
-            ? {
-                ...c,
-                messages: [...c.messages, reply],
-                lastMessage: reply.content,
-                lastMessageTime: new Date(),
-                unreadCount: c.unreadCount + 1,
-              }
-            : c
-        )
-      );
-    }, 1500);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || `Failed to send message (${res.status})`);
+      }
+
+      // Immediately refresh messages and conversations
+      await Promise.all([
+        fetchMessages(selectedConversation),
+        fetchConversations(),
+      ]);
+
+      if (type === 'image') {
+        toast.success('Image sent!');
+      }
+    } catch (err) {
+      toast.error('Failed to send message', {
+        description: err instanceof Error ? err.message : 'Please try again',
+      });
+      // Restore message text on failure
+      if (type === 'text') {
+        setMessage(content);
+      }
+    } finally {
+      setIsSendingMessage(false);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,7 +281,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
       // Create a preview URL
       const url = URL.createObjectURL(file);
       handleSendMessage('image', { url, name: file.name });
-      toast.success('Image sent!');
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -266,7 +315,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatTime = (date: Date) => {
+  const formatTime = (dateInput: string | Date) => {
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / (1000 * 60));
@@ -326,7 +376,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
         {/* Conversations */}
         <div className="flex-1 overflow-y-auto">
           {/* Loading State */}
-          {isLoading && (
+          {isLoadingConversations && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mb-3" />
               <p className="text-sm text-muted-foreground">Loading conversations…</p>
@@ -334,7 +384,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
           )}
 
           {/* Error State */}
-          {!isLoading && error && (
+          {!isLoadingConversations && error && (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mx-auto mb-3">
                 <X className="h-6 w-6 text-red-500" />
@@ -348,7 +398,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
           )}
 
           {/* Empty State */}
-          {!isLoading && !error && filteredConversations.length === 0 && (
+          {!isLoadingConversations && !error && filteredConversations.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
                 <Send className="h-6 w-6 text-muted-foreground" />
@@ -361,7 +411,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
           )}
 
           {/* Conversation List */}
-          {!isLoading && !error && filteredConversations.length > 0 && filteredConversations.map((conversation, index) => (
+          {!isLoadingConversations && !error && filteredConversations.length > 0 && filteredConversations.map((conversation, index) => (
             <FadeIn key={conversation.id} delay={0.05 * index}>
               <button
                 onClick={() => setSelectedConversation(conversation.id)}
@@ -370,9 +420,17 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
                 }`}
               >
                 <div className="relative">
-                  <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-white font-bold">
-                    {conversation.businessName[0]}
-                  </div>
+                  {conversation.otherUser?.avatar ? (
+                    <img 
+                      src={conversation.otherUser.avatar} 
+                      alt={conversation.otherUser.name}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-white font-bold">
+                      {conversation.otherUser?.name?.[0] || '?'}
+                    </div>
+                  )}
                   {conversation.unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-white text-xs flex items-center justify-center">
                       {conversation.unreadCount}
@@ -381,13 +439,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold truncate">{conversation.businessName}</span>
+                    <span className="font-semibold truncate">{conversation.otherUser?.name || 'Unknown User'}</span>
                     <span className="text-xs text-muted-foreground">
-                      {formatTime(conversation.lastMessageTime)}
+                      {conversation.lastMessageAt ? formatTime(conversation.lastMessageAt) : ''}
                     </span>
                   </div>
                   <p className={`text-sm truncate ${conversation.unreadCount > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                    {conversation.lastMessage}
+                    {conversation.lastMessage || 'No messages yet'}
                   </p>
                 </div>
               </button>
@@ -409,11 +467,19 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-bold">
-                  {selectedConv.businessName[0]}
-                </div>
+                {selectedConv.otherUser?.avatar ? (
+                  <img 
+                    src={selectedConv.otherUser.avatar} 
+                    alt={selectedConv.otherUser.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-bold">
+                    {selectedConv.otherUser?.name?.[0] || '?'}
+                  </div>
+                )}
                 <div>
-                  <h2 className="font-semibold">{selectedConv.businessName}</h2>
+                  <h2 className="font-semibold">{selectedConv.otherUser?.name || 'Unknown User'}</h2>
                   <div className="flex items-center gap-1 text-sm text-green-600">
                     <div className="w-2 h-2 rounded-full bg-green-500" />
                     Online
@@ -483,66 +549,59 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {selectedConv.messages.map((msg, index) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`flex ${msg.senderId === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[75%] ${
-                      msg.type === 'image' 
-                        ? 'p-1' 
-                        : msg.type === 'file'
-                        ? 'p-2'
-                        : 'px-4 py-2'
-                    } rounded-2xl ${
-                      msg.senderId === 'user'
-                        ? 'gradient-bg text-white rounded-br-md'
-                        : 'bg-muted rounded-bl-md'
-                    }`}
+              {/* Loading Messages */}
+              {isLoadingMessages && messages.length === 0 && (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading messages...</span>
+                </div>
+              )}
+
+              {/* No Messages */}
+              {!isLoadingMessages && messages.length === 0 && (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-sm text-muted-foreground">No messages yet. Say hello!</p>
+                </div>
+              )}
+
+              {/* Message List */}
+              {messages.map((msg, index) => {
+                const isFromMe = msg.senderId === user?.id;
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0 }}
+                    className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}
                   >
-                    {msg.type === 'image' && msg.fileUrl ? (
-                      <div className="rounded-xl overflow-hidden">
-                        <img 
-                          src={msg.fileUrl} 
-                          alt="Shared image" 
-                          className="max-w-full max-h-64 object-cover"
-                        />
-                      </div>
-                    ) : msg.type === 'file' ? (
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${msg.senderId === 'user' ? 'bg-white/20' : 'bg-background'}`}>
-                          <FileText className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{msg.fileName}</p>
-                          <p className={`text-xs ${msg.senderId === 'user' ? 'text-white/70' : 'text-muted-foreground'}`}>File</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p>{msg.content}</p>
-                    )}
-                    <p
-                      className={`text-xs mt-1 flex items-center gap-1 ${
-                        msg.senderId === 'user' ? 'text-white/70 justify-end' : 'text-muted-foreground'
+                    <div
+                      className={`max-w-[75%] px-4 py-2 rounded-2xl ${
+                        isFromMe
+                          ? 'gradient-bg text-white rounded-br-md'
+                          : 'bg-muted rounded-bl-md'
                       }`}
                     >
-                      {formatTime(msg.timestamp)}
-                      {msg.senderId === 'user' && (
-                        <span className={cn(
-                          "ml-1 text-[10px] uppercase tracking-wide",
-                          msg.isRead ? "text-white/90" : "text-white/50"
-                        )}>
-                          {msg.isRead ? 'seen' : 'sent'}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
+                      <p>{msg.content}</p>
+                      <p
+                        className={`text-xs mt-1 flex items-center gap-1 ${
+                          isFromMe ? 'text-white/70 justify-end' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {formatTime(msg.createdAt)}
+                        {isFromMe && (
+                          <span className={cn(
+                            "ml-1 text-[10px] uppercase tracking-wide",
+                            msg.isRead ? "text-white/90" : "text-white/50"
+                          )}>
+                            {msg.isRead ? 'seen' : 'sent'}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </motion.div>
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
 
@@ -636,18 +695,23 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
                     type="text"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                     placeholder="Type a message..."
-                    className="w-full h-10 px-4 pr-12 rounded-full border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    disabled={isSendingMessage}
+                    className="w-full h-10 px-4 pr-12 rounded-full border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
                   />
                 </div>
                 <GlassButton
                   variant="primary"
                   size="icon"
                   onClick={() => handleSendMessage()}
-                  disabled={!message.trim()}
+                  disabled={!message.trim() || isSendingMessage}
                 >
-                  <Send className="h-5 w-5" />
+                  {isSendingMessage ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
                 </GlassButton>
               </div>
             </div>
@@ -686,10 +750,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
             >
               {/* Avatar */}
               <div className="w-24 h-24 rounded-full gradient-bg flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
-                {selectedConv?.businessName[0]}
+                {selectedConv?.otherUser?.name?.[0] || '?'}
               </div>
               
-              <h3 className="text-xl font-semibold mb-1">{selectedConv?.businessName}</h3>
+              <h3 className="text-xl font-semibold mb-1">{selectedConv?.otherUser?.name}</h3>
               <p className="text-muted-foreground mb-6">
                 {isCallActive 
                   ? formatCallDuration(callDuration)

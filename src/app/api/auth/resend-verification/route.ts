@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
     // Don't allow re-verification if already verified
     const fullUser = await db.user.findUnique({
       where: { id: user.id },
-      select: { emailVerified: true },
+      select: { isVerified: true },
     });
-    if (fullUser?.emailVerified) {
+    if (fullUser?.isVerified) {
       return successResponse({ message: 'Email is already verified' });
     }
 

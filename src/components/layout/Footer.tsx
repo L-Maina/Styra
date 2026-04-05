@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -87,6 +88,12 @@ export const Footer: React.FC<FooterProps> = ({
   onSetUseMyLocation,
 }) => {
   const currentYear = new Date().getFullYear();
+
+  /* ------ Auth state for role-based footer ------ */
+  const { user } = useAuthStore();
+  const isAdmin = user?.roles?.includes('ADMIN') ?? false;
+  const isBusinessOwner = user?.roles?.includes('BUSINESS_OWNER') ?? false;
+  const isProviderMode = user?.activeMode === 'PROVIDER';
 
   /* ------ Dynamic settings from API ------ */
   const [settings, setSettings] = useState<SiteSettings>(SETTINGS_DEFAULTS);
@@ -179,12 +186,22 @@ export const Footer: React.FC<FooterProps> = ({
       { label: 'Terms of Service', action: () => onNavigate?.('terms') },
       { label: 'Privacy Policy', action: () => onNavigate?.('privacy') },
     ],
-    partners: [
-      { label: 'For Business', action: () => onNavigate?.('onboarding') },
-      { label: 'Partner Dashboard', action: () => onNavigate?.('business-dashboard') },
-      { label: 'Advertise', action: () => onNavigate?.('advertise') },
-      { label: 'Developer API', action: () => onNavigate?.('api-docs') },
-    ],
+    partners: (
+      isAdmin
+        ? []
+        : isBusinessOwner && isProviderMode
+          ? [
+              { label: 'My Business Dashboard', action: () => onNavigate?.('business-dashboard') },
+              { label: 'Advertise', action: () => onNavigate?.('advertise') },
+              { label: 'Developer API', action: () => onNavigate?.('api-docs') },
+            ]
+          : [
+              { label: 'For Business', action: () => onNavigate?.('onboarding') },
+              { label: 'Partner Dashboard', action: () => onNavigate?.('business-dashboard') },
+              { label: 'Advertise', action: () => onNavigate?.('advertise') },
+              { label: 'Developer API', action: () => onNavigate?.('api-docs') },
+            ]
+    ) as typeof footerLinks.company,
   };
 
   const features = [
@@ -327,11 +344,13 @@ export const Footer: React.FC<FooterProps> = ({
                 <NavList items={footerLinks.support} />
               </div>
 
-              {/* Partners Links – hardcoded routes */}
-              <div>
-                <h4 className="font-semibold mb-4 text-foreground">Partners</h4>
-                <NavList items={footerLinks.partners} />
-              </div>
+              {/* Partners Links – role-based visibility */}
+              {footerLinks.partners.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-4 text-foreground">Partners</h4>
+                  <NavList items={footerLinks.partners} />
+                </div>
+              )}
             </div>
           </div>
         </div>

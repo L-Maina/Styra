@@ -1,17 +1,17 @@
 /**
  * Internal Wallet System for Providers
  *
- * - balance: Available for withdrawal (verified + not-disputed funds)
- * - pendingBalance: Funds from completed payments, not yet verified
- * - heldBalance: Funds held during active disputes
+ * - balance: Available provider funds (all in one balance)
  * - currency: Provider's default currency
  *
  * Flow:
- *   Payment PAID → providerAmount goes to pendingBalance
- *   Booking VERIFIED → pendingBalance → balance
+ *   Payment PAID → providerAmount goes to balance
+ *   Booking VERIFIED → (no-op, funds already in balance)
  *   Payout triggered → deduct from balance
  *   Refund → deduct from balance
  *   Dispute → deduct from balance (reversed on resolution)
+ *
+ * Escrow system tracks held funds separately in the Escrow table.
  *
  * All balance mutations use Prisma interactive transactions to ensure atomicity.
  * Negative balances are NEVER allowed — operations will fail with an error.
@@ -116,7 +116,7 @@ export async function creditPendingBalance(
 
     const updated = await tx.wallet.update({
       where: { id: wallet.id },
-      data: { pendingBalance: { increment: amount } },
+      data: { balance: { increment: amount } },
     });
 
     return { success: true, wallet: updated };
@@ -163,16 +163,9 @@ export async function releaseToBalance(
       };
     }
 
-    if (wallet.pendingBalance < amount) {
-      throw new Error(
-        `Insufficient pending balance. Required: ${amount}, Available: ${wallet.pendingBalance}`,
-      );
-    }
-
     const updated = await tx.wallet.update({
       where: { id: wallet.id },
       data: {
-        pendingBalance: { decrement: amount },
         balance: { increment: amount },
       },
     });
@@ -221,26 +214,16 @@ export async function holdForDispute(
       };
     }
 
-    // Try balance first, fall back to pendingBalance if balance insufficient
-    let deductFrom: 'balance' | 'pendingBalance' = 'balance';
-    let availableFunds = wallet.balance;
-
     if (wallet.balance < amount) {
-      deductFrom = 'pendingBalance';
-      availableFunds = wallet.pendingBalance;
-    }
-
-    if (availableFunds < amount) {
       throw new Error(
-        `Insufficient funds for dispute hold. Required: ${amount}, Available (balance): ${wallet.balance}, Available (pending): ${wallet.pendingBalance}`,
+        `Insufficient balance for dispute hold. Required: ${amount}, Available: ${wallet.balance}`,
       );
     }
 
     const updated = await tx.wallet.update({
       where: { id: wallet.id },
       data: {
-        [deductFrom]: { decrement: amount },
-        heldBalance: { increment: amount },
+        balance: { decrement: amount },
       },
     });
 
@@ -269,16 +252,9 @@ export async function releaseDisputeHold(
   const result = await db.$transaction(async (tx) => {
     const wallet = await ensureWallet(tx, userId);
 
-    if (wallet.heldBalance < amount) {
-      throw new Error(
-        `Insufficient held balance. Required: ${amount}, Available: ${wallet.heldBalance}`,
-      );
-    }
-
     const updated = await tx.wallet.update({
       where: { id: wallet.id },
       data: {
-        heldBalance: { decrement: amount },
         balance: { increment: amount },
       },
     });
@@ -406,8 +382,8 @@ export async function getWalletSummary(userId: string): Promise<WalletSummary> {
   return {
     wallet,
     totalEarnings: earningsResult._sum.amount || 0,
-    totalPending: wallet.pendingBalance,
-    totalHeld: wallet.heldBalance,
+    totalPending: 0,
+    totalHeld: 0,
     totalWithdrawn: withdrawnResult._sum.amount || 0,
   };
 }
@@ -420,27 +396,21 @@ export async function getPlatformWalletStats(): Promise<PlatformWalletStats> {
   const aggregateResult = await db.wallet.aggregate({
     _sum: {
       balance: true,
-      pendingBalance: true,
-      heldBalance: true,
     },
-    _count: { id: true },
+    _count: true,
   });
 
   const providersWithFunds = await db.wallet.count({
     where: {
-      OR: [
-        { balance: { gt: 0 } },
-        { pendingBalance: { gt: 0 } },
-        { heldBalance: { gt: 0 } },
-      ],
+      balance: { gt: 0 },
     },
   });
 
   return {
-    totalBalance: aggregateResult._sum.balance || 0,
-    totalPending: aggregateResult._sum.pendingBalance || 0,
-    totalHeld: aggregateResult._sum.heldBalance || 0,
-    activeWallets: aggregateResult._count.id || 0,
+    totalBalance: aggregateResult._sum?.balance || 0,
+    totalPending: 0,
+    totalHeld: 0,
+    activeWallets: aggregateResult._count || 0,
     totalProvidersWithFunds: providersWithFunds,
   };
 }

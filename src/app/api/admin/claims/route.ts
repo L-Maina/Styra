@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     const claim = await db.insuranceClaim.create({
       data: {
         claimNumber,
-        customerId,
+        userId: customerId || '',
         customerName,
         customerEmail,
         providerId,

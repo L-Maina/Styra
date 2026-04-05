@@ -58,15 +58,11 @@ export async function POST(request: NextRequest) {
       const conversationId = channel.replace('chat-', '');
       const conversation = await db.conversation.findUnique({
         where: { id: conversationId },
-        select: { customerId: true, businessId: true },
+        select: { participant1: true, participant2: true },
       });
       if (conversation) {
-        const business = await db.business.findUnique({
-          where: { id: conversation.businessId },
-          select: { ownerId: true },
-        });
-        authorized = conversation.customerId === user.id ||
-                      (business && business.ownerId === user.id) ||
+        authorized = conversation.participant1 === user.id ||
+                      conversation.participant2 === user.id ||
                       user.role === 'ADMIN';
       }
     } else if (isBusinessChannel) {

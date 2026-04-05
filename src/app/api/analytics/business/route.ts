@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Verify the authenticated user owns this business
     const business = await db.business.findUnique({
       where: { id: businessId },
-      select: { ownerId: true, name: true, slug: true },
+      select: { ownerId: true, name: true },
     });
 
     if (!business) {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       : {};
 
     // Page views for the business page
-    const businessSlug = business.slug;
+    const businessSlug = business.name.toLowerCase().replace(/\s+/g, '-');
     const pageViews = await db.analyticsEvent.count({
       where: {
         ...dateFilter,

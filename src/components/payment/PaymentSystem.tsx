@@ -41,6 +41,7 @@ import {
 import type { Service, Staff, Business, Booking } from '@/types';
 import api from '@/lib/api-client';
 import { useAuthStore } from '@/store';
+import { BrandLogo } from '@/components/ui/brand-logo';
 
 // ============================================
 // TYPES & INTERFACES
@@ -1517,7 +1518,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center mx-auto mb-3">
             <Receipt className="h-6 w-6 text-white" />
           </div>
-          <h3 className="font-semibold text-lg">Styra</h3>
+          <BrandLogo variant="wordmark" size={20} className="pointer-events-none" />
           <p className="text-sm text-muted-foreground">Payment Receipt</p>
         </div>
 

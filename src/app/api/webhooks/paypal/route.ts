@@ -223,7 +223,7 @@ async function handlePayPalCaptureCompleted(
   transactionId: string,
   eventId: string
 ): Promise<PayPalWebhookResult> {
-  const payment = await db.payment.findFirst({ where: { transactionId } });
+  const payment = await db.payment.findFirst({ where: { transactionRef: transactionId } });
 
   if (!payment) {
     return { success: true, unhandled: false, responseBody: { received: true, status: 'payment_not_found' } };
@@ -238,8 +238,8 @@ async function handlePayPalCaptureCompleted(
       where: { id: payment.id },
       data: {
         status: 'COMPLETED',
-        metadata: JSON.stringify({
-          ...(payment.metadata ? JSON.parse(payment.metadata) : {}),
+        description: JSON.stringify({
+          ...(payment.description ? JSON.parse(payment.description) : {}),
           paypalEventId: eventId,
         }),
       },
@@ -265,7 +265,7 @@ async function handlePayPalCaptureCompleted(
     const { holdInEscrow } = await import('@/lib/escrow');
     const { calculatePlatformFee } = await import('@/lib/escrow');
     const platformFee = await calculatePlatformFee(payment.amount);
-    await holdInEscrow(payment.bookingId, payment.id, payment.amount, platformFee, payment.currency);
+    await holdInEscrow(payment.bookingId, payment.id, payment.amount, platformFee, 'KES');
   } catch (escrowError) {
     console.error('[PayPal Webhook] Escrow hold failed:', escrowError);
     // Don't fail the webhook — escrow can be retried
@@ -283,7 +283,7 @@ async function handlePayPalCaptureFailed(
   eventId: string,
   eventType: string
 ): Promise<PayPalWebhookResult> {
-  const payment = await db.payment.findFirst({ where: { transactionId } });
+  const payment = await db.payment.findFirst({ where: { transactionRef: transactionId } });
 
   if (!payment) {
     return { success: true, unhandled: false, responseBody: { received: true, status: 'payment_not_found' } };
@@ -298,8 +298,8 @@ async function handlePayPalCaptureFailed(
       where: { id: payment.id },
       data: {
         status: 'FAILED',
-        metadata: JSON.stringify({
-          ...(payment.metadata ? JSON.parse(payment.metadata) : {}),
+        description: JSON.stringify({
+          ...(payment.description ? JSON.parse(payment.description) : {}),
           paypalEventId: eventId,
         }),
       },
@@ -317,7 +317,7 @@ async function handlePayPalCaptureFailed(
 
   // 🔔 ALERT: Payment failure via webhook
   alertPaymentFailed(payment.id, payment.amount, `PayPal ${eventType}`, {
-    currency: payment.currency,
+    currency: 'KES',
     userId: payment.userId,
     bookingId: payment.bookingId,
     provider: 'PAYPAL',
@@ -334,7 +334,7 @@ async function handlePayPalCaptureRefunded(
   transactionId: string,
   eventId: string
 ): Promise<PayPalWebhookResult> {
-  const payment = await db.payment.findFirst({ where: { transactionId } });
+  const payment = await db.payment.findFirst({ where: { transactionRef: transactionId } });
 
   if (!payment) {
     return { success: true, unhandled: false, responseBody: { received: true, status: 'payment_not_found' } };
@@ -349,8 +349,8 @@ async function handlePayPalCaptureRefunded(
       where: { id: payment.id },
       data: {
         status: 'REFUNDED',
-        metadata: JSON.stringify({
-          ...(payment.metadata ? JSON.parse(payment.metadata) : {}),
+        description: JSON.stringify({
+          ...(payment.description ? JSON.parse(payment.description) : {}),
           paypalEventId: eventId,
         }),
       },
@@ -368,7 +368,7 @@ async function handlePayPalCaptureRefunded(
 
   // 🔔 ALERT: Refund via webhook
   alertPaymentRefunded(payment.id, payment.amount, {
-    currency: payment.currency,
+    currency: 'KES',
     userId: payment.userId,
     bookingId: payment.bookingId,
     provider: 'PAYPAL',

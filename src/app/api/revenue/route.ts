@@ -104,21 +104,18 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    const settings = await db.platformSetting.upsert({
-      where: { id: 'default' },
-      update: {
-        ...(platformFee !== undefined && { platformFee }),
-      },
-      create: {
-        id: 'default',
-        platformFee: platformFee || 15.0,
-      },
+    await db.platformSetting.upsert({
+      where: { key: 'platformFee' },
+      update: { value: String(platformFee || 15.0) },
+      create: { key: 'platformFee', value: String(platformFee || 15.0) },
     });
+
+    const settings = await db.platformSetting.findFirst({ where: { key: 'platformFee' } });
 
     return successResponse({
       settings: {
-        platformFee: settings.platformFee,
-        updatedAt: settings.updatedAt,
+        platformFee: settings ? parseFloat(settings.value) : 15.0,
+        updatedAt: settings?.updatedAt,
       },
       message: 'Revenue settings updated successfully',
     });
@@ -167,9 +164,9 @@ async function getRevenueOverview(period: string) {
 
     const categoryMap = new Map<string, { revenue: number; transactions: number }>();
     for (const booking of completedBookings) {
-      const cat = booking.service.category;
+      const cat = booking.service?.category || 'Other';
       const current = categoryMap.get(cat) || { revenue: 0, transactions: 0 };
-      current.revenue += booking.totalAmount;
+      current.revenue += booking.totalPrice;
       current.transactions += 1;
       categoryMap.set(cat, current);
     }
@@ -266,18 +263,18 @@ async function getRevenueMetrics() {
         _sum: { amount: true, platformFee: true },
         _count: true,
       }),
-      db.platformSetting.findFirst({ select: { platformFee: true } }),
+      db.platformSetting.findFirst({ where: { key: 'platformFee' } }),
       db.premiumListing.count({ where: { status: 'ACTIVE' } }),
       db.payout.aggregate({
         where: { status: 'PENDING' },
-        _sum: { netAmount: true },
+        _sum: { amount: true },
         _count: true,
       }),
     ]);
 
     const totalRevenue = allTxn._sum.amount || 0;
     const totalTransactions = allTxn._count;
-    const commissionRate = settings?.platformFee || 15;
+    const commissionRate = settings ? parseFloat(settings.value) : 15;
 
     const metrics = {
       totalRevenue,
@@ -290,7 +287,7 @@ async function getRevenueMetrics() {
       annualRecurringRevenue: 0,
       activePremiumListings: premiumListings,
       pendingPayouts: payoutAgg._count,
-      totalPayoutsAmount: payoutAgg._sum.netAmount || 0,
+      totalPayoutsAmount: payoutAgg._sum?.amount || 0,
       escrowBalance: 0,
     };
 
@@ -339,12 +336,12 @@ async function getRevenueBreakdown(period: string, startDate: string | null, end
     const catMap = new Map<string, { amount: number; transactions: number }>();
     let totalCatRevenue = 0;
     for (const b of completedBookings) {
-      const cat = b.service.category;
+      const cat = b.service?.category || 'Other';
       const cur = catMap.get(cat) || { amount: 0, transactions: 0 };
-      cur.amount += b.totalAmount;
+      cur.amount += b.totalPrice;
       cur.transactions += 1;
       catMap.set(cat, cur);
-      totalCatRevenue += b.totalAmount;
+      totalCatRevenue += b.totalPrice;
     }
     const byCategory = Array.from(catMap.entries())
       .map(([category, data]) => ({
@@ -356,7 +353,7 @@ async function getRevenueBreakdown(period: string, startDate: string | null, end
       .sort((a, b) => b.amount - a.amount);
 
     const paymentsByMethod = await db.payment.groupBy({
-      by: ['paymentMethod'],
+      by: ['method'],
       where: { createdAt: { gte: start, lte: end }, status: 'COMPLETED' },
       _sum: { amount: true },
       _count: true,
@@ -364,10 +361,10 @@ async function getRevenueBreakdown(period: string, startDate: string | null, end
     const totalPaymentRevenue = paymentsByMethod.reduce((s, p) => s + (p._sum.amount || 0), 0);
     const byPaymentMethod: Record<string, { amount: number; transactions: number; percentage: number }> = {};
     for (const p of paymentsByMethod) {
-      const key = p.paymentMethod.toLowerCase();
+      const key = p.method.toLowerCase();
       byPaymentMethod[key] = {
         amount: p._sum.amount || 0,
-        transactions: p._count,
+        transactions: p._count as number,
         percentage: totalPaymentRevenue > 0 ? Math.round(((p._sum.amount || 0) / totalPaymentRevenue) * 1000) / 10 : 0,
       };
     }
@@ -397,7 +394,7 @@ async function getBusinessRevenue(businessId: string | null) {
     const [business, txnAgg, payouts, recentTxns, premiumListings] = await Promise.all([
       db.business.findUnique({
         where: { id: businessId },
-        select: { totalEarnings: true, subscriptionPlan: true },
+        select: { id: true, name: true, category: true },
       }),
       db.platformTransaction.aggregate({
         where: { businessId, status: 'COMPLETED' },
@@ -421,8 +418,8 @@ async function getBusinessRevenue(businessId: string | null) {
 
     const completedPayouts = payouts.filter(p => p.status === 'COMPLETED');
     const pendingPayouts = payouts.filter(p => p.status === 'PENDING');
-    const totalPayoutsAmount = completedPayouts.reduce((s, p) => s + p.netAmount, 0);
-    const pendingPayoutsAmount = pendingPayouts.reduce((s, p) => s + p.netAmount, 0);
+    const totalPayoutsAmount = completedPayouts.reduce((s, p) => s + p.amount, 0);
+    const pendingPayoutsAmount = pendingPayouts.reduce((s, p) => s + p.amount, 0);
     const lastPayout = completedPayouts[0] || null;
 
     const recentTransactions = recentTxns.map(t => ({
@@ -439,7 +436,7 @@ async function getBusinessRevenue(businessId: string | null) {
 
     const businessRevenue = {
       businessId,
-      totalEarnings: business?.totalEarnings || 0,
+      totalEarnings: 0,
       pendingBalance: pendingPayoutsAmount,
       availableBalance: (txnAgg._sum.providerAmount || 0) - totalPayoutsAmount,
       totalCommissionPaid: txnAgg._sum.platformFee || 0,
@@ -448,7 +445,7 @@ async function getBusinessRevenue(businessId: string | null) {
         id: lastPayout.id,
         amount: lastPayout.amount,
         status: lastPayout.status,
-        completedAt: lastPayout.completedAt,
+        completedAt: lastPayout.createdAt,
       } : null,
       nextPayout: {
         estimatedAmount: pendingPayoutsAmount,
@@ -457,7 +454,7 @@ async function getBusinessRevenue(businessId: string | null) {
       premiumListings: {
         active: premiumListings.length,
         totalSpent: premiumListings.reduce((s, p) => s + p.price, 0),
-        currentPlan: activeListing?.plan || business?.subscriptionPlan || 'FREE',
+        currentPlan: activeListing?.plan || 'FREE',
         expiresAt: activeListing?.endDate || null,
       },
       recentTransactions,

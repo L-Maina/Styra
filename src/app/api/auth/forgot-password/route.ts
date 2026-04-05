@@ -32,12 +32,12 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
     await db.passwordReset.updateMany({
-      where: { email: validated.email, isUsed: false },
-      data: { isUsed: true },
+      where: { userId: user.id, used: false },
+      data: { used: true },
     });
 
     await db.passwordReset.create({
-      data: { email: validated.email, token, expiresAt },
+      data: { userId: user.id, token, expiresAt },
     });
 
     logPasswordResetRequested(validated.email, info.ipAddress, info.userAgent);

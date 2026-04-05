@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireBusinessOwner } from '@/lib/auth';
+import { requireAuth, requireRole } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/lib/api-utils';
 import { db } from '@/lib/db';
 import { triggerPayout, getPayoutsForBusiness } from '@/lib/payout';
@@ -11,11 +11,11 @@ import { getWallet } from '@/lib/wallet';
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await requireBusinessOwner();
+    const session = await requireRole('business_owner', 'admin');
 
     // Find the business owned by this user
     const business = await db.business.findFirst({
-      where: { ownerId: session.id, isActive: true },
+      where: { ownerId: session.userId, isActive: true },
       select: { id: true },
     });
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const [payouts, wallet] = await Promise.all([
       getPayoutsForBusiness(business.id),
-      getWallet(session.id).catch(() => null),
+      getWallet(session.userId).catch(() => null),
     ]);
 
     return successResponse({
@@ -33,15 +33,13 @@ export async function GET(request: NextRequest) {
       wallet: wallet
         ? {
             balance: wallet.balance,
-            pendingBalance: wallet.pendingBalance,
-            heldBalance: wallet.heldBalance,
             currency: wallet.currency,
           }
         : null,
     });
   } catch (error: unknown) {
     const err = error as Error;
-    return errorResponse(err.message, err.message.includes('Unauthorized') ? 401 : 500);
+    return errorResponse(err.message, err.message.includes('Unauthorized') || err.message.includes('Insufficient') ? 401 : 500);
   }
 }
 
@@ -52,7 +50,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireBusinessOwner();
+    // Block admin from directly requesting payouts — use /api/payouts/trigger instead
+    const session = await requireRole('business_owner');
 
     const body = await request.json();
     const { bookingId } = body as { bookingId?: string };
@@ -61,19 +60,16 @@ export async function POST(request: NextRequest) {
       return errorResponse('bookingId is required', 400);
     }
 
-    const result = await triggerPayout(bookingId, session.id);
+    const result = await triggerPayout(bookingId, session.userId);
 
     return successResponse({
       success: result.success,
       payout: {
         id: result.payout.id,
         amount: result.payout.amount,
-        netAmount: result.payout.netAmount,
-        currency: result.payout.currency,
         method: result.payout.method,
         status: result.payout.status,
-        referenceNumber: result.payout.referenceNumber,
-        estimatedArrival: result.payout.estimatedArrival,
+        providerRef: result.payout.providerRef,
       },
       message: result.message,
     });

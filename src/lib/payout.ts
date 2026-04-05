@@ -21,9 +21,11 @@
 import { db } from '@/lib/db';
 import { deductForPayout } from '@/lib/wallet';
 import { logTransaction } from '@/lib/transaction-log';
-import type { Payout, Booking, Payment, PayoutMethod } from '@prisma/client';
+import type { Payout, Booking, Payment } from '@prisma/client';
 
 // ── Types ──────────────────────────────────────────────────────────────────
+
+type PayoutMethod = 'MPESA' | 'PAYPAL' | 'STRIPE' | 'BANK_TRANSFER';
 
 export interface PayoutResult {
   success: boolean;
@@ -152,15 +154,8 @@ async function notifyProvider(
       data: {
         userId,
         title: 'Payout Processed',
-        message: `A payout of ${payout.currency} ${amount.toFixed(2)} has been processed via ${payout.method}. Reference: ${payout.referenceNumber || 'Pending'}. Expected arrival: ${payout.estimatedArrival?.toLocaleDateString() || 'Processing'}`,
+        message: `A payout of KES ${amount.toFixed(2)} has been processed via ${payout.method}. Reference: ${payout.providerRef || 'Pending'}.`,
         type: 'SYSTEM_ALERT',
-        data: JSON.stringify({
-          payoutId: payout.id,
-          amount,
-          method: payout.method,
-          status: payout.status,
-          reference: payout.referenceNumber,
-        }),
       },
     });
   } catch {
@@ -191,7 +186,7 @@ export async function triggerPayout(
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
     include: {
-      payment: true,
+      payments: { take: 1 },
       business: {
         select: {
           id: true,
@@ -212,63 +207,56 @@ export async function triggerPayout(
     throw new Error(`Booking ${bookingId.slice(0, 8)} is not VERIFIED (current: ${booking.status})`);
   }
 
-  if (!booking.payment) {
+  const payment = booking.payments[0];
+  if (!payment) {
     throw new Error(`No payment found for booking: ${bookingId}`);
   }
 
-  if (booking.payment.status !== 'COMPLETED') {
-    throw new Error(`Payment not COMPLETED for booking ${bookingId.slice(0, 8)} (current: ${booking.payment.status})`);
+  if (payment.status !== 'COMPLETED') {
+    throw new Error(`Payment not COMPLETED for booking ${bookingId.slice(0, 8)} (current: ${payment.status})`);
   }
 
   // 2. Check for existing payout (idempotency)
   const existingPayout = await db.payout.findFirst({
-    where: { metadata: { contains: bookingId } },
+    where: { description: { contains: bookingId } },
   });
 
-  // More thorough check: look for payout records linked to this booking
-  const existingPayoutByTxIds = await db.payout.findFirst({
-    where: {
-      transactionIds: { contains: bookingId },
-    },
-  });
-
-  if (existingPayout || existingPayoutByTxIds) {
+  if (existingPayout) {
     return {
       success: true,
-      payout: existingPayout || existingPayoutByTxIds!,
+      payout: existingPayout,
       message: 'Payout already exists for this booking',
     };
   }
 
   // 3. Calculate amounts
   const platformSetting = await db.platformSetting.findFirst();
-  const feePercentage = platformSetting?.platformFee ?? 15.0;
-  const grossAmount = booking.payment.amount;
+  const feePercentage = platformSetting ? parseFloat(platformSetting.value) : 15.0;
+  const grossAmount = payment.amount;
   const platformFee = Math.round(grossAmount * (feePercentage / 100) * 100) / 100;
   const providerAmount = grossAmount - platformFee;
 
   const providerUserId = booking.business.ownerId;
 
   // 4. Determine payout method
-  const payoutMethod = determinePayoutMethod(booking.payment.paymentMethod);
+  const payoutMethod = determinePayoutMethod(payment.method);
 
   // 5. Create payout record
   const payout = await db.payout.create({
     data: {
       businessId: booking.businessId,
+      userId: providerUserId,
       amount: grossAmount,
-      currency: booking.payment.currency,
       method: payoutMethod,
       status: 'PROCESSING',
-      transactionIds: JSON.stringify([booking.payment.id, bookingId]),
-      fees: platformFee,
-      netAmount: providerAmount,
-      estimatedArrival: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 business days
-      metadata: JSON.stringify({
+      transactionRef: `TXN-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      description: JSON.stringify({
         bookingId,
-        paymentId: booking.payment.id,
+        paymentId: payment.id,
         initiatedBy: initiatedBy || 'SYSTEM',
         bookingTotal: grossAmount,
+        platformFee,
+        netAmount: providerAmount,
       }),
     },
   });
@@ -282,7 +270,7 @@ export async function triggerPayout(
       where: { id: payout.id },
       data: {
         status: 'FAILED',
-        failureReason: walletError instanceof Error ? walletError.message : 'Insufficient wallet balance',
+        failedReason: walletError instanceof Error ? walletError.message : 'Insufficient wallet balance',
       },
     });
 
@@ -319,7 +307,7 @@ export async function triggerPayout(
       where: { id: payout.id },
       data: {
         status: 'FAILED',
-        failureReason: providerError instanceof Error ? providerError.message : 'Provider API call failed',
+        failedReason: providerError instanceof Error ? providerError.message : 'Provider API call failed',
       },
     });
 
@@ -332,10 +320,8 @@ export async function triggerPayout(
     where: { id: payout.id },
     data: {
       status: finalStatus,
-      referenceNumber: providerResult.reference,
-      processedAt: finalStatus === 'COMPLETED' ? new Date() : null,
-      completedAt: finalStatus === 'COMPLETED' ? new Date() : null,
-      failureReason: providerResult.success ? null : 'Provider returned failure',
+      providerRef: providerResult.reference,
+      failedReason: providerResult.success ? null : 'Provider returned failure',
     },
   });
 
@@ -366,8 +352,8 @@ export async function triggerPayout(
     success: providerResult.success,
     payout: updatedPayout,
     message: providerResult.success
-      ? `Payout of ${payout.currency} ${providerAmount.toFixed(2)} processed via ${payoutMethod}`
-      : `Payout failed: ${updatedPayout.failureReason}`,
+      ? `Payout of KES ${providerAmount.toFixed(2)} processed via ${payoutMethod}`
+      : `Payout failed: ${updatedPayout.failedReason}`,
   };
 }
 
@@ -457,17 +443,17 @@ export async function retryFailedPayout(payoutId: string): Promise<PayoutResult>
     throw new Error(`Payout ${payoutId.slice(0, 8)} is not FAILED (current: ${payout.status})`);
   }
 
-  // Extract bookingId from metadata
+  // Extract bookingId from description
   let bookingId: string | null = null;
   try {
-    const metadata = payout.metadata ? JSON.parse(payout.metadata) : {};
-    bookingId = metadata.bookingId || null;
+    const desc = payout.description ? JSON.parse(payout.description) : {};
+    bookingId = desc.bookingId || null;
   } catch {
-    // metadata parse failed
+    // description parse failed
   }
 
   if (!bookingId) {
-    throw new Error(`Cannot retry: no bookingId found in payout metadata for ${payoutId}`);
+    throw new Error(`Cannot retry: no bookingId found in payout description for ${payoutId}`);
   }
 
   // Reset payout status
@@ -475,8 +461,8 @@ export async function retryFailedPayout(payoutId: string): Promise<PayoutResult>
     where: { id: payoutId },
     data: {
       status: 'PENDING',
-      failureReason: null,
-      referenceNumber: null,
+      failedReason: null,
+      providerRef: null,
     },
   });
 
@@ -492,7 +478,7 @@ export async function retryFailedPayout(payoutId: string): Promise<PayoutResult>
  */
 export async function calculateProviderAmount(amount: number): Promise<number> {
   const setting = await db.platformSetting.findFirst();
-  const feePercentage = setting?.platformFee ?? 15.0;
+  const feePercentage = setting ? parseFloat(setting.value) : 15.0;
   const fee = Math.round(amount * (feePercentage / 100) * 100) / 100;
   return Math.round((amount - fee) * 100) / 100;
 }
@@ -501,10 +487,10 @@ export async function calculateProviderAmount(amount: number): Promise<number> {
  * Get aggregate payout summary for admin dashboards.
  */
 export async function getPayoutSummary(): Promise<PayoutSummary> {
-  const [paid, pending, failed, onHold, fees] = await Promise.all([
+  const [paid, pending, failed, onHold] = await Promise.all([
     db.payout.aggregate({
       where: { status: 'COMPLETED' },
-      _sum: { amount: true, fees: true },
+      _sum: { amount: true },
       _count: { id: true },
     }),
     db.payout.aggregate({
@@ -521,20 +507,22 @@ export async function getPayoutSummary(): Promise<PayoutSummary> {
       where: { status: 'ON_HOLD' },
       _sum: { amount: true },
     }),
-    db.payout.aggregate({
-      where: { status: 'COMPLETED' },
-      _sum: { fees: true },
-    }),
   ]);
 
+  // Estimate platform fees from the fee percentage setting
+  const feeSetting = await db.platformSetting.findFirst();
+  const feePercentage = feeSetting ? parseFloat(feeSetting.value) : 15.0;
+  const totalPaidAmount = paid._sum.amount || 0;
+  const totalPlatformFees = Math.round(totalPaidAmount * (feePercentage / 100) * 100) / 100;
+
   return {
-    totalPaid: paid._sum.amount || 0,
+    totalPaid: totalPaidAmount,
     totalPending: pending._sum.amount || 0,
     totalFailed: failed._sum.amount || 0,
     totalOnHold: onHold._sum.amount || 0,
-    totalPlatformFees: fees._sum.fees || 0,
-    paidCount: paid._count.id || 0,
-    pendingCount: pending._count.id || 0,
-    failedCount: failed._count.id || 0,
+    totalPlatformFees,
+    paidCount: paid._count.id,
+    pendingCount: pending._count.id,
+    failedCount: failed._count.id,
   };
 }

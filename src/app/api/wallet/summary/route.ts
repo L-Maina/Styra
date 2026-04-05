@@ -25,8 +25,6 @@ export async function GET(request: NextRequest) {
       wallet: {
         id: summary.wallet.id,
         balance: summary.wallet.balance,
-        pendingBalance: summary.wallet.pendingBalance,
-        heldBalance: summary.wallet.heldBalance,
         currency: summary.wallet.currency,
         updatedAt: summary.wallet.updatedAt,
       },

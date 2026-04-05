@@ -12,7 +12,12 @@
  */
 
 import { db } from '@/lib/db';
-import type { TransactionLog, TransactionLogType, TransactionLogStatus } from '@prisma/client';
+import type { TransactionLog } from '@prisma/client';
+
+// TransactionLog.type and TransactionLog.status are String fields, not enums.
+// Define type aliases for clarity.
+export type TransactionLogType = string;
+export type TransactionLogStatus = string;
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -20,8 +25,8 @@ export interface LogTransactionData {
   userId: string;
   bookingId?: string;
   amount: number;
-  type: TransactionLogType;
-  status?: TransactionLogStatus;
+  type: string;
+  status?: string;
   provider?: string;
   referenceId?: string;
   metadata?: Record<string, unknown>;

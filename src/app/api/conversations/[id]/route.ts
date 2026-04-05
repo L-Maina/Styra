@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
-import { sendMessageSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
 import { sanitizeResponse } from '@/lib/response-sanitizer';
 
@@ -26,10 +25,8 @@ export async function GET(
 
     // Verify user is part of conversation
     const isParticipant =
-      conversation.customerId === user.id ||
-      (await db.business.findFirst({
-        where: { id: conversation.businessId, ownerId: user.id },
-      }));
+      conversation.participant1 === user.userId ||
+      conversation.participant2 === user.userId;
 
     if (!isParticipant) {
       return errorResponse('You do not have access to this conversation', 403);
@@ -48,11 +45,11 @@ export async function GET(
       db.chatMessage.count({ where: { conversationId: id } }),
     ]);
 
-    // Mark messages as read
+    // Mark messages as read (messages not sent by current user)
     await db.chatMessage.updateMany({
       where: {
         conversationId: id,
-        receiverId: user.id,
+        senderId: { not: user.userId },
         isRead: false,
       },
       data: { isRead: true },
@@ -73,11 +70,18 @@ export async function POST(
     const user = await requireAuth();
     const { id } = await params;
     const body = await request.json();
-    const validated = sendMessageSchema.parse(body);
+
+    // Validate content
+    const content = typeof body.content === 'string' ? body.content.trim() : '';
+    if (!content) {
+      return errorResponse('Message content is required', 400);
+    }
+    if (content.length > 10000) {
+      return errorResponse('Message too long (max 10000 characters)', 400);
+    }
 
     const conversation = await db.conversation.findUnique({
       where: { id },
-      include: { business: true },
     });
 
     if (!conversation) {
@@ -85,20 +89,25 @@ export async function POST(
     }
 
     // Verify user is part of conversation
-    const isCustomer = conversation.customerId === user.id;
-    const isBusinessOwner = conversation.business.ownerId === user.id;
+    const isParticipant =
+      conversation.participant1 === user.userId ||
+      conversation.participant2 === user.userId;
 
-    if (!isCustomer && !isBusinessOwner) {
+    if (!isParticipant) {
       return errorResponse('You do not have access to this conversation', 403);
     }
+
+    // Determine receiver (the other participant)
+    const receiverId = conversation.participant1 === user.userId
+      ? conversation.participant2
+      : conversation.participant1;
 
     // Create message
     const message = await db.chatMessage.create({
       data: {
         conversationId: id,
-        senderId: user.id,
-        receiverId: validated.receiverId,
-        content: validated.content,
+        senderId: user.userId,
+        content,
       },
       include: {
         sender: { select: { id: true, name: true, avatar: true } },
@@ -109,21 +118,25 @@ export async function POST(
     await db.conversation.update({
       where: { id },
       data: {
-        lastMessage: validated.content,
+        lastMessage: content,
         lastMessageAt: new Date(),
       },
     });
 
     // Create notification for receiver
-    await db.notification.create({
-      data: {
-        userId: validated.receiverId,
-        title: 'New Message',
-        message: validated.content.substring(0, 100),
-        type: 'NEW_MESSAGE',
-        data: JSON.stringify({ conversationId: id, messageId: message.id }),
-      },
-    });
+    try {
+      await db.notification.create({
+        data: {
+          userId: receiverId,
+          title: 'New Message',
+          message: content.substring(0, 100),
+          type: 'NEW_MESSAGE',
+          link: `/chat?conversation=${id}`,
+        },
+      });
+    } catch {
+      // Non-blocking: notification creation failure should not prevent message sending
+    }
 
     return successResponse(sanitizeResponse(message), 201);
   } catch (error) {

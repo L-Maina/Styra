@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
             title: `New ${type.toLowerCase()} submission`,
             message: subject || message?.substring(0, 100) || 'New form submission received',
             type: 'SYSTEM_ALERT',
-            data: JSON.stringify({ submissionId: sub.id, type }),
+            link: JSON.stringify({ submissionId: sub.id, type }),
           },
         });
       }

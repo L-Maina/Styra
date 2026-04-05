@@ -1,6 +1,6 @@
 import { pusherServer, CHANNELS, EVENTS } from '@/lib/pusher';
 import { db } from '@/lib/db';
-import type { NotificationType } from '@prisma/client';
+type NotificationType = string;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -175,7 +175,7 @@ export async function sendAndPersistNotification(
       title: payload.title,
       message: payload.message,
       type: notificationType,
-      data: payload.data ? JSON.stringify(payload.data) : null,
+      link: payload.data ? JSON.stringify(payload.data) : null,
     },
   });
 

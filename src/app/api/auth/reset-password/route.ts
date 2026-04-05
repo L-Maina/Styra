@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       where: { token: validated.token },
     });
 
-    if (!tokenRecord || tokenRecord.isUsed || tokenRecord.expiresAt < new Date()) {
+    if (!tokenRecord || tokenRecord.used || tokenRecord.expiresAt < new Date()) {
       return errorResponse('Invalid or expired reset token', 400);
     }
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     // IMPORTANT: tokenVersion increment happens BEFORE any session clearing so that
     // even the current request's session is invalidated (defense-in-depth).
     const updatedUser = await db.user.update({
-      where: { email: tokenRecord.email },
+      where: { id: tokenRecord.userId },
       data: {
         password: hashedPassword,
         tokenVersion: { increment: 1 },
@@ -43,11 +43,11 @@ export async function POST(request: NextRequest) {
 
     await db.passwordReset.update({
       where: { id: tokenRecord.id },
-      data: { isUsed: true },
+      data: { used: true },
     });
 
     const info = extractRequestInfo(request);
-    logPasswordResetCompleted(tokenRecord.email, info.ipAddress, info.userAgent);
+    logPasswordResetCompleted(updatedUser.email, info.ipAddress, info.userAgent);
 
     // Audit log: PASSWORD_CHANGED tracks tokenVersion invalidation due to password change
     // This is distinct from PASSWORD_RESET_COMPLETED which tracks the flow completion.

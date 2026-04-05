@@ -124,7 +124,7 @@ export async function requireConversationAccess(conversationId: string): Promise
 
   const conversation = await db.conversation.findUnique({
     where: { id: conversationId },
-    select: { customerId: true, businessId: true },
+    select: { participant1: true, participant2: true },
   });
 
   if (!conversation) {
@@ -132,14 +132,7 @@ export async function requireConversationAccess(conversationId: string): Promise
     throw new Error('Forbidden');
   }
 
-  if (conversation.customerId === user.id) return user;
-
-  const business = await db.business.findUnique({
-    where: { id: conversation.businessId },
-    select: { ownerId: true },
-  });
-
-  if (business?.ownerId === user.id) return user;
+  if (conversation.participant1 === user.id || conversation.participant2 === user.id) return user;
 
   logOwnershipCheckFailed(user.id, user.email, 'conversation', conversationId, '', '', '');
   throw new Error('Forbidden');

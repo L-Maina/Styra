@@ -185,8 +185,7 @@ export async function GET() {
       actions: allTablesExist
         ? { message: 'Everything looks good!' }
         : {
-            message: 'Database tables are missing.',
-            fix: 'Send a POST request to /api/db-setup to create all tables automatically.',
+            message: 'Database tables are missing. Send a POST request to /api/db-setup to create all tables automatically.',
             url: '/api/db-setup',
           },
     };

@@ -307,7 +307,7 @@ async function handleChargeSuccess(
 
   // Look up payment by Paystack reference (stored in transactionId)
   const payment = await db.payment.findFirst({
-    where: { transactionId: reference },
+    where: { transactionRef: reference },
   });
 
   if (!payment) {
@@ -320,7 +320,7 @@ async function handleChargeSuccess(
   }
 
   // Build enriched metadata
-  const existingMetadata = payment.metadata ? JSON.parse(payment.metadata) : {};
+  const existingMetadata = payment.description ? JSON.parse(payment.description) : {};
   const updatedMetadata = {
     ...existingMetadata,
     paystackEventId: eventId,
@@ -338,7 +338,7 @@ async function handleChargeSuccess(
       where: { id: payment.id },
       data: {
         status: 'COMPLETED',
-        metadata: JSON.stringify(updatedMetadata),
+        description: JSON.stringify(updatedMetadata),
       },
     });
 
@@ -353,7 +353,7 @@ async function handleChargeSuccess(
       data: {
         userId: payment.userId,
         title: 'Payment Successful',
-        message: `Your payment of ${payment.currency} ${payment.amount} was successful`,
+        message: `Your payment of ${'KES'} ${payment.amount} was successful`,
         type: 'PAYMENT_SUCCESS',
       },
     });
@@ -406,7 +406,7 @@ async function handleChargeFailed(
 
   // Try to find payment by reference first, then by metadata paymentId
   let payment = await db.payment.findFirst({
-    where: { transactionId: reference },
+    where: { transactionRef: reference },
   });
 
   // Fallback: look up by metadata paymentId if reference lookup fails
@@ -428,7 +428,7 @@ async function handleChargeFailed(
   const failureMessage = `Paystack charge failed (${eventData.gateway_response || eventData.status || 'unknown reason'})`;
 
   // Build enriched metadata
-  const existingMetadata = payment.metadata ? JSON.parse(payment.metadata) : {};
+  const existingMetadata = payment.description ? JSON.parse(payment.description) : {};
   const updatedMetadata = {
     ...existingMetadata,
     paystackEventId: eventId,
@@ -443,7 +443,7 @@ async function handleChargeFailed(
       where: { id: payment.id },
       data: {
         status: 'FAILED',
-        metadata: JSON.stringify(updatedMetadata),
+        description: JSON.stringify(updatedMetadata),
       },
     });
 
@@ -452,7 +452,7 @@ async function handleChargeFailed(
       data: {
         userId: payment.userId,
         title: 'Payment Failed',
-        message: `Your payment of ${payment.currency} ${payment.amount} failed. Please try again.`,
+        message: `Your payment of ${'KES'} ${payment.amount} failed. Please try again.`,
         type: 'PAYMENT_FAILED',
       },
     });
@@ -460,7 +460,7 @@ async function handleChargeFailed(
 
   // 🔔 ALERT: Payment failure via webhook
   alertPaymentFailed(payment.id, payment.amount, failureMessage, {
-    currency: payment.currency,
+    currency: 'KES',
     userId: payment.userId,
     bookingId: payment.bookingId,
     provider: 'PAYSTACK',
@@ -492,7 +492,7 @@ async function handleTransferSuccess(
 
   // Try to find payment by reference (transfers may use the payment reference)
   let payment = await db.payment.findFirst({
-    where: { transactionId: reference },
+    where: { transactionRef: reference },
   });
 
   // Fallback: look up by metadata paymentId
@@ -504,7 +504,7 @@ async function handleTransferSuccess(
 
   if (payment) {
     // Build enriched metadata to record the transfer
-    const existingMetadata = payment.metadata ? JSON.parse(payment.metadata) : {};
+    const existingMetadata = payment.description ? JSON.parse(payment.description) : {};
     const updatedMetadata = {
       ...existingMetadata,
       paystackTransferId: eventId,
@@ -518,7 +518,7 @@ async function handleTransferSuccess(
     await db.payment.update({
       where: { id: payment.id },
       data: {
-        metadata: JSON.stringify(updatedMetadata),
+        description: JSON.stringify(updatedMetadata),
       },
     }).catch(() => {
       // Non-critical: just logging the transfer reference on the payment
@@ -550,7 +550,7 @@ async function handleTransferFailed(
 
   // Try to find payment by reference first, then by metadata paymentId
   let payment = await db.payment.findFirst({
-    where: { transactionId: reference },
+    where: { transactionRef: reference },
   });
 
   // Fallback: look up by metadata paymentId
@@ -567,7 +567,7 @@ async function handleTransferFailed(
   const failureReason = `Paystack transfer failed: ${eventData.reason || 'unknown reason'}`;
 
   // Build enriched metadata
-  const existingMetadata = payment.metadata ? JSON.parse(payment.metadata) : {};
+  const existingMetadata = payment.description ? JSON.parse(payment.description) : {};
   const updatedMetadata = {
     ...existingMetadata,
     paystackTransferId: eventId,
@@ -583,7 +583,7 @@ async function handleTransferFailed(
       where: { id: payment.id },
       data: {
         status: 'FAILED',
-        metadata: JSON.stringify(updatedMetadata),
+        description: JSON.stringify(updatedMetadata),
       },
     });
 
@@ -600,7 +600,7 @@ async function handleTransferFailed(
 
   // 🔔 ALERT: Transfer/dispute — critical payment event
   alertPaymentFailed(payment.id, payment.amount, failureReason, {
-    currency: payment.currency,
+    currency: 'KES',
     userId: payment.userId,
     bookingId: payment.bookingId,
     provider: 'PAYSTACK',

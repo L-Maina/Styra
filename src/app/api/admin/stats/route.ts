@@ -23,7 +23,7 @@ export async function GET() {
         _sum: { amount: true },
       }),
       db.business.count({
-        where: { verificationStatus: 'PENDING' },
+        where: { isVerified: false },
       }),
       db.booking.count({
         where: {

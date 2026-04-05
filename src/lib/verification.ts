@@ -81,7 +81,6 @@ async function sendNotification(
         title,
         message,
         type: 'SYSTEM_ALERT',
-        data: data ? JSON.stringify(data) : null,
       },
     });
   } catch {
@@ -112,7 +111,7 @@ export async function customerConfirm(
     where: { id: bookingId },
     include: {
       business: { select: { ownerId: true, name: true } },
-      payment: { select: { id: true, status: true } },
+      payments: { select: { id: true, status: true } },
     },
   });
 
@@ -296,7 +295,7 @@ export async function raiseDispute(
     where: { id: bookingId },
     include: {
       business: { select: { ownerId: true, name: true } },
-      payment: { select: { id: true, amount: true, status: true } },
+      payments: { select: { id: true, amount: true, status: true } },
       customer: { select: { name: true, email: true } },
     },
   });
@@ -335,22 +334,20 @@ export async function raiseDispute(
   }
 
   // 5. Get escrow amount for dispute
-  const providerAmount = booking.payment
-    ? booking.payment.amount - Math.round(booking.payment.amount * 0.15 * 100) / 100
-    : booking.totalAmount;
+  const firstPayment = booking.payments[0];
+  const providerAmount = firstPayment
+    ? firstPayment.amount - Math.round(firstPayment.amount * 0.15 * 100) / 100
+    : booking.totalPrice;
 
   // 6. Create dispute record
   const dispute = await db.dispute.create({
     data: {
       bookingId,
       customerId: userId,
-      customerName: booking.customer?.name || 'Unknown',
       providerId: booking.business.ownerId,
-      providerName: booking.business.name,
-      type: 'SERVICE',
       description: reason,
       status: 'OPEN',
-      amount: providerAmount,
+      reason,
     },
   });
 
@@ -442,6 +439,13 @@ export async function resolveDispute(
   // 1. Fetch dispute with booking
   const dispute = await db.dispute.findUnique({
     where: { id: disputeId },
+    include: {
+      booking: {
+        include: {
+          payments: { select: { amount: true } },
+        },
+      },
+    },
   });
 
   if (!dispute) {
@@ -463,7 +467,7 @@ export async function resolveDispute(
   const bookingId = dispute.bookingId;
   const providerId = dispute.providerId;
   const customerId = dispute.customerId;
-  const disputedAmount = dispute.amount;
+  const disputedAmount = dispute.booking?.payments[0]?.amount || dispute.booking?.totalPrice || 0;
 
   // 2. Process based on resolution type
   let message = 'Dispute resolution processed';
@@ -541,21 +545,8 @@ export async function resolveDispute(
         }).catch(() => {});
       }
 
-      // Deduct from provider's held balance (refund was from held)
-      try {
-        if (!providerId) break;
-        const wallet = await db.wallet.findUnique({ where: { userId: providerId } });
-        if (wallet && wallet.heldBalance >= disputedAmount) {
-          await db.wallet.update({
-            where: { userId: providerId },
-            data: {
-              heldBalance: { decrement: disputedAmount },
-            },
-          });
-        }
-      } catch {
-        // Non-blocking
-      }
+      // Provider balance was already deducted when dispute was raised via holdForDispute.
+      // The escrow refund handles returning funds to the customer.
 
       message = `Dispute resolved: Full refund of $${disputedAmount.toFixed(2)} to customer`;
 
@@ -641,7 +632,6 @@ export async function resolveDispute(
     where: { id: disputeId },
     data: {
       status: 'RESOLVED',
-      resolvedAt: new Date(),
       resolution: JSON.stringify({
         type: resolution,
         resolvedBy,

@@ -899,7 +899,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
 
       {/* Sidebar */}
       <aside className={cn(
-        'fixed top-0 left-0 z-50 h-full flex flex-col transition-all duration-300',
+        'fixed top-16 left-0 z-30 h-[calc(100vh-4rem)] flex flex-col transition-all duration-300',
         'bg-card/80 backdrop-blur-xl border-r border-white/10',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         'lg:translate-x-0',
@@ -913,7 +913,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
           {!sidebarCollapsed && (
             <div className="flex items-center gap-2">
               <BrandLogo variant="icon" size={28} className="pointer-events-none" />
-              <span className="font-bold text-lg gradient-text">Styra</span>
+              <BrandLogo variant="wordmark" size={20} className="pointer-events-none" />
             </div>
           )}
           {sidebarCollapsed && (
@@ -1010,7 +1010,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       sidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[260px]',
     )}>
       {/* Top bar */}
-      <div className="sticky top-0 z-30 h-16 flex items-center justify-between px-4 md:px-6 bg-background/80 backdrop-blur-xl border-b border-white/10">
+      <div className="sticky top-16 z-30 h-16 flex items-center justify-between px-4 md:px-6 bg-background/80 backdrop-blur-xl border-b border-white/10">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -1293,7 +1293,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             </div>
             <div className="p-4 rounded-xl bg-muted/30">
               <p className="text-xs text-muted-foreground">Listing Revenue</p>
-              <p className="text-lg font-bold">{fmtCurrency(overviewData?.listingRevenue || 0)}</p>
+              <p className="text-lg font-bold">{fmtCurrency(ov?.totalCommissions || 0)}</p>
               <p className="text-xs text-muted-foreground mt-1">Featured & premium</p>
             </div>
           </div>

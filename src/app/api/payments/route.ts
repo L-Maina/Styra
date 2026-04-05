@@ -5,6 +5,7 @@ import { createPaymentIntentSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { sanitizePaymentsForList } from '@/lib/response-sanitizer';
 import { env, isDev } from '@/lib/env';
+import { holdInEscrow, calculatePlatformFee } from '@/lib/escrow';
 
 // List payments
 export async function GET(request: NextRequest) {
@@ -145,6 +146,23 @@ export async function POST(request: NextRequest) {
           },
         });
       });
+
+      // Hold payment in escrow after successful payment (fire-and-forget)
+      try {
+        const platformFee = await calculatePlatformFee(result.amount);
+        await holdInEscrow(
+          validated.bookingId,
+          result.payment.id,
+          result.amount,
+          platformFee,
+          validated.currency || 'KES'
+        );
+      } catch (escrowError) {
+        // Escrow failure should not block the payment flow
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Payments] Escrow hold failed (non-blocking):', escrowError);
+        }
+      }
 
       responseData = {
         clientSecret: `${devTransactionRef}_secret_dev`,

@@ -29,7 +29,7 @@ async function sendReminderNotification(
         title,
         message,
         type: type as never,
-        data: JSON.stringify(data),
+        link: JSON.stringify(data),
       },
     });
     return true;
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       });
 
       for (const booking of upcomingBookings) {
-        const bookingDateTime = new Date(`${booking.date}T${booking.startTime}`);
+        const bookingDateTime = new Date(`${booking.date}T${booking.time}`);
         const msUntilAppointment = bookingDateTime.getTime() - now.getTime();
 
         // Only send for appointments within the next 24 hours
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
           await sendReminderNotification(
             booking.customerId,
             'Upcoming Appointment Reminder',
-            `Your ${serviceName} at ${booking.business.name} is coming up in ${timeDescription}. Date: ${booking.date} at ${booking.startTime}.`,
+            `Your ${serviceName} at ${booking.business.name} is coming up in ${timeDescription}. Date: ${booking.date} at ${booking.time}.`,
             'BOOKING_REMINDER',
             { bookingId: booking.id, businessName: booking.business.name },
           );
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
           await sendReminderNotification(
             booking.business.ownerId,
             'Upcoming Appointment',
-            `You have an upcoming ${serviceName} appointment in ${timeDescription}. Customer: ${booking.customer.name}. Date: ${booking.date} at ${booking.startTime}.`,
+            `You have an upcoming ${serviceName} appointment in ${timeDescription}. Customer: ${booking.customer.name}. Date: ${booking.date} at ${booking.time}.`,
             'BOOKING_REMINDER',
             { bookingId: booking.id, customerName: booking.customer.name },
           );
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
           where: {
             userId: booking.customerId,
             type: 'BOOKING_REMINDER' as never,
-            data: { contains: '"reminderType":"VERIFY"' },
+            link: { contains: '"reminderType":"VERIFY"' },
             createdAt: { gte: new Date(now.getTime() - 4 * 60 * 60 * 1000) }, // 4 hours
           },
         });

@@ -3,45 +3,69 @@ import { db } from '@/lib/db';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { requireAuth, requireAdmin } from '@/lib/auth';
 
-// GET /api/settings - Get platform settings (authenticated users only)
-export async function GET(request: NextRequest) {
+/** Default platform settings values */
+const DEFAULTS = {
+  platformFee: '15',
+  minWithdrawal: '50',
+  featuredListingPrice: '99',
+  premiumListingPrice: '49',
+  maintenanceMode: 'false',
+  emailNotifications: 'true',
+  smsNotifications: 'false',
+  autoApproveBusinesses: 'false',
+  requireIdVerification: 'true',
+};
+
+/** Parse a PlatformSetting's JSON value or return the default */
+function getSettingValue(settings: { key: string; value: string }[], key: string): string {
+  const entry = settings.find((s) => s.key === key);
+  return entry ? entry.value : DEFAULTS[key] ?? '';
+}
+
+function parseNumber(val: string, fallback: number): number {
+  const n = parseFloat(val);
+  return isNaN(n) ? fallback : n;
+}
+
+function parseBoolean(val: string, fallback: boolean): boolean {
+  return val === 'true' ? true : val === 'false' ? false : fallback;
+}
+
+function buildSettingsResponse(allSettings: { key: string; value: string }[]) {
+  return {
+    platformFee: parseNumber(getSettingValue(allSettings, 'platformFee'), 15),
+    minWithdrawal: parseNumber(getSettingValue(allSettings, 'minWithdrawal'), 50),
+    featuredListingPrice: parseNumber(getSettingValue(allSettings, 'featuredListingPrice'), 99),
+    premiumListingPrice: parseNumber(getSettingValue(allSettings, 'premiumListingPrice'), 49),
+    maintenanceMode: parseBoolean(getSettingValue(allSettings, 'maintenanceMode'), false),
+    emailNotifications: parseBoolean(getSettingValue(allSettings, 'emailNotifications'), true),
+    smsNotifications: parseBoolean(getSettingValue(allSettings, 'smsNotifications'), false),
+    autoApproveBusinesses: parseBoolean(getSettingValue(allSettings, 'autoApproveBusinesses'), false),
+    requireIdVerification: parseBoolean(getSettingValue(allSettings, 'requireIdVerification'), true),
+  };
+}
+
+const SETTING_KEYS = Object.keys(DEFAULTS);
+
+async function ensureSettings() {
+  const existing = await db.platformSetting.findMany();
+  const existingKeys = new Set(existing.map((s) => s.key));
+  const toCreate = SETTING_KEYS.filter((k) => !existingKeys.has(k));
+  if (toCreate.length > 0) {
+    await db.platformSetting.createMany({
+      data: toCreate.map((key) => ({ key, value: DEFAULTS[key] })),
+    });
+  }
+  return db.platformSetting.findMany();
+}
+
+// GET /api/settings
+export async function GET() {
   try {
-    // Require authentication — platform fee structure is sensitive info
     await requireAuth();
-
-    // Get or create platform settings
-    let settings = await db.platformSetting.findFirst();
-
-    if (!settings) {
-      // Create default settings if none exist
-      settings = await db.platformSetting.create({
-        data: {
-          platformFee: 15.0,
-          minWithdrawal: 50.0,
-          featuredListingPrice: 99.0,
-          premiumListingPrice: 49.0,
-          maintenanceMode: false,
-          emailNotifications: true,
-          smsNotifications: false,
-          autoApproveBusinesses: false,
-          requireIdVerification: true,
-        },
-      });
-    }
-
+    const allSettings = await ensureSettings();
     return successResponse({
-      settings: {
-        platformFee: settings.platformFee,
-        minWithdrawal: settings.minWithdrawal,
-        featuredListingPrice: settings.featuredListingPrice,
-        premiumListingPrice: settings.premiumListingPrice,
-        maintenanceMode: settings.maintenanceMode,
-        emailNotifications: settings.emailNotifications,
-        smsNotifications: settings.smsNotifications,
-        autoApproveBusinesses: settings.autoApproveBusinesses,
-        requireIdVerification: settings.requireIdVerification,
-      },
-      // Stripe publishable key for frontend integration
+      settings: buildSettingsResponse(allSettings),
       stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
     });
   } catch (error) {
@@ -49,57 +73,28 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT /api/settings - Update platform settings (admin only)
+// PUT /api/settings (admin only)
 export async function PUT(request: NextRequest) {
   try {
     await requireAdmin();
     const body = await request.json();
 
-    let settings = await db.platformSetting.findFirst();
+    await ensureSettings();
 
-    if (!settings) {
-      settings = await db.platformSetting.create({
-        data: {
-          platformFee: body.platformFee ?? 15.0,
-          minWithdrawal: body.minWithdrawal ?? 50.0,
-          featuredListingPrice: body.featuredListingPrice ?? 99.0,
-          premiumListingPrice: body.premiumListingPrice ?? 49.0,
-          maintenanceMode: body.maintenanceMode ?? false,
-          emailNotifications: body.emailNotifications ?? true,
-          smsNotifications: body.smsNotifications ?? false,
-          autoApproveBusinesses: body.autoApproveBusinesses ?? false,
-          requireIdVerification: body.requireIdVerification ?? true,
-        },
-      });
-    } else {
-      settings = await db.platformSetting.update({
-        where: { id: settings.id },
-        data: {
-          ...(body.platformFee !== undefined && { platformFee: body.platformFee }),
-          ...(body.minWithdrawal !== undefined && { minWithdrawal: body.minWithdrawal }),
-          ...(body.featuredListingPrice !== undefined && { featuredListingPrice: body.featuredListingPrice }),
-          ...(body.premiumListingPrice !== undefined && { premiumListingPrice: body.premiumListingPrice }),
-          ...(body.maintenanceMode !== undefined && { maintenanceMode: body.maintenanceMode }),
-          ...(body.emailNotifications !== undefined && { emailNotifications: body.emailNotifications }),
-          ...(body.smsNotifications !== undefined && { smsNotifications: body.smsNotifications }),
-          ...(body.autoApproveBusinesses !== undefined && { autoApproveBusinesses: body.autoApproveBusinesses }),
-          ...(body.requireIdVerification !== undefined && { requireIdVerification: body.requireIdVerification }),
-        },
-      });
+    for (const key of SETTING_KEYS) {
+      if (body[key] !== undefined) {
+        const val = String(body[key]);
+        await db.platformSetting.upsert({
+          where: { key },
+          update: { value: val },
+          create: { key, value: val },
+        });
+      }
     }
 
+    const allSettings = await db.platformSetting.findMany();
     return successResponse({
-      settings: {
-        platformFee: settings.platformFee,
-        minWithdrawal: settings.minWithdrawal,
-        featuredListingPrice: settings.featuredListingPrice,
-        premiumListingPrice: settings.premiumListingPrice,
-        maintenanceMode: settings.maintenanceMode,
-        emailNotifications: settings.emailNotifications,
-        smsNotifications: settings.smsNotifications,
-        autoApproveBusinesses: settings.autoApproveBusinesses,
-        requireIdVerification: settings.requireIdVerification,
-      },
+      settings: buildSettingsResponse(allSettings),
     });
   } catch (error) {
     return handleApiError(error);

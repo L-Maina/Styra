@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { successResponse, paginatedResponse, handleApiError } from '@/lib/api-utils';
-import type { DisputeStatus } from '@prisma/client';
+import type { DisputeStatus } from './_types';
 
 const VALID_STATUSES: DisputeStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED'];
 
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             date: true,
-            totalAmount: true,
+            totalPrice: true,
             status: true,
             service: { select: { name: true } },
           },

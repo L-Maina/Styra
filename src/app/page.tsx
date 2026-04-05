@@ -39,12 +39,7 @@ import { AdvertisePage } from '@/components/pages/AdvertisePage';
 import { InsuranceClaimsPage } from '@/components/pages/InsuranceClaimsPage';
 import { PressPage } from '@/components/pages/PressPage';
 import { CareersPage } from '@/components/pages/CareersPage';
-import { SecurityAuditPage } from '@/components/pages/SecurityAuditPage';
-import { Phase3AttackReport } from '@/components/pages/Phase3AttackReport';
-import { FinalReportPage } from '@/components/pages/FinalReportPage';
-import ProductionReadinessPage from '@/components/pages/ProductionReadinessPage';
-import { AdminAlertPanel } from '@/components/pages/AdminAlertPanel';
-import { WebhookDashboard } from '@/components/pages/WebhookDashboard';
+
 import { ApiDocumentation } from '@/components/docs/ApiDocumentation';
 import { GlassButton, GlassCard } from '@/components/ui/custom/glass-components';
 import { useAuthStore, useAdminStore } from '@/store';
@@ -813,8 +808,7 @@ export default function HomePage() {
         return (
           <SupportPage
             key="support"
-            onBack={() => navigate('home')}
-            onNavigate={navigate}
+            onNavigate={(page) => navigate(page)}
           />
         );
 
@@ -850,59 +844,6 @@ export default function HomePage() {
             key="insurance-claims"
             onBack={() => navigate('home')}
             onNavigate={navigate}
-          />
-        );
-
-      case 'security-audit':
-        return (
-          <SecurityAuditPage
-            key="security-audit"
-            onBack={() => navigate('home')}
-          />
-        );
-
-      case 'phase3-report':
-        return (
-          <Phase3AttackReport
-            key="phase3-report"
-            onBack={() => navigate('home')}
-          />
-        );
-
-      case 'final-report':
-        return (
-          <FinalReportPage
-            key="final-report"
-            onBack={() => navigate('home')}
-          />
-        );
-
-      case 'production-report':
-        return (
-          <ProductionReadinessPage
-            key="production-report"
-            onBack={() => navigate('home')}
-            onNavigate={navigate}
-          />
-        );
-
-      case 'admin-monitoring':
-        if (!isAdmin) {
-          return renderAccessDenied('Access denied. Admin privileges required.');
-        }
-        return (
-          <AdminAlertPanel
-            key="admin-monitoring"
-            onBack={() => navigate('home')}
-            onNavigate={navigate}
-          />
-        );
-
-      case 'webhook-monitoring':
-        return (
-          <WebhookDashboard
-            key="webhook-monitoring"
-            onBack={() => navigate('home')}
           />
         );
 

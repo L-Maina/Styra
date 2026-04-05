@@ -25,15 +25,15 @@ export interface BrandLoadingProps {
 const animations = {
   pulse: {
     animate: { opacity: [1, 0.5, 1] },
-    transition: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' },
+    transition: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' as const },
   },
   scale: {
     animate: { scale: [1, 0.92, 1] },
-    transition: { duration: 1.2, repeat: Infinity, ease: 'easeInOut' },
+    transition: { duration: 1.2, repeat: Infinity, ease: 'easeInOut' as const },
   },
   spin: {
     animate: { rotate: 360 },
-    transition: { duration: 2, repeat: Infinity, ease: 'linear' },
+    transition: { duration: 2, repeat: Infinity, ease: 'linear' as const },
   },
 };
 

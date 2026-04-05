@@ -195,7 +195,7 @@ async function processMpesaCallback(
   const { ResultDesc, CallbackMetadata } = stkCallback;
 
   const payment = await db.payment.findFirst({
-    where: { transactionId: checkoutRequestId },
+    where: { transactionRef: checkoutRequestId },
   });
 
   if (!payment) {
@@ -213,8 +213,8 @@ async function processMpesaCallback(
         where: { id: payment.id },
         data: {
           status: 'COMPLETED',
-          transactionId: mpesaReceiptNumber || checkoutRequestId,
-          metadata: JSON.stringify({
+          transactionRef: mpesaReceiptNumber || checkoutRequestId,
+          description: JSON.stringify({
             resultCode,
             receipt: mpesaReceiptNumber,
             mpesaEventId: eventId,
@@ -241,7 +241,7 @@ async function processMpesaCallback(
         where: { id: payment.id },
         data: {
           status: 'FAILED',
-          metadata: JSON.stringify({
+          description: JSON.stringify({
             resultCode,
             resultDesc: ResultDesc,
             mpesaEventId: eventId,
@@ -260,7 +260,7 @@ async function processMpesaCallback(
 
       // 🔔 ALERT: M-Pesa payment failure
       alertPaymentFailed(payment.id, payment.amount, String(ResultDesc || `M-Pesa result code ${resultCode}`), {
-        currency: payment.currency,
+        currency: 'KES',
         userId: payment.userId,
         bookingId: payment.bookingId,
         provider: 'MPESA',
@@ -272,7 +272,7 @@ async function processMpesaCallback(
   if (resultCode === 0) {
     try {
       const platformFee = await calculatePlatformFee(payment.amount);
-      await holdInEscrow(payment.bookingId, payment.id, payment.amount, platformFee, payment.currency);
+      await holdInEscrow(payment.bookingId, payment.id, payment.amount, platformFee, 'KES');
     } catch (escrowError) {
       console.error('Escrow hold failed:', escrowError);
       // Don't fail the webhook — escrow is async/secondary
