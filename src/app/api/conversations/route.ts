@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, blockRole } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
 import { sanitizeResponse } from '@/lib/response-sanitizer';
 
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 // Create or find conversation with another user
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const user = await blockRole('admin');
     const body = await request.json();
     const { otherUserId } = body;
 

@@ -1,17 +1,20 @@
 /**
  * Internal Wallet System for Providers
  *
- * - balance: Available provider funds (all in one balance)
+ * - balance: Provider funds (single balance field — no separate pending field)
  * - currency: Provider's default currency
  *
  * Flow:
- *   Payment PAID → providerAmount goes to balance
- *   Booking VERIFIED → (no-op, funds already in balance)
- *   Payout triggered → deduct from balance
- *   Refund → deduct from balance
- *   Dispute → deduct from balance (reversed on resolution)
+ *   Payment PAID → providerAmount goes to balance (via creditPendingBalance)
+ *   Booking VERIFIED → logical state change only (PlatformTransaction.escrowStatus)
+ *                       wallet balance is NOT touched again (funds already present)
+ *   Payout triggered → deduct from balance (via deductForPayout)
+ *   Refund → deduct from balance (handled by escrow refund flow)
+ *   Dispute → deduct from balance (holdForDispute), reversed on resolution
  *
- * Escrow system tracks held funds separately in the Escrow table.
+ * Escrow state tracking:
+ *   The PlatformTransaction model tracks escrow status (HELD → RELEASED → REFUNDED).
+ *   The wallet only stores the current balance; escrow state is external to the wallet.
  *
  * All balance mutations use Prisma interactive transactions to ensure atomicity.
  * Negative balances are NEVER allowed — operations will fail with an error.
@@ -77,11 +80,13 @@ export async function getWallet(userId: string): Promise<Wallet> {
 }
 
 /**
- * Credit pending balance after a payment is received.
- * Used when escrow holds funds and the provider's share goes to pending.
+ * Credit the provider's balance after a payment is received and escrow is held.
+ * This is the ONLY time the wallet balance is incremented for a booking payment.
+ * When the escrow is later released, the balance is NOT incremented again
+ * (see releaseToBalance which is a logical no-op for the wallet).
  *
  * @param userId  - The provider's user ID (business owner)
- * @param amount  - The provider's portion of the payment
+ * @param amount  - The provider's portion of the payment (total - platformFee)
  * @param bookingId - The associated booking (used for idempotency)
  */
 export async function creditPendingBalance(
@@ -129,8 +134,15 @@ export async function creditPendingBalance(
  * Release funds from pending balance to available balance.
  * Called after a booking is verified (service confirmed).
  *
+ * IMPORTANT: The Wallet schema has a single `balance` field (no separate
+ * pendingBalance). Funds are already credited to `balance` during the
+ * escrow hold via `creditPendingBalance`. This function therefore does NOT
+ * increment the balance again — it only serves as an idempotency guard
+ * and state-transition marker. The actual escrow state is tracked in
+ * PlatformTransaction.escrowStatus (HELD → RELEASED).
+ *
  * @param userId    - The provider's user ID
- * @param amount    - Amount to move from pending to available
+ * @param amount    - Amount being released (for logging / idempotency only)
  * @param bookingId - The associated booking (idempotency key)
  */
 export async function releaseToBalance(
@@ -163,14 +175,12 @@ export async function releaseToBalance(
       };
     }
 
-    const updated = await tx.wallet.update({
-      where: { id: wallet.id },
-      data: {
-        balance: { increment: amount },
-      },
-    });
+    // NOTE: We do NOT increment the balance here. The provider's share was
+    // already credited to wallet.balance by creditPendingBalance() when the
+    // escrow was initially held. Releasing the escrow is a logical state
+    // change tracked in PlatformTransaction.escrowStatus, not a wallet mutation.
 
-    return { success: true, wallet: updated };
+    return { success: true, wallet };
   });
 
   return result;

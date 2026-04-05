@@ -57,8 +57,8 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
       try {
         const res = await fetch('/api/jobs');
         if (!res.ok) throw new Error('Failed to load jobs');
-        const data = await res.json();
-        if (!cancelled) setJobs(data.jobs || []);
+        const json = await res.json();
+        if (!cancelled) setJobs(json.data?.jobs || []);
       } catch (err) {
         if (!cancelled) setFetchError(err instanceof Error ? err.message : 'Something went wrong');
       } finally {

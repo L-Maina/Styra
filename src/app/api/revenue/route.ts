@@ -149,7 +149,7 @@ async function getRevenueOverview(period: string) {
       _count: true,
     });
 
-    const commissionRevenue = txnByType.find(t => t.type === 'BOOKING_COMMISSION')?._sum.platformFee || 0;
+    const commissionRevenue = txnByType.find(t => t.type === 'SERVICE_COMPLETED')?._sum.platformFee || 0;
     const premiumListingRevenue = txnByType.find(t => t.type === 'PREMIUM_LISTING')?._sum.amount || 0;
     const marketingBoostRevenue = txnByType.find(t => t.type === 'MARKETING_BOOST')?._sum.amount || 0;
     const subscriptionRevenue = txnByType.find(t => t.type === 'SUBSCRIPTION')?._sum.amount || 0;
@@ -257,7 +257,7 @@ async function getTransactions(businessId: string | null, startDate: string | nu
 
 async function getRevenueMetrics() {
   try {
-    const [allTxn, settings, premiumListings, payoutAgg] = await Promise.all([
+    const [allTxn, settings, premiumListings, payoutAgg, escrowHeld] = await Promise.all([
       db.platformTransaction.aggregate({
         where: { status: 'COMPLETED' },
         _sum: { amount: true, platformFee: true },
@@ -270,11 +270,16 @@ async function getRevenueMetrics() {
         _sum: { amount: true },
         _count: true,
       }),
+      db.platformTransaction.aggregate({
+        where: { type: 'ESCROW_HELD', escrowStatus: 'HELD' },
+        _sum: { amount: true },
+      }),
     ]);
 
     const totalRevenue = allTxn._sum.amount || 0;
     const totalTransactions = allTxn._count;
     const commissionRate = settings ? parseFloat(settings.value) : 15;
+    const escrowBalance = escrowHeld._sum?.amount || 0;
 
     const metrics = {
       totalRevenue,
@@ -288,7 +293,7 @@ async function getRevenueMetrics() {
       activePremiumListings: premiumListings,
       pendingPayouts: payoutAgg._count,
       totalPayoutsAmount: payoutAgg._sum?.amount || 0,
-      escrowBalance: 0,
+      escrowBalance: escrowBalance,
     };
 
     return successResponse(metrics);

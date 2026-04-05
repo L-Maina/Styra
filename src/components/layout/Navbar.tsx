@@ -1269,15 +1269,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                           }}
                         />
                       )}
-                      <QuickAction
-                        icon={MessageSquare}
-                        label="Messages"
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          handleNavigate('chat');
-                        }}
-                        badge={hasUnreadMessages}
-                      />
+                      {!isAdmin && (
+                        <QuickAction
+                          icon={MessageSquare}
+                          label="Messages"
+                          onClick={() => {
+                            setIsProfileOpen(false);
+                            handleNavigate('chat');
+                          }}
+                          badge={hasUnreadMessages}
+                        />
+                      )}
                       <QuickAction
                         icon={Settings}
                         label="Settings"

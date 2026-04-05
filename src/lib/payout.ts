@@ -217,8 +217,9 @@ export async function triggerPayout(
   }
 
   // 2. Check for existing payout (idempotency)
+  // Use the JSON-encoded key format to avoid substring false matches
   const existingPayout = await db.payout.findFirst({
-    where: { description: { contains: bookingId } },
+    where: { description: { contains: `"bookingId":"${bookingId}"` } },
   });
 
   if (existingPayout) {
@@ -230,7 +231,7 @@ export async function triggerPayout(
   }
 
   // 3. Calculate amounts
-  const platformSetting = await db.platformSetting.findFirst();
+  const platformSetting = await db.platformSetting.findFirst({ where: { key: 'platformFee' } });
   const feePercentage = platformSetting ? parseFloat(platformSetting.value) : 15.0;
   const grossAmount = payment.amount;
   const platformFee = Math.round(grossAmount * (feePercentage / 100) * 100) / 100;
@@ -477,7 +478,7 @@ export async function retryFailedPayout(payoutId: string): Promise<PayoutResult>
  * @returns The provider's net amount (gross - platform fee)
  */
 export async function calculateProviderAmount(amount: number): Promise<number> {
-  const setting = await db.platformSetting.findFirst();
+  const setting = await db.platformSetting.findFirst({ where: { key: 'platformFee' } });
   const feePercentage = setting ? parseFloat(setting.value) : 15.0;
   const fee = Math.round(amount * (feePercentage / 100) * 100) / 100;
   return Math.round((amount - fee) * 100) / 100;
@@ -510,7 +511,7 @@ export async function getPayoutSummary(): Promise<PayoutSummary> {
   ]);
 
   // Estimate platform fees from the fee percentage setting
-  const feeSetting = await db.platformSetting.findFirst();
+  const feeSetting = await db.platformSetting.findFirst({ where: { key: 'platformFee' } });
   const feePercentage = feeSetting ? parseFloat(feeSetting.value) : 15.0;
   const totalPaidAmount = paid._sum.amount || 0;
   const totalPlatformFees = Math.round(totalPaidAmount * (feePercentage / 100) * 100) / 100;

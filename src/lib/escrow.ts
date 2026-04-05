@@ -501,7 +501,7 @@ export async function getEscrowSummary(): Promise<EscrowSummary> {
  * @returns The platform fee amount
  */
 export async function calculatePlatformFee(amount: number): Promise<number> {
-  const setting = await db.platformSetting.findFirst();
+  const setting = await db.platformSetting.findFirst({ where: { key: 'platformFee' } });
 
   const feePercentage = setting ? parseFloat(setting.value) : 15.0;
 

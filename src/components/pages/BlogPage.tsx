@@ -122,9 +122,9 @@ export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
     try {
       const res = await fetch('/api/articles');
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-      const data = await res.json();
+      const json = await res.json();
 
-      const mapped: BlogPost[] = (data.articles ?? []).map(
+      const mapped: BlogPost[] = (json.data?.articles ?? []).map(
         (a: Record<string, unknown>) => {
           const rawDate = (a.publishedAt ?? a.createdAt) as string;
           const date = rawDate

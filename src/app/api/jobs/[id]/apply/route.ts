@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { requireAuth, blockRole } from '@/lib/auth';
 
 // POST /api/jobs/[id]/apply - Submit a job application
 export async function POST(
@@ -8,6 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await blockRole('admin');
     const { id } = await params;
     const body = await request.json();
     const { name, email, phone, coverLetter, resume } = body;

@@ -11,7 +11,8 @@ import {
   Send, Globe, Newspaper, Flag, UserX, LifeBuoy, ClipboardCheck, Edit,
   Trash2, Filter, ShieldCheck, Unlock, Inbox, FileWarning, User, Tag,
   Menu, ChevronLeft, LayoutDashboard, Briefcase, Ticket, BookOpen, Gavel,
-  Megaphone, MessageCircle, Plus, ChevronRight, Save,
+  Megaphone, MessageCircle, Plus, ChevronRight, Save, Palette,
+  Webhook as WebhookIcon,
 } from 'lucide-react';
 import {
   GlassCard, GlassButton, GlassInput, GlassBadge, FadeIn, GlassModal, Skeleton,
@@ -27,7 +28,8 @@ import { toast } from 'sonner';
 // ============================================
 
 type SectionId = 'overview' | 'revenue' | 'users' | 'businesses' | 'bookings' |
-  'listings' | 'disputes-reports' | 'claims-support' | 'content' | 'advertisements' | 'settings' | 'faq' | 'careers' | 'team';
+  'listings' | 'disputes-reports' | 'claims-support' | 'content' | 'advertisements' | 'settings' | 'faq' | 'careers' | 'team' |
+  'brand-kit' | 'monitoring' | 'webhooks';
 
 interface AdminUser {
   id: string; email: string; name: string; phone?: string; role: string;
@@ -190,6 +192,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   }, [initialTab]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    cms: true, reports: true, settings: false,
+  });
+
+  const toggleGroup = (group: string) =>
+    setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
 
   // ---- Data states ----
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null);
@@ -207,6 +215,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   const [displayFaqs, setDisplayFaqs] = useState<any[]>([]);
   const [displayJobs, setDisplayJobs] = useState<any[]>([]);
   const [displayTeamMembers, setDisplayTeamMembers] = useState<any[]>([]);
+  const [displayBrandKit, setDisplayBrandKit] = useState<any>(null);
+  const [displayMonitoring, setDisplayMonitoring] = useState<any>(null);
+  const [displayWebhooks, setDisplayWebhooks] = useState<any>(null);
   const [settings, setSettings] = useState<PlatformSettings>({
     platformFee: 15, minWithdrawal: 50, maintenanceMode: false,
     emailNotifications: true, smsNotifications: false,
@@ -395,6 +406,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             api.request<Record<string, any>>('/team', { params: { admin: 'true' } }),
           ]);
           setDisplayTeamMembers(teamRes.data?.members || []);
+          break;
+        }
+        case 'brand-kit': {
+          const kitRes = await api.request<Record<string, any>>('/admin/brand-kit');
+          setDisplayBrandKit(kitRes.data?.brandKit || null);
+          break;
+        }
+        case 'monitoring': {
+          const [sysRes, errRes, alertRes] = await Promise.all([
+            api.request<Record<string, any>>('/admin/monitoring', { params: { type: 'system' } }),
+            api.request<Record<string, any>>('/admin/monitoring', { params: { type: 'errors' } }),
+            api.request<Record<string, any>>('/admin/monitoring', { params: { type: 'alerts' } }),
+          ]);
+          setDisplayMonitoring({ system: sysRes.data, errors: errRes.data, alerts: alertRes.data });
+          break;
+        }
+        case 'webhooks': {
+          const [statsRes, eventsRes] = await Promise.all([
+            api.request<Record<string, any>>('/admin/webhooks', { params: { type: 'stats' } }),
+            api.request<Record<string, any>>('/admin/webhooks', { params: { type: 'events' } }),
+          ]);
+          setDisplayWebhooks({ stats: statsRes.data, events: eventsRes.data });
           break;
         }
       }
@@ -828,35 +861,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   };
 
   // ---- Sidebar configuration ----
+  // Structured per spec: Dashboard, Users, Businesses, Bookings, Revenue, Subscriptions, CMS, Reports, Settings
 
   const sidebarGroups = [
     {
-      label: 'Analytics',
+      label: null as string | null,
       items: [
-        { id: 'overview' as SectionId, label: 'Overview', icon: LayoutDashboard },
+        { id: 'overview' as SectionId, label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'users' as SectionId, label: 'Users', icon: Users },
+        { id: 'businesses' as SectionId, label: 'Businesses', icon: Building2, count: overviewData?.pending.applications },
+        { id: 'bookings' as SectionId, label: 'Bookings', icon: Calendar },
         { id: 'revenue' as SectionId, label: 'Revenue', icon: DollarSign },
       ],
     },
     {
-      label: 'Management',
+      id: 'subscriptions' as string,
+      label: 'Subscriptions',
+      icon: Crown,
       items: [
-        { id: 'users' as SectionId, label: 'Users', icon: Users },
-        { id: 'businesses' as SectionId, label: 'Businesses', icon: Building2, count: overviewData?.pending.applications },
-        { id: 'bookings' as SectionId, label: 'Bookings', icon: Calendar },
-        { id: 'listings' as SectionId, label: 'Featured Listings', icon: Crown },
+        { id: 'listings' as SectionId, label: 'Premium Listings', icon: Crown, count: overviewData?.pending.listings },
+        { id: 'advertisements' as SectionId, label: 'Advertisements', icon: Megaphone, count: overviewData?.pending.ads },
       ],
     },
     {
-      label: 'Operations',
+      id: 'cms' as string,
+      label: 'CMS',
+      icon: BookOpen,
+      items: [
+        { id: 'content' as SectionId, label: 'Pages & Blog', icon: Newspaper },
+        { id: 'faq' as SectionId, label: 'FAQ', icon: MessageCircle },
+        { id: 'careers' as SectionId, label: 'Jobs', icon: Briefcase },
+        { id: 'team' as SectionId, label: 'Team', icon: User },
+        { id: 'brand-kit' as SectionId, label: 'Brand Kit', icon: Palette },
+      ],
+    },
+    {
+      id: 'reports' as string,
+      label: 'Reports',
+      icon: Flag,
       items: [
         { id: 'disputes-reports' as SectionId, label: 'Disputes & Reports', icon: Gavel, count: (overviewData?.pending.disputes || 0) + (overviewData?.pending.reports || 0) },
-        { id: 'claims-support' as SectionId, label: 'Claims & Support', icon: LifeBuoy, count: (overviewData?.pending.claims || 0) + (overviewData?.pending.tickets || 0) },
-        { id: 'content' as SectionId, label: 'Content', icon: BookOpen },
-        { id: 'advertisements' as SectionId, label: 'Advertisements', icon: Megaphone, count: overviewData?.pending.ads },
-        { id: 'faq' as SectionId, label: 'FAQ', icon: MessageCircle },
-        { id: 'careers' as SectionId, label: 'Careers', icon: Briefcase },
-        { id: 'team' as SectionId, label: 'Team', icon: Users },
-        { id: 'settings' as SectionId, label: 'Settings', icon: Settings },
+        { id: 'claims-support' as SectionId, label: 'Claims & Tickets', icon: LifeBuoy, count: (overviewData?.pending.claims || 0) + (overviewData?.pending.tickets || 0) },
+      ],
+    },
+    {
+      id: 'settings-group' as string,
+      label: 'Settings',
+      icon: Settings,
+      items: [
+        { id: 'settings' as SectionId, label: 'Platform Settings', icon: Settings },
+        { id: 'monitoring' as SectionId, label: 'Monitoring', icon: Activity },
+        { id: 'webhooks' as SectionId, label: 'Webhooks', icon: WebhookIcon },
       ],
     },
   ];
@@ -876,7 +931,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   }
 
   // ---- Section title helper ----
-  const sectionTitle = sidebarGroups.flatMap(g => g.items).find(i => i.id === activeSection)?.label || '';
+  const sectionTitle = sidebarGroups.flatMap(g => g.items).find((i: any) => i.id === activeSection)?.label || '';
 
   // ============================================
   // RENDER: SIDEBAR
@@ -936,50 +991,87 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         </div>
 
         {/* Nav groups */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
-          {sidebarGroups.map((group) => (
-            <div key={group.label}>
-              {!sidebarCollapsed && (
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-3 mb-2">
-                  {group.label}
-                </p>
-              )}
-              <div className="space-y-1">
-                {group.items.map((item) => {
-                  const isActive = activeSection === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => { setActiveSection(item.id); setSidebarOpen(false); }}
-                      className={cn(
-                        'w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
-                        sidebarCollapsed && 'justify-center px-0',
-                        isActive
-                          ? 'gradient-bg text-white shadow-glow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-                      )}
-                      title={sidebarCollapsed ? item.label : undefined}
-                    >
-                      <item.icon className={cn('h-[18px] w-[18px] shrink-0', isActive && 'text-white')} />
-                      {!sidebarCollapsed && (
-                        <>
-                          <span className="flex-1 text-left">{item.label}</span>
-                          {item.count !== undefined && item.count > 0 && (
-                            <span className={cn(
-                              'min-w-[20px] h-5 flex items-center justify-center rounded-full text-[11px] font-bold px-1.5',
-                              isActive ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary',
-                            )}>
-                              {item.count}
-                            </span>
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
+          {sidebarGroups.map((group) => {
+            const isCollapsible = 'id' in group && group.id;
+            const isOpen = isCollapsible ? expandedGroups[(group as any).id] !== false : true;
+            const GroupIcon = (group as any).icon;
+            const hasActiveItem = group.items.some((item: any) => activeSection === item.id);
+
+            return (
+              <div key={isCollapsible ? (group as any).id : group.label}>
+                {/* Group header — only for collapsible groups */}
+                {isCollapsible && !sidebarCollapsed && (
+                  <button
+                    onClick={() => toggleGroup((group as any).id)}
+                    className={cn(
+                      'w-full flex items-center gap-2 px-3 py-1.5 mb-1 text-[10px] font-semibold uppercase tracking-wider transition-colors rounded-lg',
+                      isOpen ? 'text-foreground' : 'text-muted-foreground/60 hover:text-muted-foreground',
+                    )}
+                  >
+                    {GroupIcon && <GroupIcon className="h-3.5 w-3.5" />}
+                    <span className="flex-1 text-left">{group.label}</span>
+                    <ChevronDown className={cn('h-3 w-3 transition-transform', isOpen && 'rotate-180')} />
+                  </button>
+                )}
+                {/* Collapsed group — show as single icon button */}
+                {isCollapsible && sidebarCollapsed && (
+                  <button
+                    onClick={() => toggleGroup((group as any).id)}
+                    className={cn(
+                      'w-full flex items-center justify-center rounded-xl py-2.5 mb-1 transition-colors',
+                      hasActiveItem
+                        ? 'gradient-bg text-white shadow-glow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                    )}
+                    title={group.label}
+                  >
+                    {GroupIcon && <GroupIcon className="h-[18px] w-[18px]" />}
+                  </button>
+                )}
+                {/* Items */}
+                {(!isCollapsible || isOpen) && (
+                  <div className={cn(
+                    'space-y-1',
+                    isCollapsible && !sidebarCollapsed && 'ml-1',
+                  )}>
+                    {group.items.map((item: any) => {
+                      const isActive = activeSection === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => { setActiveSection(item.id); setSidebarOpen(false); }}
+                          className={cn(
+                            'w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
+                            sidebarCollapsed && 'justify-center px-0',
+                            isActive
+                              ? 'gradient-bg text-white shadow-glow-sm'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
                           )}
-                        </>
-                      )}
-                    </button>
-                  );
-                })}
+                          title={sidebarCollapsed ? item.label : undefined}
+                        >
+                          <item.icon className={cn('h-[18px] w-[18px] shrink-0', isActive && 'text-white')} />
+                          {!sidebarCollapsed && (
+                            <>
+                              <span className="flex-1 text-left">{item.label}</span>
+                              {item.count !== undefined && item.count > 0 && (
+                                <span className={cn(
+                                  'min-w-[20px] h-5 flex items-center justify-center rounded-full text-[11px] font-bold px-1.5',
+                                  isActive ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary',
+                                )}>
+                                  {item.count}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Footer */}
@@ -1066,6 +1158,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                 {activeSection === 'faq' && renderFaq()}
                 {activeSection === 'careers' && renderCareers()}
                 {activeSection === 'team' && renderTeam()}
+                {activeSection === 'brand-kit' && renderBrandKit()}
+                {activeSection === 'monitoring' && renderMonitoring()}
+                {activeSection === 'webhooks' && renderWebhooks()}
               </>
             )}
           </motion.div>
@@ -2520,6 +2615,345 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       </div>
     </div>
   );
+
+  // ============================================
+  // SECTION: BRAND KIT
+  // ============================================
+
+  const renderBrandKit = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Palette className="h-5 w-5 text-primary" /> Brand Kit
+        </h2>
+        <GlassButton variant="primary" size="sm" onClick={() => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.zip,.pdf,.png';
+          input.onchange = async (e: any) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            toast.info('Uploading brand kit...');
+            try {
+              // In production this would upload to storage; for now we show a placeholder
+              await api.request('/admin/brand-kit', {
+                method: 'POST',
+                body: JSON.stringify({ name: file.name, fileSize: file.size, fileType: file.type, fileUrl: `uploads/${file.name}` }),
+              });
+              toast.success('Brand kit uploaded');
+              fetchSectionData('brand-kit');
+            } catch {
+              toast.error('Failed to upload brand kit');
+            }
+          };
+          input.click();
+        }}>
+          <Plus className="h-4 w-4" /> Upload Brand Kit
+        </GlassButton>
+      </div>
+
+      {isLoading && !dataFetched['brand-kit'] ? (
+        <Skeleton className="h-48 rounded-2xl" />
+      ) : displayBrandKit ? (
+        <GlassCard className="p-6" hover={false}>
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Palette className="h-7 w-7 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold">{displayBrandKit.name || 'Brand Kit'}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Uploaded {fmtDate(displayBrandKit.createdAt)}
+                {displayBrandKit.fileSize && ` · ${(displayBrandKit.fileSize / 1024).toFixed(1)} KB`}
+              </p>
+            </div>
+            <GlassButton size="sm" variant="outline" onClick={async () => {
+              if (!confirm('Delete this brand kit?')) return;
+              try {
+                await api.request(`/admin/brand-kit?id=${displayBrandKit.id}`, { method: 'DELETE' });
+                setDisplayBrandKit(null);
+                toast.success('Brand kit deleted');
+              } catch {
+                toast.error('Failed to delete');
+              }
+            }} className="hover:text-destructive">
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </GlassButton>
+          </div>
+        </GlassCard>
+      ) : (
+        <EmptyState
+          icon={Palette}
+          title="No brand kit uploaded"
+          description="Upload your brand guidelines, logos, and assets for consistent styling."
+        />
+      )}
+    </div>
+  );
+
+  // ============================================
+  // SECTION: MONITORING
+  // ============================================
+
+  const renderMonitoring = () => {
+    const sys = displayMonitoring?.system;
+    const errs = displayMonitoring?.errors;
+    const alerts = displayMonitoring?.alerts;
+
+    return (
+      <div className="space-y-6">
+        {isLoading && !dataFetched['monitoring'] ? (
+          <div className="space-y-4">
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-64 rounded-2xl" />
+          </div>
+        ) : (
+          <>
+            {/* System Health */}
+            <GlassCard className="p-6" hover={false}>
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Activity className="h-5 w-5 text-green-500" /> System Health
+              </h3>
+              {sys ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <p className="text-lg font-bold text-green-500">{sys.status || 'Healthy'}</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground">Environment</p>
+                    <p className="text-lg font-bold">{sys.environment || 'development'}</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground">DB Size</p>
+                    <p className="text-lg font-bold">{sys.database?.sizeMB?.toFixed(1) || '0'} MB</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground">Uptime</p>
+                    <p className="text-lg font-bold">{sys.uptime?.approximate || 'N/A'}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Unable to load system health data.</p>
+              )}
+            </GlassCard>
+
+            {/* 24h Activity */}
+            {sys?.recentActivity24h && (
+              <GlassCard className="p-6" hover={false}>
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-primary" /> Activity (Last 24h)
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {[
+                    { label: 'Bookings', value: sys.recentActivity24h.bookings || 0 },
+                    { label: 'Payments', value: sys.recentActivity24h.payments || 0 },
+                    { label: 'Alerts', value: sys.recentActivity24h.alerts || 0 },
+                    { label: 'Errors', value: sys.recentActivity24h.errors || 0 },
+                    { label: 'Webhooks', value: sys.recentActivity24h.webhookEvents || 0 },
+                  ].map(stat => (
+                    <div key={stat.label} className="p-3 rounded-xl bg-muted/30 text-center">
+                      <p className="text-xl font-bold">{stat.value}</p>
+                      <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </GlassCard>
+            )}
+
+            {/* Recent Errors */}
+            <GlassCard className="p-6" hover={false}>
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" /> Recent Errors
+                {errs?.stats && (
+                  <GlassBadge variant={errs.stats.total > 0 ? 'destructive' : 'success'}>
+                    {errs.stats.total} total
+                  </GlassBadge>
+                )}
+              </h3>
+              {errs?.errors?.length > 0 ? (
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {errs.errors.slice(0, 10).map((err: any, i: number) => (
+                    <div key={err.id || i} className="p-3 rounded-lg bg-muted/20 border border-white/5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{err.message || err.errorMessage || 'Unknown error'}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {err.path || err.url || 'N/A'} · {fmtDateTime(err.createdAt || err.timestamp)}
+                          </p>
+                        </div>
+                        {!err.resolved && (
+                          <GlassBadge variant="destructive" className="shrink-0">Open</GlassBadge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon={CheckCircle} title="No errors" description="System is running smoothly." />
+              )}
+            </GlassCard>
+
+            {/* Security Alerts */}
+            <GlassCard className="p-6" hover={false}>
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Shield className="h-5 w-5 text-red-500" /> Security Alerts
+                {alerts?.stats && (
+                  <GlassBadge variant={alerts.stats.openAlerts > 0 ? 'destructive' : 'success'}>
+                    {alerts.stats.openAlerts} open
+                  </GlassBadge>
+                )}
+              </h3>
+              {alerts?.alerts?.length > 0 ? (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {alerts.alerts.slice(0, 10).map((alert: any, i: number) => (
+                    <div key={alert.id || i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/20 border border-white/5">
+                      <div className={cn(
+                        'w-2 h-2 rounded-full shrink-0',
+                        alert.status === 'OPEN' ? 'bg-red-500' : alert.status === 'INVESTIGATING' ? 'bg-yellow-500' : 'bg-green-500',
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{alert.title || alert.type}</p>
+                        <p className="text-xs text-muted-foreground">{alert.severity} · {fmtDateTime(alert.createdAt)}</p>
+                      </div>
+                      <GlassBadge variant={statusColor(alert.status)}>{alert.status}</GlassBadge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon={ShieldCheck} title="No alerts" description="No security alerts at this time." />
+              )}
+            </GlassCard>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // ============================================
+  // SECTION: WEBHOOKS
+  // ============================================
+
+  const renderWebhooks = () => {
+    const stats = displayWebhooks?.stats;
+    const events = displayWebhooks?.events?.events || [];
+
+    return (
+      <div className="space-y-6">
+        {isLoading && !dataFetched['webhooks'] ? (
+          <div className="space-y-4">
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-64 rounded-2xl" />
+          </div>
+        ) : (
+          <>
+            {/* Stats */}
+            <GlassCard className="p-6" hover={false}>
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <WebhookIcon className="h-5 w-5 text-primary" /> Webhook Overview
+              </h3>
+              {stats ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground">Total Events</p>
+                    <p className="text-2xl font-bold">{stats.total || 0}</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground">Success Rate</p>
+                    <p className="text-2xl font-bold text-green-500">
+                      {stats.total > 0 ? (100 - (stats.failureRate || 0)).toFixed(1) : 100}%
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground">Failure Rate</p>
+                    <p className="text-2xl font-bold text-red-500">{stats.failureRate || 0}%</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground">Avg Processing</p>
+                    <p className="text-2xl font-bold">{stats.avgProcessingTimeMs || 0}ms</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Unable to load webhook stats.</p>
+              )}
+            </GlassCard>
+
+            {/* By Provider */}
+            {stats?.byProvider && Object.keys(stats.byProvider).length > 0 && (
+              <GlassCard className="p-6" hover={false}>
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  <PieChart className="h-5 w-5 text-primary" /> Events by Provider
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Object.entries(stats.byProvider).map(([provider, count]: [string, any]) => (
+                    <div key={provider} className="p-3 rounded-xl bg-muted/30 text-center">
+                      <p className="text-xl font-bold">{count}</p>
+                      <p className="text-xs text-muted-foreground">{provider}</p>
+                    </div>
+                  ))}
+                </div>
+              </GlassCard>
+            )}
+
+            {/* Recent Events */}
+            <GlassCard className="p-6" hover={false}>
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" /> Recent Webhook Events
+              </h3>
+              {events.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-muted-foreground border-b border-white/10">
+                        <th className="pb-3 font-medium">Provider</th>
+                        <th className="pb-3 font-medium">Event Type</th>
+                        <th className="pb-3 font-medium">Status</th>
+                        <th className="pb-3 font-medium">Processing</th>
+                        <th className="pb-3 font-medium">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {events.slice(0, 20).map((evt: any) => (
+                        <tr key={evt.id} className="hover:bg-muted/20">
+                          <td className="py-3 pr-4 font-medium">{evt.provider || 'N/A'}</td>
+                          <td className="py-3 pr-4 text-muted-foreground">{evt.eventType || 'N/A'}</td>
+                          <td className="py-3 pr-4">
+                            <GlassBadge variant={statusColor(evt.status)}>{evt.status}</GlassBadge>
+                          </td>
+                          <td className="py-3 pr-4 text-muted-foreground">
+                            {evt.processingTimeMs != null ? `${evt.processingTimeMs}ms` : 'N/A'}
+                          </td>
+                          <td className="py-3 pr-4 text-muted-foreground">{fmtDateTime(evt.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState icon={WebhookIcon} title="No webhook events" description="Webhook events will appear here once payment providers send them." />
+              )}
+            </GlassCard>
+
+            {/* Prune button */}
+            <div className="flex justify-end">
+              <GlassButton variant="outline" size="sm" onClick={async () => {
+                if (!confirm('Prune old webhook events? This removes events older than 30 days.')) return;
+                try {
+                  await api.request('/admin/webhooks?type=prune', { method: 'POST' });
+                  toast.success('Old events pruned');
+                  fetchSectionData('webhooks');
+                } catch {
+                  toast.error('Failed to prune events');
+                }
+              }}>
+                <Trash2 className="h-3.5 w-3.5" /> Prune Old Events
+              </GlassButton>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   // ============================================
   // MODALS

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, blockRole } from '@/lib/auth';
 import { PLAN_CONFIG, type PlanType } from '@/app/api/protection-plan/route';
 
 // GET /api/claims - Fetch claims for the authenticated user
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 // POST /api/claims - Create a new insurance claim
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth();
+    const session = await blockRole('admin');
     const body = await request.json();
 
     const {

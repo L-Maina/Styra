@@ -20,10 +20,16 @@ export async function GET(request: NextRequest) {
     const lat = searchParams.get('lat');
     const lng = searchParams.get('lng');
     const radius = searchParams.get('radius');
+    const ownerId = searchParams.get('ownerId');
 
     const where: Record<string, unknown> = {
       isActive: true,
     };
+
+    // Filter by owner to allow users to fetch their own businesses
+    if (ownerId) {
+      where.ownerId = ownerId;
+    }
 
     if (query) {
       where.OR = [

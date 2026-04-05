@@ -1,5 +1,5 @@
 -- ============================================================
--- Styra — Complete Database Schema (41 tables)
+-- Styra — Complete Database Schema (45 tables)
 -- Run this in Supabase SQL Editor
 -- ============================================================
 
@@ -641,6 +641,59 @@ CREATE TABLE IF NOT EXISTS "PlatformSetting" (
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 42. FAQ
+CREATE TABLE IF NOT EXISTS "FAQ" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "question" TEXT NOT NULL,
+    "answer" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'general',
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "isPublished" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 43. TeamMember
+CREATE TABLE IF NOT EXISTS "TeamMember" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "bio" TEXT,
+    "image" TEXT,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 44. Job
+CREATE TABLE IF NOT EXISTS "Job" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "department" TEXT NOT NULL,
+    "location" TEXT NOT NULL DEFAULT 'Nairobi, Kenya',
+    "type" TEXT NOT NULL DEFAULT 'Full-time',
+    "description" TEXT NOT NULL,
+    "requirements" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 45. JobApplication
+CREATE TABLE IF NOT EXISTS "JobApplication" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "jobId" TEXT NOT NULL REFERENCES "Job"("id") ON DELETE CASCADE,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "phone" TEXT,
+    "resume" TEXT,
+    "coverLetter" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ============================================================
 -- Indexes for performance
 -- ============================================================
@@ -675,3 +728,38 @@ CREATE INDEX IF NOT EXISTS "SupportTicket_status_idx" ON "SupportTicket"("status
 CREATE INDEX IF NOT EXISTS "AdminReport_status_idx" ON "AdminReport"("status");
 CREATE INDEX IF NOT EXISTS "BlogArticle_slug_idx" ON "BlogArticle"("slug");
 CREATE INDEX IF NOT EXISTS "BlogArticle_isPublished_idx" ON "BlogArticle"("isPublished");
+
+-- Indexes for new tables
+CREATE INDEX IF NOT EXISTS "FAQ_category_idx" ON "FAQ"("category");
+CREATE INDEX IF NOT EXISTS "FAQ_order_idx" ON "FAQ"("order");
+CREATE INDEX IF NOT EXISTS "TeamMember_order_idx" ON "TeamMember"("order");
+CREATE INDEX IF NOT EXISTS "Job_status_idx" ON "Job"("status");
+CREATE INDEX IF NOT EXISTS "JobApplication_jobId_idx" ON "JobApplication"("jobId");
+CREATE INDEX IF NOT EXISTS "JobApplication_status_idx" ON "JobApplication"("status");
+
+-- RLS for new tables
+ALTER TABLE "FAQ" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "TeamMember" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Job" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "JobApplication" ENABLE ROW LEVEL SECURITY;
+
+-- FAQ: public can read published, no writes
+CREATE POLICY "FAQ_public_read" ON "FAQ" FOR SELECT USING ("isPublished" = true);
+CREATE POLICY "FAQ_no_anon_insert" ON "FAQ" FOR INSERT WITH CHECK (false);
+CREATE POLICY "FAQ_no_anon_update" ON "FAQ" FOR UPDATE USING (false) WITH CHECK (false);
+CREATE POLICY "FAQ_no_anon_delete" ON "FAQ" FOR DELETE USING (false);
+
+-- TeamMember: public can read active
+CREATE POLICY "TeamMember_public_read" ON "TeamMember" FOR SELECT USING ("isActive" = true);
+CREATE POLICY "TeamMember_no_anon_insert" ON "TeamMember" FOR INSERT WITH CHECK (false);
+CREATE POLICY "TeamMember_no_anon_update" ON "TeamMember" FOR UPDATE USING (false) WITH CHECK (false);
+CREATE POLICY "TeamMember_no_anon_delete" ON "TeamMember" FOR DELETE USING (false);
+
+-- Job: public can read OPEN jobs
+CREATE POLICY "Job_public_read" ON "Job" FOR SELECT USING ("status" = 'OPEN');
+CREATE POLICY "Job_no_anon_insert" ON "Job" FOR INSERT WITH CHECK (false);
+CREATE POLICY "Job_no_anon_update" ON "Job" FOR UPDATE USING (false) WITH CHECK (false);
+CREATE POLICY "Job_no_anon_delete" ON "Job" FOR DELETE USING (false);
+
+-- JobApplication: no anon access
+CREATE POLICY "JobApplication_no_anon_access" ON "JobApplication" FOR ALL USING (false) WITH CHECK (false);

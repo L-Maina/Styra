@@ -131,6 +131,9 @@ export const InsuranceClaimsPage: React.FC<InsuranceClaimsPageProps> = ({ onBack
     attachments: [] as File[],
   });
 
+  // Admin detection — admins are not allowed to file claims (blocked at API level too)
+  const isAdmin = user?.roles?.includes('ADMIN');
+
   // Determine user type based on user's role
   const userType: UserType = user?.role === 'BUSINESS_OWNER' ? 'provider' : 'customer';
   const [claims, setClaims] = useState<ClaimData[]>([]);
@@ -276,11 +279,46 @@ export const InsuranceClaimsPage: React.FC<InsuranceClaimsPageProps> = ({ onBack
               <GradientText>Insurance Claims</GradientText>
             </h1>
             <p className="text-muted-foreground">Submit and track your claims</p>
+            {isAdmin && (
+              <GlassBadge variant="default" className="mt-3">
+                <Eye className="h-3 w-3 mr-1" />
+                View Only
+              </GlassBadge>
+            )}
           </div>
         </FadeIn>
         
-        {/* Guest Restriction - Show sign-in prompt if not authenticated */}
-        {!isAuthenticated ? (
+        {/* Admin Restriction - Show view-only notice for admin users */}
+        {isAuthenticated && isAdmin ? (
+          <FadeIn delay={0.1}>
+            <GlassCard variant="elevated" className="max-w-lg mx-auto text-center p-8">
+              <div className="w-20 h-20 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-6">
+                <Eye className="h-10 w-10 text-amber-600 dark:text-amber-400" />
+              </div>
+              <GlassBadge variant="default" className="mb-4">Admin View</GlassBadge>
+              <h2 className="text-xl font-semibold mb-3">View Only — Claims Not Available</h2>
+              <p className="text-muted-foreground mb-6">
+                Admin accounts cannot file insurance claims. This page is for customers and
+                service providers only. Use the admin dashboard to manage claims.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <GlassButton
+                  variant="outline"
+                  onClick={() => onNavigate?.('admin')}
+                  leftIcon={<Building2 className="h-4 w-4" />}
+                >
+                  Go to Admin Dashboard
+                </GlassButton>
+                <GlassButton
+                  variant="outline"
+                  onClick={() => onNavigate?.('home')}
+                >
+                  Go Home
+                </GlassButton>
+              </div>
+            </GlassCard>
+          </FadeIn>
+        ) : !isAuthenticated ? (
           <FadeIn delay={0.1}>
             <GlassCard variant="elevated" className="max-w-lg mx-auto text-center p-8">
               <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
@@ -523,14 +561,22 @@ export const InsuranceClaimsPage: React.FC<InsuranceClaimsPageProps> = ({ onBack
                   <GlassCard variant="bordered" className="overflow-hidden">
                     <div className="p-4 border-b border-border flex items-center justify-between">
                       <h2 className="text-lg font-semibold text-foreground">Your Claims</h2>
-                      <GlassButton
-                        variant="primary"
-                        size="sm"
-                        onClick={handleNewClaimClick}
-                        leftIcon={<FileText className="h-4 w-4" />}
-                      >
-                        File a Claim
-                      </GlassButton>
+                      {!isAdmin && (
+                        <GlassButton
+                          variant="primary"
+                          size="sm"
+                          onClick={handleNewClaimClick}
+                          leftIcon={<FileText className="h-4 w-4" />}
+                        >
+                          File a Claim
+                        </GlassButton>
+                      )}
+                      {isAdmin && (
+                        <GlassBadge variant="default" className="text-xs">
+                          <Eye className="h-3 w-3 mr-1" />
+                          Admin — View Only
+                        </GlassBadge>
+                      )}
                     </div>
                     
                     {claims.length === 0 ? (
@@ -554,13 +600,20 @@ export const InsuranceClaimsPage: React.FC<InsuranceClaimsPageProps> = ({ onBack
                           </p>
                         )}
                         {!isUpgradeAvailable && <div className="mb-4" />}
-                        <GlassButton
-                          variant="primary"
-                          onClick={handleNewClaimClick}
-                          leftIcon={<FileText className="h-4 w-4" />}
-                        >
-                          File a Claim
-                        </GlassButton>
+                        {!isAdmin && (
+                          <GlassButton
+                            variant="primary"
+                            onClick={handleNewClaimClick}
+                            leftIcon={<FileText className="h-4 w-4" />}
+                          >
+                            File a Claim
+                          </GlassButton>
+                        )}
+                        {isAdmin && (
+                          <p className="text-sm text-amber-600 dark:text-amber-400">
+                            Admin accounts cannot file claims.
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div className="divide-y divide-border">

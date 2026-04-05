@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, blockRole } from '@/lib/auth';
 
 // GET blocked users for current user (AUTH REQUIRED)
 export async function GET(request: NextRequest) {
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 // POST to block a user (AUTH REQUIRED - can only block for self)
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const user = await blockRole('admin');
     const body = await request.json();
     const { blockedId, reason } = body;
 
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 // DELETE to unblock a user (AUTH REQUIRED - can only unblock for self)
 export async function DELETE(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const user = await blockRole('admin');
     const body = await request.json();
     const { blockedId } = body;
 

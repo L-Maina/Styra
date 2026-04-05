@@ -171,8 +171,16 @@ export async function POST(request: NextRequest) {
         devMode: 'true',
       };
     } else {
-      // Production mode: external payment providers would be called here
-      // For now, mark as processing — webhook would complete it
+      // Production mode: external payment providers would be called here.
+      // The payment is created with `pending` status — a webhook handler should:
+      //   1. Confirm payment success and update payment.status to 'completed'
+      //   2. Update booking status to 'confirmed'
+      //   3. Call holdInEscrow() to place funds in escrow
+      //
+      // If no webhook handler is wired up, escrow will NOT be held and the
+      // commission/settlement flow will not activate for this booking.
+      // TODO: Wire up webhook handlers for Stripe/M-Pesa/Paystack that call
+      //       holdInEscrow() on successful payment confirmation.
       responseData = {
         clientSecret: result.payment.transactionRef,
         paymentId: result.payment.id,

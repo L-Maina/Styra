@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, blockRole } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 
 // Protection plan configuration
@@ -78,7 +78,7 @@ export async function GET() {
 // PATCH /api/protection-plan — Update the user's plan
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await requireAuth();
+    const session = await blockRole('admin');
     const body = await request.json();
     const { plan } = body;
 

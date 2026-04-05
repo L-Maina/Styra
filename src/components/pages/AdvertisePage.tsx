@@ -244,6 +244,8 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
 
   // Check if user is a provider
   const hasProviderRole = user?.roles?.includes('BUSINESS_OWNER') || user?.role === 'BUSINESS_OWNER';
+  // Check if user is an admin (admins should also see access denied)
+  const isAdmin = user?.roles?.includes('ADMIN') || user?.role === 'ADMIN';
 
   /* ── Dynamic data state ── */
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -259,9 +261,13 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
   /* ── UI state ── */
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
-  const [showOnboardingPrompt, setShowOnboardingPrompt] = useState(false);
+  const [showAccessDenied, setShowAccessDenied] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // User's business (needed for promotion submission)
+  const [userBusiness, setUserBusiness] = useState<{ id: string; name: string } | null>(null);
+  const [loadingBusiness, setLoadingBusiness] = useState(false);
 
   // Payment state
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('card');
@@ -340,6 +346,30 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
         { value: '85%', label: 'Mobile Users', icon: Globe },
       ];
 
+  /* ── Fetch user's business (needed for promotion API) ── */
+  const fetchUserBusiness = useCallback(async () => {
+    if (!isAuthenticated || !hasProviderRole || !user?.id) return;
+    setLoadingBusiness(true);
+    try {
+      const res = await fetch(`/api/businesses?ownerId=${user.id}`);
+      if (res.ok) {
+        const json = await res.json();
+        const biz = json.data?.businesses || json.data || [];
+        if (biz.length > 0) {
+          setUserBusiness({ id: biz[0].id, name: biz[0].name });
+        }
+      }
+    } catch {
+      // Non-critical: business fetch failure
+    } finally {
+      setLoadingBusiness(false);
+    }
+  }, [isAuthenticated, hasProviderRole, user?.id]);
+
+  useEffect(() => {
+    fetchUserBusiness();
+  }, [fetchUserBusiness]);
+
   const handleGetStarted = (planId: string) => {
     if (!isAuthenticated) {
       setSelectedPlan(planId);
@@ -348,12 +378,13 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
     }
 
     if (!hasProviderRole) {
+      // Show access denied for admins, customers, and other non-business-owner roles
       setSelectedPlan(planId);
-      setShowOnboardingPrompt(true);
+      setShowAccessDenied(true);
       return;
     }
 
-    // Logged-in provider - go directly to payment
+    // Logged-in BUSINESS_OWNER - go to payment
     setSelectedPlan(planId);
     setShowPaymentModal(true);
   };
@@ -384,22 +415,63 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
     return true;
   };
 
+  /* ── Map ad plan IDs to promotion types ── */
+  const planToPromotionType: Record<string, string> = {
+    featured: 'FEATURED',
+    premium: 'PROMOTED',
+    enterprise: 'MARKETING_BOOST',
+  };
+
   const handlePayment = async () => {
     if (!isFormValid()) {
       toast.error('Please fill in all payment details');
       return;
     }
 
+    if (!userBusiness) {
+      toast.error('No business found. Please set up your business profile first.');
+      return;
+    }
+
+    if (!selectedPlanData) {
+      toast.error('Please select a plan');
+      return;
+    }
+
     setIsProcessing(true);
 
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    try {
+      const promotionType = (planToPromotionType as Record<string, string>)[selectedPlan ?? ''] || 'FEATURED';
+      const duration = selectedPlan === 'enterprise' ? 90 : 30;
 
-    setIsProcessing(false);
-    setShowPaymentModal(false);
-    setShowSuccessModal(true);
+      const res = await fetch('/api/promotions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId: userBusiness.id,
+          promotionType,
+          duration,
+          price: selectedPlanData.priceValue || 0,
+          paymentMethod: paymentMethod.toUpperCase(),
+          boostLevel: selectedPlan === 'premium' ? 5 : selectedPlan === 'featured' ? 3 : 8,
+          section: selectedPlan === 'enterprise' ? 'HOMEPAGE' : undefined,
+        }),
+      });
 
-    toast.success('Payment successful! Your advertising plan is now active.');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || `Request failed (${res.status})`);
+      }
+
+      setIsProcessing(false);
+      setShowPaymentModal(false);
+      setShowSuccessModal(true);
+
+      toast.success('Payment successful! Your advertising plan is now active.');
+    } catch (err) {
+      setIsProcessing(false);
+      toast.error(err instanceof Error ? err.message : 'Payment failed. Please try again.');
+    }
   };
 
   return (
@@ -808,27 +880,30 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
         </div>
       </LiquidGlassModal>
 
-      {/* Onboarding Prompt Modal */}
+      {/* Access Denied Modal — shown for admins, customers, and other non-BUSINESS_OWNER roles */}
       <LiquidGlassModal
-        isOpen={showOnboardingPrompt}
-        onClose={() => setShowOnboardingPrompt(false)}
+        isOpen={showAccessDenied}
+        onClose={() => setShowAccessDenied(false)}
         size="md"
       >
         <div className="p-6">
           <button
-            onClick={() => setShowOnboardingPrompt(false)}
+            onClick={() => setShowAccessDenied(false)}
             className="absolute right-4 top-4 rounded-lg p-1 hover:bg-muted transition-colors z-20"
           >
             <X className="h-5 w-5" />
           </button>
 
           <div className="text-center mb-6">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Building2 className="h-8 w-8 text-primary" />
+            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+              <Lock className="h-8 w-8 text-destructive" />
             </div>
-            <h2 className="text-xl font-semibold mb-2">Become a Partner</h2>
+            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
             <p className="text-muted-foreground">
-              You need to register as a service provider to advertise on {companyName}.
+              Advertising plans are exclusively available to business owners.
+              {isAdmin
+                ? ' Admin accounts cannot purchase advertisements.'
+                : ' Please register as a business owner to advertise on ' + companyName + '.'}
             </p>
           </div>
 
@@ -840,23 +915,25 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
           )}
 
           <div className="flex flex-col gap-3">
-            <GlassButton
-              variant="primary"
-              className="w-full"
-              onClick={() => {
-                setShowOnboardingPrompt(false);
-                onNavigate?.('onboarding');
-              }}
-              leftIcon={<Building2 className="h-4 w-4" />}
-            >
-              Start Onboarding
-            </GlassButton>
+            {!isAdmin && (
+              <GlassButton
+                variant="primary"
+                className="w-full"
+                onClick={() => {
+                  setShowAccessDenied(false);
+                  onNavigate?.('onboarding');
+                }}
+                leftIcon={<Building2 className="h-4 w-4" />}
+              >
+                Register as Business Owner
+              </GlassButton>
+            )}
             <GlassButton
               variant="ghost"
               className="w-full"
-              onClick={() => setShowOnboardingPrompt(false)}
+              onClick={() => setShowAccessDenied(false)}
             >
-              Maybe Later
+              Go Back
             </GlassButton>
           </div>
         </div>
@@ -879,6 +956,9 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
           <div className="mb-6">
             <h2 className="text-xl font-semibold mb-2">Complete Your Subscription</h2>
             <p className="text-muted-foreground">Subscribe to your advertising plan</p>
+            {userBusiness && (
+              <p className="text-xs text-muted-foreground mt-1">Business: <span className="font-medium text-foreground">{userBusiness.name}</span></p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1046,10 +1126,14 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
                 className="w-full mt-4"
                 size="lg"
                 onClick={handlePayment}
-                disabled={!isFormValid()}
+                disabled={!isFormValid() || !userBusiness}
                 isLoading={isProcessing}
               >
-                {isProcessing ? 'Processing...' : `Subscribe ${selectedPlanData?.price}`}
+                {!userBusiness
+                  ? 'Loading business...'
+                  : isProcessing
+                  ? 'Processing...'
+                  : `Subscribe ${selectedPlanData?.price}`}
               </GlassButton>
             </div>
           </div>

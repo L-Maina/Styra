@@ -26,6 +26,10 @@ import {
   UserX,
   Flag,
   BellOff,
+  Bot,
+  Sparkles,
+  Eye,
+  Info,
 } from 'lucide-react';
 import { 
   GlassCard, 
@@ -84,6 +88,8 @@ const emojiCategories = {
   hearts: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '♥️'],
 };
 
+const STYRA_AI_ID = 'styra-ai';
+
 export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -103,6 +109,15 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
   
   // Check if user is authenticated
   const isAuthenticated = !!user;
+  // Admin detection — admins cannot send messages as participants
+  const isAdmin = !!user?.roles?.includes('ADMIN');
+
+  // AI Chat state
+  const [aiMessages, setAiMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; createdAt: string }>>([]);
+  const [isAiTyping, setIsAiTyping] = useState(false);
+
+  // Whether the selected conversation is the AI chat
+  const isAiChat = selectedConversation === STYRA_AI_ID;
 
   // Conversations state
   const [conversations, setConversations] = useState<ApiConversation[]>([]);
@@ -217,14 +232,76 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
     return () => clearInterval(interval);
   }, [isCallActive, showCallModal]);
 
+  // ─── Send AI message ────────────────────────────────────────────
+  const handleSendAiMessage = async () => {
+    if (!message.trim() || isAiTyping) return;
+
+    const userContent = message.trim();
+    setMessage('');
+    setShowEmojiPicker(false);
+
+    const userMsg = {
+      id: `ai-user-${Date.now()}`,
+      role: 'user' as const,
+      content: userContent,
+      createdAt: new Date().toISOString(),
+    };
+    setAiMessages(prev => [...prev, userMsg]);
+    setIsAiTyping(true);
+
+    try {
+      const res = await fetch('/api/chat/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userContent,
+          conversationHistory: aiMessages.map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('AI response failed');
+      }
+      const json = await res.json();
+      const aiContent = json.data?.message || json.message || "I'm sorry, I couldn't process that.";
+
+      setAiMessages(prev => [...prev, {
+        id: `ai-assistant-${Date.now()}`,
+        role: 'assistant',
+        content: aiContent,
+        createdAt: new Date().toISOString(),
+      }]);
+    } catch (err) {
+      toast.error('Styra AI is temporarily unavailable', {
+        description: 'Please try again in a moment.',
+      });
+    } finally {
+      setIsAiTyping(false);
+    }
+  };
+
   // ─── Send message via API ─────────────────────────────────────
   const handleSendMessage = async (type: 'text' | 'image' | 'file' = 'text', fileData?: { url: string; name: string }) => {
+    // If this is the AI chat, delegate to AI handler
+    if (isAiChat) {
+      await handleSendAiMessage();
+      return;
+    }
+
     // Require authentication to send messages
     if (!isAuthenticated) {
       setShowAuthPrompt(true);
       return;
     }
     
+    // Admin cannot send participant messages
+    if (isAdmin) {
+      return;
+    }
+
     if (!message.trim() && type === 'text' && !fileData) return;
     if (!selectedConversation) return;
 
@@ -342,23 +419,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
       animate={{ opacity: 1 }}
       className="min-h-[calc(100vh-4rem)] flex relative"
     >
-      {/* Auth Gate */}
-      {!isAuthenticated ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-              <User className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold text-lg mb-2">Sign in to view your messages</h3>
-            <p className="text-muted-foreground mb-4">
-              You need to be signed in to send and receive messages.
-            </p>
-            <GlassButton onClick={() => onNavigate?.('login')}>
-              Sign In
-            </GlassButton>
-          </div>
-        </div>
-      ) : (
+      {/* Full chat layout — always visible so AI chat is accessible to everyone */}
       <>
       {/* Conversations List */}
       <div className={`w-full md:w-80 lg:w-96 border-r border-border flex flex-col ${selectedConversation ? 'hidden md:flex' : ''}`}>
@@ -375,8 +436,42 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
 
         {/* Conversations */}
         <div className="flex-1 overflow-y-auto">
+          {/* Styra AI - Pinned at top, accessible to everyone including guests and admins */}
+          <FadeIn>
+            <button
+              onClick={() => setSelectedConversation(STYRA_AI_ID)}
+              className={cn(
+                "w-full p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors border-b border-border",
+                selectedConversation === STYRA_AI_ID ? 'bg-muted/50' : ''
+              )}
+            >
+              <div className="relative">
+                <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-white">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 border-2 border-background" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold truncate">Styra AI</span>
+                  <GlassBadge variant="primary" className="text-[10px] px-1.5 py-0.5">AI</GlassBadge>
+                </div>
+                <p className="text-sm text-muted-foreground truncate">
+                  {aiMessages.length > 0 ? aiMessages[aiMessages.length - 1].content : "Ask me anything about Styra!"}
+                </p>
+              </div>
+            </button>
+          </FadeIn>
+
+          {/* Divider between AI chat and regular conversations */}
+          {isAuthenticated && filteredConversations.length > 0 && (
+            <div className="px-4 py-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Messages</p>
+            </div>
+          )}
+
           {/* Loading State */}
-          {isLoadingConversations && (
+          {isAuthenticated && isLoadingConversations && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mb-3" />
               <p className="text-sm text-muted-foreground">Loading conversations…</p>
@@ -397,8 +492,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
             </div>
           )}
 
-          {/* Empty State */}
-          {!isLoadingConversations && !error && filteredConversations.length === 0 && (
+          {/* Empty State — show auth prompt for guests, regular empty for authenticated */}
+          {isAuthenticated && !isLoadingConversations && !error && filteredConversations.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
                 <Send className="h-6 w-6 text-muted-foreground" />
@@ -410,8 +505,24 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
             </div>
           )}
 
+          {/* Guest prompt for conversations section */}
+          {!isAuthenticated && !isLoadingConversations && (
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                <User className="h-6 h-6 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium mb-1">Sign in to view messages</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                You need an account to chat with businesses.
+              </p>
+              <GlassButton size="sm" onClick={() => onNavigate?.('login')}>
+                Sign In
+              </GlassButton>
+            </div>
+          )}
+
           {/* Conversation List */}
-          {!isLoadingConversations && !error && filteredConversations.length > 0 && filteredConversations.map((conversation, index) => (
+          {isAuthenticated && !isLoadingConversations && !error && filteredConversations.length > 0 && filteredConversations.map((conversation, index) => (
             <FadeIn key={conversation.id} delay={0.05 * index}>
               <button
                 onClick={() => setSelectedConversation(conversation.id)}
@@ -456,7 +567,124 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
 
       {/* Chat Area */}
       <div className={`flex-1 flex flex-col ${!selectedConversation ? 'hidden md:flex' : ''}`}>
-        {selectedConv ? (
+        {isAiChat ? (
+          <>
+            {/* AI Chat Header */}
+            <div className="p-4 border-b border-border flex items-center gap-3">
+              <button
+                onClick={() => setSelectedConversation(null)}
+                className="md:hidden p-2 -ml-2 hover:bg-muted rounded-lg"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-semibold">Styra AI</h2>
+                <div className="flex items-center gap-1 text-sm text-green-600">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  {isAiTyping ? 'Typing...' : 'Always online'}
+                </div>
+              </div>
+              <div className="ml-auto">
+                <GlassBadge variant="primary" className="text-[10px]">AI Assistant</GlassBadge>
+              </div>
+            </div>
+
+            {/* AI Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {aiMessages.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-16 h-16 rounded-full gradient-bg flex items-center justify-center mb-4">
+                    <Bot className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Hi, I'm Styra AI!</h3>
+                  <p className="text-muted-foreground text-sm text-center max-w-sm">
+                    I can help you find services, understand how Styra works, answer payment questions, and more. Try asking me anything!
+                  </p>
+                </div>
+              )}
+
+              {aiMessages.map((msg) => (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[75%] px-4 py-2 rounded-2xl ${
+                      msg.role === 'user'
+                        ? 'gradient-bg text-white rounded-br-md'
+                        : 'bg-muted rounded-bl-md'
+                    }`}
+                  >
+                    {msg.role === 'assistant' && (
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Sparkles className="h-3 w-3 text-primary" />
+                        <span className="text-xs font-medium text-primary">Styra AI</span>
+                      </div>
+                    )}
+                    <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                    <p
+                      className={`text-xs mt-1 ${msg.role === 'user' ? 'text-white/70 text-right' : 'text-muted-foreground'}`}
+                    >
+                      {formatTime(msg.createdAt)}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+
+              {/* AI Typing Indicator */}
+              {isAiTyping && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex justify-start"
+                >
+                  <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* AI Chat Input — always visible (works without auth) */}
+            <div className="p-4 border-t border-border">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                    placeholder="Ask Styra AI anything..."
+                    disabled={isAiTyping}
+                    className="w-full h-10 px-4 pr-12 rounded-full border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                  />
+                </div>
+                <GlassButton
+                  variant="primary"
+                  size="icon"
+                  onClick={() => handleSendMessage()}
+                  disabled={!message.trim() || isAiTyping}
+                >
+                  {isAiTyping ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                </GlassButton>
+              </div>
+            </div>
+          </>
+        ) : selectedConv ? (
           <>
             {/* Chat Header */}
             <div className="p-4 border-b border-border flex items-center justify-between">
@@ -605,7 +833,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Input */}
+            {/* Message Input — hidden for admin users */}
+            {!isAdmin && (
             <div className="p-4 border-t border-border">
               {/* Hidden file input */}
               <input
@@ -715,6 +944,18 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
                 </GlassButton>
               </div>
             </div>
+            )}
+            {/* Admin read-only notice */}
+            {isAdmin && (
+              <div className="p-4 border-t border-border">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <Eye className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    Admin view — you cannot send messages in user conversations.
+                  </p>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
@@ -723,15 +964,14 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
                 <User className="h-10 w-10 text-muted-foreground" />
               </div>
               <h3 className="font-semibold mb-2">Select a conversation</h3>
-              <p className="text-muted-foreground">
-                Choose a conversation from the list to start messaging
+              <p className="text-muted-foreground mb-3">
+                Choose a conversation from the list, or chat with <button onClick={() => setSelectedConversation(STYRA_AI_ID)} className="text-primary font-medium hover:underline">Styra AI</button> for help.
               </p>
             </div>
           </div>
         )}
       </div>
       </>
-      )}
 
       {/* Call Modal */}
       <AnimatePresence>
