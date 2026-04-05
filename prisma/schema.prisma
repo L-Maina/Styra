@@ -783,6 +783,8 @@ model BlogArticle {
   tags          String?
   author        String?
   authorImage   String?
+  authorId      String?
+  authorType    String    @default("admin") // admin, business, customer
   readTime      Int?
   isPublished   Boolean   @default(false)
   isFeatured    Boolean   @default(false)

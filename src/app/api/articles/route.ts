@@ -84,6 +84,8 @@ export async function POST(request: NextRequest) {
       category,
       author,
       authorImage,
+      authorId,
+      authorType,
       readTime,
       isPublished,
       isFeatured
@@ -118,7 +120,10 @@ export async function POST(request: NextRequest) {
         isPublished: isPublished ?? false,
         isFeatured: isFeatured ?? false,
         publishedAt: isPublished ? new Date() : null,
-      },
+        // New fields — will be saved once Prisma client is regenerated
+        ...(authorId ? { authorId } : {}),
+        ...(authorType ? { authorType } : {}),
+      } as any,
     });
 
     return successResponse({ article }, 201);

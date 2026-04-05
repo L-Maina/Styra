@@ -4,40 +4,68 @@ import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils'
 import { requireAdmin } from '@/lib/api-rbac';
 
 /**
- * GET /api/admin/brand-kit - Get latest brand kit
- * POST /api/admin/brand-kit - Upload new brand kit
- * DELETE /api/admin/brand-kit - Delete brand kit
+ * GET /api/admin/brand-kit - Get latest brand kit + press kit
+ * POST /api/admin/brand-kit - Upload new brand kit or press kit
+ * DELETE /api/admin/brand-kit - Delete brand kit or press kit
  */
 
-// GET - Retrieve brand kit info
+// GET - Retrieve brand kit and press kit info
 export async function GET() {
   try {
-    const kits = await db.brandKit.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 1,
-    });
+    let brandKit: any = null;
+    let pressKit: any = null;
 
-    if (kits.length === 0) {
-      return successResponse({ brandKit: null, message: 'No brand kit uploaded yet' });
+    // Try to fetch brand kit
+    try {
+      const kits = await db.brandKit.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      });
+      brandKit = kits[0] || null;
+    } catch {
+      // Table might not exist yet
     }
 
-    return successResponse({ brandKit: kits[0] });
+    // Try to fetch press kit
+    try {
+      const kits = await db.pressKit.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      });
+      pressKit = kits[0] || null;
+    } catch {
+      // Table might not exist yet
+    }
+
+    return successResponse({ brandKit, pressKit });
   } catch (error) {
-    // Gracefully handle if the table doesn't exist yet
-    return successResponse({ brandKit: null });
+    return successResponse({ brandKit: null, pressKit: null });
   }
 }
 
-// POST - Upload brand kit (admin only)
+// POST - Upload brand kit or press kit (admin only)
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
 
     const body = await request.json();
-    const { name, fileUrl, fileSize, fileType } = body;
+    const { name, fileUrl, fileSize, fileType, type } = body; // type: 'brand' or 'press'
 
     if (!fileUrl) {
       return errorResponse('File URL is required', 400);
+    }
+
+    if (type === 'press') {
+      const kit = await db.pressKit.create({
+        data: {
+          name: name || 'Styra Press Kit',
+          fileUrl,
+          fileSize: fileSize || 0,
+          fileType: fileType || 'application/zip',
+          uploadedBy: 'admin',
+        },
+      });
+      return successResponse({ pressKit: kit }, 201);
     }
 
     const kit = await db.brandKit.create({
@@ -57,16 +85,22 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Delete brand kit (admin only)
+// DELETE - Delete brand kit or press kit (admin only)
 export async function DELETE(request: NextRequest) {
   try {
     await requireAdmin();
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const type = searchParams.get('type'); // 'brand' or 'press'
 
     if (!id) {
-      return errorResponse('Brand kit ID is required', 400);
+      return errorResponse('ID is required', 400);
+    }
+
+    if (type === 'press') {
+      await db.pressKit.delete({ where: { id } });
+      return successResponse({ message: 'Press kit deleted successfully' });
     }
 
     await db.brandKit.delete({ where: { id } });

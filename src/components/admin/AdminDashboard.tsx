@@ -120,6 +120,13 @@ interface PlatformSettings {
   emailNotifications: boolean; smsNotifications: boolean;
   autoApproveBusinesses: boolean; requireIdVerification: boolean;
   featuredListingPrice: number; premiumListingPrice: number;
+  // Website Contact Info
+  company_name?: string; company_tagline?: string; company_description?: string;
+  support_email?: string; press_email?: string; phone?: string; address?: string;
+  social_instagram?: string; social_twitter?: string; social_facebook?: string;
+  social_tiktok?: string; social_linkedin?: string; social_youtube?: string;
+  whatsapp_number?: string; business_hours?: string; support_response_time?: string;
+  website_url?: string;
 }
 
 interface AdminDashboardProps {
@@ -216,6 +223,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   const [displayJobs, setDisplayJobs] = useState<any[]>([]);
   const [displayTeamMembers, setDisplayTeamMembers] = useState<any[]>([]);
   const [displayBrandKit, setDisplayBrandKit] = useState<any>(null);
+  const [displayPressKit, setDisplayPressKit] = useState<any>(null);
   const [displayMonitoring, setDisplayMonitoring] = useState<any>(null);
   const [displayWebhooks, setDisplayWebhooks] = useState<any>(null);
   const [settings, setSettings] = useState<PlatformSettings>({
@@ -411,6 +419,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         case 'brand-kit': {
           const kitRes = await api.request<Record<string, any>>('/admin/brand-kit');
           setDisplayBrandKit(kitRes.data?.brandKit || null);
+          setDisplayPressKit(kitRes.data?.pressKit || null);
           break;
         }
         case 'monitoring': {
@@ -702,6 +711,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       toast.success('Settings saved successfully');
     } catch (err) {
       console.error('Failed to save settings:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSaveWebsiteSettings = async (data: Record<string, any>) => {
+    setIsProcessing(true);
+    try {
+      await api.request('/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+      toast.success('Website settings saved successfully');
+      // Update local settings state
+      setSettings(prev => ({ ...prev, ...data }));
+    } catch (err) {
+      console.error('Failed to save website settings:', err);
     } finally {
       setIsProcessing(false);
     }
@@ -1425,6 +1451,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
           ) : (
             <EmptyState icon={BarChart3} title="No chart data" description="Revenue data will appear once transactions are processed." />
           )}
+        </GlassCard>
+
+        {/* Commission Summary */}
+        <GlassCard className="p-6" hover={false}>
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-primary" /> Commission Summary
+          </h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-muted/30">
+              <p className="text-xs text-muted-foreground">Total Platform Earnings</p>
+              <p className="text-lg font-bold">{fmtCurrency(ov?.totalCommissions)}</p>
+              <p className="text-xs text-muted-foreground mt-1">From all commissions</p>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/30">
+              <p className="text-xs text-muted-foreground">Transactions (This Month)</p>
+              <p className="text-lg font-bold">{monthly?.bookings ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">Completed bookings</p>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/30">
+              <p className="text-xs text-muted-foreground">Avg Transaction Value</p>
+              <p className="text-lg font-bold">
+                {fmtCurrency(monthly?.bookings ? (monthly?.revenue || 0) / monthly.bookings : 0)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Revenue / bookings</p>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/30">
+              <p className="text-xs text-muted-foreground">Pending Payouts</p>
+              <p className="text-lg font-bold">{(ov as any)?.pendingPayouts ?? 0}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <span className="text-xs text-primary cursor-pointer hover:underline">View payouts</span>
+                <ChevronRight className="h-3 w-3 text-primary" />
+              </div>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Earnings by Source */}
+        <GlassCard className="p-6" hover={false}>
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <PieChart className="h-5 w-5 text-primary" /> Earnings by Source
+          </h3>
+          <div className="space-y-4">
+            {[
+              { label: 'Booking Commissions', value: (ov as any)?.bookingCommissions ?? ov?.totalCommissions ?? 0, color: 'bg-green-500', pct: 55 },
+              { label: 'Premium Listing Revenue', value: (ov as any)?.premiumRevenue ?? (settings.premiumListingPrice * 3), color: 'bg-purple-500', pct: 25 },
+              { label: 'Marketing / Boost Revenue', value: (ov as any)?.boostRevenue ?? (settings.featuredListingPrice * 2), color: 'bg-orange-500', pct: 12 },
+              { label: 'Subscription Revenue', value: (ov as any)?.subscriptionRevenue ?? 0, color: 'bg-blue-500', pct: 8 },
+            ].map((src) => (
+              <div key={src.label} className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">{src.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{fmtCurrency(src.value)}</span>
+                    <span className="text-xs text-muted-foreground">{src.pct}%</span>
+                  </div>
+                </div>
+                <div className="w-full h-2.5 rounded-full bg-muted/30 overflow-hidden">
+                  <div
+                    className={cn('h-full rounded-full transition-all', src.color)}
+                    style={{ width: `${src.pct}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </GlassCard>
 
         {/* Recent payments */}
@@ -2157,14 +2248,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
 
       {/* Blog Articles */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Newspaper className="h-5 w-5 text-primary" /> Blog Articles
+            <GlassBadge variant="default">{displayArticles.length}</GlassBadge>
           </h2>
           <GlassButton variant="primary" size="sm" onClick={() => openArticleModal()}>
-            <Plus className="h-4 w-4" /> Add Article
+            <Plus className="h-4 w-4" /> Create Article
           </GlassButton>
         </div>
+        <p className="text-xs text-muted-foreground mb-4">Business providers can submit articles for admin approval. Admin can also create official platform content.</p>
         <GlassCard className="p-6" hover={false}>
           {isLoading && !dataFetched['content'] ? (
             <TableSkeleton />
@@ -2175,9 +2268,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                   <tr className="text-left text-muted-foreground border-b border-white/10">
                     <th className="pb-3 font-medium">Title</th>
                     <th className="pb-3 font-medium">Author</th>
+                    <th className="pb-3 font-medium">Source</th>
                     <th className="pb-3 font-medium">Category</th>
                     <th className="pb-3 font-medium">Status</th>
-                    <th className="pb-3 font-medium">Views</th>
                     <th className="pb-3 font-medium">Updated</th>
                     <th className="pb-3 font-medium">Actions</th>
                   </tr>
@@ -2190,9 +2283,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                         <p className="text-xs text-muted-foreground">{a.slug}</p>
                       </td>
                       <td className="py-3 pr-4">{a.author || 'N/A'}</td>
+                      <td className="py-3 pr-4">
+                        <GlassBadge variant={(a as any).authorType === 'business' ? 'primary' : 'default'}>
+                          {(a as any).authorType === 'business' ? 'Provider' : 'Admin'}
+                        </GlassBadge>
+                      </td>
                       <td className="py-3 pr-4"><GlassBadge variant="default">{a.category || 'N/A'}</GlassBadge></td>
                       <td className="py-3 pr-4"><GlassBadge variant={statusColor(a.status)}>{a.status}</GlassBadge></td>
-                      <td className="py-3 pr-4 text-muted-foreground">{a.views ?? 0}</td>
                       <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(a.updatedAt)}</td>
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-1">
@@ -2451,6 +2548,185 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         </div>
       </GlassCard>
 
+      {/* Website Contact Information */}
+      <GlassCard className="p-6" hover={false}>
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <Globe className="h-5 w-5 text-primary" /> Website Contact Information
+        </h3>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Company Name</label>
+            <GlassInput
+              placeholder="e.g. Styra"
+              value={settings.company_name || ''}
+              onChange={(e) => setSettings(s => ({ ...s, company_name: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Company Tagline</label>
+            <GlassInput
+              placeholder="e.g. Discover & Book Local Services"
+              value={settings.company_tagline || ''}
+              onChange={(e) => setSettings(s => ({ ...s, company_tagline: e.target.value }))}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="text-sm text-muted-foreground block mb-1.5">Company Description</label>
+            <textarea
+              className="flex w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm backdrop-blur-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[80px] resize-y"
+              placeholder="Brief description of your company..."
+              value={settings.company_description || ''}
+              onChange={(e) => setSettings(s => ({ ...s, company_description: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Support Email</label>
+            <GlassInput
+              type="email"
+              placeholder="support@example.com"
+              value={settings.support_email || ''}
+              onChange={(e) => setSettings(s => ({ ...s, support_email: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Press Email</label>
+            <GlassInput
+              type="email"
+              placeholder="press@example.com"
+              value={settings.press_email || ''}
+              onChange={(e) => setSettings(s => ({ ...s, press_email: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Phone Number</label>
+            <GlassInput
+              type="tel"
+              placeholder="+254 700 000 000"
+              value={settings.phone || ''}
+              onChange={(e) => setSettings(s => ({ ...s, phone: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">WhatsApp Number</label>
+            <GlassInput
+              type="tel"
+              placeholder="+254 700 000 000"
+              value={settings.whatsapp_number || ''}
+              onChange={(e) => setSettings(s => ({ ...s, whatsapp_number: e.target.value }))}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="text-sm text-muted-foreground block mb-1.5">Physical Address</label>
+            <GlassInput
+              placeholder="e.g. Westlands, Nairobi, Kenya"
+              value={settings.address || ''}
+              onChange={(e) => setSettings(s => ({ ...s, address: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Business Hours</label>
+            <GlassInput
+              placeholder="e.g. Mon-Fri 9AM-6PM EAT"
+              value={settings.business_hours || ''}
+              onChange={(e) => setSettings(s => ({ ...s, business_hours: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1.5">Support Response Time</label>
+            <GlassInput
+              placeholder="e.g. Within 24 hours"
+              value={settings.support_response_time || ''}
+              onChange={(e) => setSettings(s => ({ ...s, support_response_time: e.target.value }))}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="text-sm text-muted-foreground block mb-1.5">Website URL</label>
+            <GlassInput
+              type="url"
+              placeholder="https://www.example.com"
+              value={settings.website_url || ''}
+              onChange={(e) => setSettings(s => ({ ...s, website_url: e.target.value }))}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <p className="text-sm font-medium text-muted-foreground mb-3">Social Media</p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">Instagram</label>
+                <GlassInput
+                  placeholder="https://instagram.com/..."
+                  value={settings.social_instagram || ''}
+                  onChange={(e) => setSettings(s => ({ ...s, social_instagram: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">Twitter / X</label>
+                <GlassInput
+                  placeholder="https://x.com/..."
+                  value={settings.social_twitter || ''}
+                  onChange={(e) => setSettings(s => ({ ...s, social_twitter: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">Facebook</label>
+                <GlassInput
+                  placeholder="https://facebook.com/..."
+                  value={settings.social_facebook || ''}
+                  onChange={(e) => setSettings(s => ({ ...s, social_facebook: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">TikTok</label>
+                <GlassInput
+                  placeholder="https://tiktok.com/..."
+                  value={settings.social_tiktok || ''}
+                  onChange={(e) => setSettings(s => ({ ...s, social_tiktok: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">LinkedIn</label>
+                <GlassInput
+                  placeholder="https://linkedin.com/..."
+                  value={settings.social_linkedin || ''}
+                  onChange={(e) => setSettings(s => ({ ...s, social_linkedin: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">YouTube</label>
+                <GlassInput
+                  placeholder="https://youtube.com/..."
+                  value={settings.social_youtube || ''}
+                  onChange={(e) => setSettings(s => ({ ...s, social_youtube: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end mt-4">
+          <GlassButton variant="primary" size="sm" onClick={() => handleSaveWebsiteSettings({
+            company_name: settings.company_name,
+            company_tagline: settings.company_tagline,
+            company_description: settings.company_description,
+            support_email: settings.support_email,
+            press_email: settings.press_email,
+            phone: settings.phone,
+            whatsapp_number: settings.whatsapp_number,
+            address: settings.address,
+            business_hours: settings.business_hours,
+            support_response_time: settings.support_response_time,
+            website_url: settings.website_url,
+            social_instagram: settings.social_instagram,
+            social_twitter: settings.social_twitter,
+            social_facebook: settings.social_facebook,
+            social_tiktok: settings.social_tiktok,
+            social_linkedin: settings.social_linkedin,
+            social_youtube: settings.social_youtube,
+          })} isLoading={isProcessing}>
+            <Save className="h-4 w-4" /> Save Website Info
+          </GlassButton>
+        </div>
+      </GlassCard>
+
       <div className="flex justify-end">
         <GlassButton variant="primary" size="lg" onClick={handleSaveSettings} isLoading={isProcessing}>
           <Save className="h-4 w-4" /> Save Settings
@@ -2647,76 +2923,136 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   // SECTION: BRAND KIT
   // ============================================
 
-  const renderBrandKit = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Palette className="h-5 w-5 text-primary" /> Brand Kit
-        </h2>
-        <GlassButton variant="primary" size="sm" onClick={() => {
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = '.zip,.pdf,.png';
-          input.onchange = async (e: any) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            toast.info('Uploading brand kit...');
-            try {
-              // In production this would upload to storage; for now we show a placeholder
-              await api.request('/admin/brand-kit', {
-                method: 'POST',
-                body: JSON.stringify({ name: file.name, fileSize: file.size, fileType: file.type, fileUrl: `uploads/${file.name}` }),
-              });
-              toast.success('Brand kit uploaded');
-              fetchSectionData('brand-kit');
-            } catch {
-              toast.error('Failed to upload brand kit');
-            }
-          };
-          input.click();
-        }}>
-          <Plus className="h-4 w-4" /> Upload Brand Kit
-        </GlassButton>
-      </div>
+  const renderBrandKit = () => {
+    const handleUpload = (type: 'brand' | 'press') => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.zip,.pdf,.png,.jpg,.jpeg,.svg';
+      input.onchange = async (e: any) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        toast.info(`Uploading ${type} kit...`);
+        try {
+          await api.request('/admin/brand-kit', {
+            method: 'POST',
+            body: JSON.stringify({ type, name: file.name, fileSize: file.size, fileType: file.type, fileUrl: `uploads/${file.name}` }),
+          });
+          toast.success(`${type === 'brand' ? 'Brand' : 'Press'} kit uploaded`);
+          fetchSectionData('brand-kit');
+        } catch {
+          toast.error(`Failed to upload ${type} kit`);
+        }
+      };
+      input.click();
+    };
 
-      {isLoading && !dataFetched['brand-kit'] ? (
-        <Skeleton className="h-48 rounded-2xl" />
-      ) : displayBrandKit ? (
-        <GlassCard className="p-6" hover={false}>
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Palette className="h-7 w-7 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold">{displayBrandKit.name || 'Brand Kit'}</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Uploaded {fmtDate(displayBrandKit.createdAt)}
-                {displayBrandKit.fileSize && ` · ${(displayBrandKit.fileSize / 1024).toFixed(1)} KB`}
-              </p>
-            </div>
-            <GlassButton size="sm" variant="outline" onClick={async () => {
-              if (!confirm('Delete this brand kit?')) return;
-              try {
-                await api.request(`/admin/brand-kit?id=${displayBrandKit.id}`, { method: 'DELETE' });
-                setDisplayBrandKit(null);
-                toast.success('Brand kit deleted');
-              } catch {
-                toast.error('Failed to delete');
-              }
-            }} className="hover:text-destructive">
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </GlassButton>
+    const handleDelete = async (type: 'brand' | 'press') => {
+      if (!confirm(`Delete this ${type} kit?`)) return;
+      try {
+        await api.request(`/admin/brand-kit?type=${type}`, { method: 'DELETE' });
+        if (type === 'brand') setDisplayBrandKit(null);
+        else setDisplayPressKit(null);
+        toast.success(`${type === 'brand' ? 'Brand' : 'Press'} kit deleted`);
+      } catch {
+        toast.error('Failed to delete');
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Palette className="h-5 w-5 text-primary" /> Brand & Press Kit Management
+        </h2>
+
+        {isLoading && !dataFetched['brand-kit'] ? (
+          <div className="grid md:grid-cols-2 gap-4">
+            <Skeleton className="h-48 rounded-2xl" />
+            <Skeleton className="h-48 rounded-2xl" />
           </div>
-        </GlassCard>
-      ) : (
-        <EmptyState
-          icon={Palette}
-          title="No brand kit uploaded"
-          description="Upload your brand guidelines, logos, and assets for consistent styling."
-        />
-      )}
-    </div>
-  );
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Brand Kit Card */}
+            <GlassCard className="p-6" hover={false}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Palette className="h-5 w-5 text-primary" /> Brand Kit
+                </h3>
+                <GlassButton variant="primary" size="sm" onClick={() => handleUpload('brand')}>
+                  <Plus className="h-4 w-4" /> Upload
+                </GlassButton>
+              </div>
+              {displayBrandKit ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Palette className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{displayBrandKit.name || 'Brand Kit'}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Uploaded {fmtDate(displayBrandKit.createdAt)}
+                        {displayBrandKit.fileSize && ` · ${(displayBrandKit.fileSize / 1024).toFixed(1)} KB`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <GlassButton size="sm" variant="outline" onClick={() => handleDelete('brand')} className="hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </GlassButton>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <Palette className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No brand kit uploaded</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Upload brand guidelines, logos, and assets.</p>
+                </div>
+              )}
+            </GlassCard>
+
+            {/* Press Kit Card */}
+            <GlassCard className="p-6" hover={false}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Newspaper className="h-5 w-5 text-primary" /> Press Kit
+                </h3>
+                <GlassButton variant="primary" size="sm" onClick={() => handleUpload('press')}>
+                  <Plus className="h-4 w-4" /> Upload
+                </GlassButton>
+              </div>
+              {displayPressKit ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Newspaper className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{displayPressKit.name || 'Press Kit'}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Uploaded {fmtDate(displayPressKit.createdAt)}
+                        {displayPressKit.fileSize && ` · ${(displayPressKit.fileSize / 1024).toFixed(1)} KB`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <GlassButton size="sm" variant="outline" onClick={() => handleDelete('press')} className="hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </GlassButton>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <Newspaper className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No press kit uploaded</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Upload press releases, media assets, and info.</p>
+                </div>
+              )}
+            </GlassCard>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // ============================================
   // SECTION: MONITORING

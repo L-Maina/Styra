@@ -41,11 +41,39 @@ export async function GET(request: NextRequest) {
 // POST - Dual purpose:
 //   1. Admin: Create a job listing
 //   2. Public: Submit a job application (requires jobId, name, email)
+//   3. Public: General application (isGeneral=true, no jobId needed)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // If has jobId + name + email → it's a public job application
+    // General application (no jobId, sent from general application form)
+    // Stored in FormSubmission since JobApplication requires a jobId
+    if (body.isGeneral && body.name && body.email) {
+      const submission = await db.formSubmission.create({
+        data: {
+          type: 'general_application',
+          name: body.name,
+          email: body.email,
+          phone: body.phone || null,
+          subject: 'General Job Application',
+          message: body.coverLetter || null,
+          category: 'careers',
+          metadata: JSON.stringify({
+            resume: body.resume || null,
+            portfolio: body.portfolio || null,
+            linkedin: body.linkedin || null,
+            expectedSalary: body.expectedSalary || null,
+            startDate: body.startDate || null,
+            noticePeriod: body.noticePeriod || null,
+          }),
+          status: 'PENDING',
+        },
+      });
+
+      return successResponse({ application: submission, message: 'General application received successfully' }, 201);
+    }
+
+    // Job-specific application (has jobId + name + email)
     if (body.jobId && body.name && body.email) {
       if (!body.jobId) {
         return errorResponse('Job ID is required', 400);
