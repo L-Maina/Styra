@@ -3580,11 +3580,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                     const file = e.target.files?.[0];
                     if (!file) return;
                     if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      setArticleForm(f => ({ ...f, image: reader.result as string }));
-                    };
-                    reader.readAsDataURL(file);
+                    try {
+                      toast.loading('Uploading image...', { id: 'blog-img-upload' });
+                      const result = await api.uploadFile(file, 'blog' as any);
+                      if (result.data?.url) {
+                        setArticleForm(f => ({ ...f, image: result.data.url }));
+                        toast.success('Image uploaded', { id: 'blog-img-upload' });
+                      } else {
+                        toast.error('Upload failed — no URL returned', { id: 'blog-img-upload' });
+                      }
+                    } catch (err: any) {
+                      console.error('Image upload failed:', err);
+                      toast.error(err.message || 'Failed to upload image', { id: 'blog-img-upload' });
+                    }
                   };
                   input.click();
                 }}

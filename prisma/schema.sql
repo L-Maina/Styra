@@ -837,3 +837,102 @@ CREATE TABLE IF NOT EXISTS "TicketReply" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "TicketReply_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "SupportTicket"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+-- ============================================================
+-- Layer 9: CMS & Content tables (no FK dependencies)
+-- ============================================================
+
+-- 49. BrandKit
+CREATE TABLE IF NOT EXISTS "BrandKit" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "fileSize" INTEGER,
+    "fileType" TEXT,
+    "uploadedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
+);
+
+-- 50. PressKit
+CREATE TABLE IF NOT EXISTS "PressKit" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "fileSize" INTEGER,
+    "fileType" TEXT,
+    "uploadedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
+);
+
+-- 51. FAQ
+CREATE TABLE IF NOT EXISTS "FAQ" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "question" TEXT NOT NULL,
+    "answer" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'general',
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "isPublished" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
+);
+
+-- 52. TeamMember
+CREATE TABLE IF NOT EXISTS "TeamMember" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "bio" TEXT,
+    "image" TEXT,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
+);
+
+-- 53. Job
+CREATE TABLE IF NOT EXISTS "Job" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "department" TEXT NOT NULL,
+    "location" TEXT NOT NULL DEFAULT 'Nairobi, Kenya',
+    "type" TEXT NOT NULL DEFAULT 'Full-time',
+    "description" TEXT NOT NULL,
+    "requirements" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
+);
+
+-- 54. JobApplication
+CREATE TABLE IF NOT EXISTS "JobApplication" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "jobId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "phone" TEXT,
+    "resume" TEXT,
+    "coverLetter" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "JobApplication_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- ============================================================
+-- Migrations: Add missing columns to existing tables
+-- ============================================================
+
+-- Add authorId and authorType to BlogArticle (if not exists)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'BlogArticle' AND column_name = 'authorId') THEN
+        ALTER TABLE "BlogArticle" ADD COLUMN "authorId" TEXT;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'BlogArticle' AND column_name = 'authorType') THEN
+        ALTER TABLE "BlogArticle" ADD COLUMN "authorType" TEXT NOT NULL DEFAULT 'admin';
+    END IF;
+END $$;

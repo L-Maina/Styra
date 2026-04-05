@@ -145,7 +145,7 @@ export async function PUT(request: NextRequest) {
 
     // SECURITY: Only allow explicit fields to be updated.
     // Prevents arbitrary field injection (e.g., createdAt, authorId, etc.)
-    const allowedFields = ['title', 'slug', 'content', 'excerpt', 'category', 'tags', 'published', 'featuredImage'];
+    const allowedFields = ['title', 'slug', 'content', 'excerpt', 'category', 'tags', 'image', 'featuredImage', 'author', 'authorImage', 'readTime'];
     const updateData: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
@@ -153,10 +153,9 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Also allow fields used in the update logic below
+    // Boolean fields handled separately
     if (body.isPublished !== undefined) updateData.isPublished = body.isPublished;
     if (body.isFeatured !== undefined) updateData.isFeatured = body.isFeatured;
-    if (body.image !== undefined) updateData.image = body.image;
 
     if (Object.keys(updateData).length === 0) {
       return errorResponse('No valid fields to update', 400);

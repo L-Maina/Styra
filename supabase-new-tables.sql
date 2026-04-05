@@ -432,3 +432,145 @@ CREATE POLICY "Advertisement_public_read" ON "Advertisement" FOR SELECT USING ("
 CREATE POLICY "Advertisement_no_anon_insert" ON "Advertisement" FOR INSERT WITH CHECK (false);
 CREATE POLICY "Advertisement_no_anon_update" ON "Advertisement" FOR UPDATE USING (false) WITH CHECK (false);
 CREATE POLICY "Advertisement_no_anon_delete" ON "Advertisement" FOR DELETE USING (false);
+
+-- ============================================================
+-- Additional CMS tables (BrandKit, PressKit, FAQ, Team, Jobs)
+-- ============================================================
+
+-- 22. BrandKit
+CREATE TABLE IF NOT EXISTS "BrandKit" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "fileSize" INTEGER,
+    "fileType" TEXT,
+    "uploadedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 23. PressKit
+CREATE TABLE IF NOT EXISTS "PressKit" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "fileSize" INTEGER,
+    "fileType" TEXT,
+    "uploadedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 24. FAQ
+CREATE TABLE IF NOT EXISTS "FAQ" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "question" TEXT NOT NULL,
+    "answer" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'general',
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "isPublished" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 25. TeamMember
+CREATE TABLE IF NOT EXISTS "TeamMember" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "bio" TEXT,
+    "image" TEXT,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 26. Job
+CREATE TABLE IF NOT EXISTS "Job" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "department" TEXT NOT NULL,
+    "location" TEXT NOT NULL DEFAULT 'Nairobi, Kenya',
+    "type" TEXT NOT NULL DEFAULT 'Full-time',
+    "description" TEXT NOT NULL,
+    "requirements" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 27. JobApplication
+CREATE TABLE IF NOT EXISTS "JobApplication" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "jobId" TEXT NOT NULL REFERENCES "Job"("id") ON DELETE CASCADE,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "phone" TEXT,
+    "resume" TEXT,
+    "coverLetter" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- RLS for new CMS tables
+-- ============================================================
+
+ALTER TABLE "BrandKit" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "PressKit" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "FAQ" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "TeamMember" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Job" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "JobApplication" ENABLE ROW LEVEL SECURITY;
+
+-- BrandKit: public read, no anon writes
+CREATE POLICY "BrandKit_public_read" ON "BrandKit" FOR SELECT USING (true);
+CREATE POLICY "BrandKit_no_anon_insert" ON "BrandKit" FOR INSERT WITH CHECK (false);
+CREATE POLICY "BrandKit_no_anon_update" ON "BrandKit" FOR UPDATE USING (false) WITH CHECK (false);
+CREATE POLICY "BrandKit_no_anon_delete" ON "BrandKit" FOR DELETE USING (false);
+
+-- PressKit: public read, no anon writes
+CREATE POLICY "PressKit_public_read" ON "PressKit" FOR SELECT USING (true);
+CREATE POLICY "PressKit_no_anon_insert" ON "PressKit" FOR INSERT WITH CHECK (false);
+CREATE POLICY "PressKit_no_anon_update" ON "PressKit" FOR UPDATE USING (false) WITH CHECK (false);
+CREATE POLICY "PressKit_no_anon_delete" ON "PressKit" FOR DELETE USING (false);
+
+-- FAQ: public can read published, no anon writes
+CREATE POLICY "FAQ_public_read" ON "FAQ" FOR SELECT USING ("isPublished" = true);
+CREATE POLICY "FAQ_no_anon_insert" ON "FAQ" FOR INSERT WITH CHECK (false);
+CREATE POLICY "FAQ_no_anon_update" ON "FAQ" FOR UPDATE USING (false) WITH CHECK (false);
+CREATE POLICY "FAQ_no_anon_delete" ON "FAQ" FOR DELETE USING (false);
+
+-- TeamMember: public can read active, no anon writes
+CREATE POLICY "TeamMember_public_read" ON "TeamMember" FOR SELECT USING ("isActive" = true);
+CREATE POLICY "TeamMember_no_anon_insert" ON "TeamMember" FOR INSERT WITH CHECK (false);
+CREATE POLICY "TeamMember_no_anon_update" ON "TeamMember" FOR UPDATE USING (false) WITH CHECK (false);
+CREATE POLICY "TeamMember_no_anon_delete" ON "TeamMember" FOR DELETE USING (false);
+
+-- Job: public can read open jobs, no anon writes
+CREATE POLICY "Job_public_read" ON "Job" FOR SELECT USING ("status" = 'OPEN');
+CREATE POLICY "Job_no_anon_insert" ON "Job" FOR INSERT WITH CHECK (false);
+CREATE POLICY "Job_no_anon_update" ON "Job" FOR UPDATE USING (false) WITH CHECK (false);
+CREATE POLICY "Job_no_anon_delete" ON "Job" FOR DELETE USING (false);
+
+-- JobApplication: no anon access (service role only)
+CREATE POLICY "JobApplication_no_anon" ON "JobApplication" FOR ALL USING (false) WITH CHECK (false);
+
+-- ============================================================
+-- Migrations: Add missing columns to existing tables
+-- ============================================================
+
+-- Add authorId and authorType to BlogArticle (if not exists)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'BlogArticle' AND column_name = 'authorId') THEN
+        ALTER TABLE "BlogArticle" ADD COLUMN "authorId" TEXT;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'BlogArticle' AND column_name = 'authorType') THEN
+        ALTER TABLE "BlogArticle" ADD COLUMN "authorType" TEXT NOT NULL DEFAULT 'admin';
+    END IF;
+END $$;
