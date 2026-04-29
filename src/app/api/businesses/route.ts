@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireRole } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
 import { parseSort } from '@/lib/query-optimization';
 
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
 // Create new business
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireRole('business', 'admin');
+    const session = await requireAuth();
     const body = await request.json();
 
     // Check if user already has a business

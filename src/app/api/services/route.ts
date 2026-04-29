@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireRole } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { createServiceSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 // Create new service
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireRole('business', 'admin');
+    const session = await requireAuth();
     const body = await request.json();
     const validated = createServiceSchema.parse(body);
 
