@@ -10,6 +10,10 @@ import { PrismaClient } from '@prisma/client';
  *    to survive across invocations of the same warm function.
  * 3. Long-lived idle connections get dropped by the pooler — we need to
  *    detect stale connections and reconnect.
+ * 4. DATABASE_URL may not be available at module-load time (build phase,
+ *    cold-start races). We use a lazy Proxy so the client is only created
+ *    on first actual query — inside route handlers where errors can be
+ *    caught by handleApiError and returned as proper HTTP responses.
  */
 
 const globalForPrisma = globalThis as unknown as {
@@ -36,16 +40,26 @@ function safeLogUrl(url: string): string {
   return url.replace(/:[^:@]+@/, ':****@');
 }
 
+/**
+ * Build a PrismaClient. Never throws — if DATABASE_URL is missing,
+ * a client is still returned. Prisma itself will throw a
+ * PrismaClientInitializationError on the first query, which is caught
+ * by handleApiError in route handlers and returned as a 503 response.
+ */
 function createPrismaClient(): PrismaClient {
   const rawUrl = process.env.DATABASE_URL;
 
   if (!rawUrl) {
-    if (process.env.NODE_ENV !== 'production') {
-      return new PrismaClient({ log: ['warn', 'error'] });
-    }
-    throw new Error(
-      '[FATAL] DATABASE_URL is not set. Set it in Vercel Dashboard → Settings → Environment Variables.'
+    console.error(
+      '[DB] DATABASE_URL is not set. Queries will fail with PrismaClientInitializationError. ' +
+      'Fix: set DATABASE_URL in Vercel Dashboard → Settings → Environment Variables.'
     );
+    // Return a minimal client — it will throw on first query, but that error
+    // is caught inside API route handlers by handleApiError and returned as
+    // a proper 503 JSON response instead of crashing the function.
+    return new PrismaClient({
+      log: ['error'],
+    });
   }
 
   const databaseUrl = buildDatabaseUrl(rawUrl);
@@ -122,15 +136,29 @@ async function withRetry<T>(operation: () => Promise<T>): Promise<T> {
   }
 }
 
-// ── Export ────────────────────────────────────────────────────────────────
+// ── Lazy Proxy Export ────────────────────────────────────────────────────
 
-// Direct singleton export (most common usage: db.user.findMany(...))
-export const db = getPrisma() as PrismaClient & {
-  $queryRaw<T>(query: TemplateStringsArray | string, ...values: unknown[]): Promise<T>;
-  $executeRaw(query: TemplateStringsArray | string, ...values: unknown[]): Promise<number>;
-};
+/**
+ * Prisma client — LAZY proxy.
+ *
+ * The actual PrismaClient is only created on first property access (i.e.
+ * when you call db.business.findMany(...)). This prevents the module from
+ * crashing at import time if DATABASE_URL is temporarily unavailable.
+ *
+ * Usage is identical to before: db.user.findMany(...), db.business.create(...)
+ */
+export const db = new Proxy({} as PrismaClient, {
+  get(_target, prop, _receiver) {
+    const client = getPrisma();
+    const value = (client as unknown as Record<string | symbol, unknown>)[prop];
+    if (typeof value === 'function') {
+      return (value as Function).bind(client);
+    }
+    return value;
+  },
+});
 
 export default db;
 
 // Re-export reset for manual use if needed
-export { resetPrisma };
+export { resetPrisma, withRetry };
