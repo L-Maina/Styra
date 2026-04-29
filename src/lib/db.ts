@@ -1,121 +1,83 @@
 import { PrismaClient } from '@prisma/client';
 
+/**
+ * Prisma singleton for Supabase PostgreSQL on Vercel serverless.
+ *
+ * CRITICAL: In Vercel serverless, each API route runs in its own function.
+ * Without global caching, every request creates a new connection, quickly
+ * exhausting Supabase's connection pool. That causes the "works for a minute
+ * then breaks" pattern.
+ *
+ * The globalThis singleton ensures one PrismaClient per function instance,
+ * reusing the connection across requests.
+ */
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 /**
- * Build a safe database URL with connection pooling parameters.
- *
- * - Adds pgbouncer=true for Supabase Supavisor (port 6543) compatibility
- * - Adds connection_limit=1 for Vercel serverless
- * - Adds sslmode=require for secure connections
- * - Adds pool_timeout for reasonable timeouts
+ * Build database URL with Supabase pooler parameters.
  */
 function buildDatabaseUrl(url: string): string {
-  // SQLite paths — return as-is
-  if (url.startsWith('file:')) {
-    return url;
-  }
+  if (url.startsWith('file:')) return url;
 
   const params: string[] = [];
-
-  if (!url.includes('pgbouncer=')) {
-    params.push('pgbouncer=true');
-  }
-  if (!url.includes('connection_limit=')) {
-    params.push('connection_limit=1');
-  }
-  if (!url.includes('pool_timeout=')) {
-    params.push('pool_timeout=10');
-  }
-  if (!url.includes('sslmode=')) {
-    params.push('sslmode=require');
-  }
+  if (!url.includes('pgbouncer=')) params.push('pgbouncer=true');
+  if (!url.includes('connection_limit=')) params.push('connection_limit=1');
+  if (!url.includes('pool_timeout=')) params.push('pool_timeout=15');
+  if (!url.includes('connect_timeout=')) params.push('connect_timeout=10');
+  if (!url.includes('sslmode=')) params.push('sslmode=require');
 
   if (params.length === 0) return url;
-
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}${params.join('&')}`;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}${params.join('&')}`;
 }
 
-/**
- * Safely log the database URL, masking any passwords.
- */
 function safeLogUrl(url: string): string {
-  if (url.startsWith('file:')) {
-    return url;
-  }
+  if (url.startsWith('file:')) return url;
   return url.replace(/:[^:@]+@/, ':****@');
 }
 
-/**
- * Create a PrismaClient for Supabase PostgreSQL.
- *
- * IMPORTANT for Vercel:
- *   Use the Supabase Connection Pooling URL (port 6543) as DATABASE_URL:
- *   postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
- *
- *   The direct connection (port 5432) is NOT accessible from Vercel's network.
- */
-function createPrismaClient() {
-  const rawDatabaseUrl = process.env.DATABASE_URL;
+function createPrismaClient(): PrismaClient {
+  const rawUrl = process.env.DATABASE_URL;
 
-  if (!rawDatabaseUrl) {
+  if (!rawUrl) {
     if (process.env.NODE_ENV !== 'production') {
-      return new PrismaClient({
-        log: ['query', 'warn', 'error'],
-      });
+      return new PrismaClient({ log: ['warn', 'error'] });
     }
     throw new Error(
-      '[FATAL] DATABASE_URL is not set.\n\n' +
-      'Fix: Go to Vercel Dashboard → Settings → Environment Variables → Add DATABASE_URL.\n' +
-      'Value: Supabase Connection Pooling URL from Supabase → Settings → Database → Connection string.\n' +
-      'Format: postgresql://postgres.[ref]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres'
+      '[FATAL] DATABASE_URL is not set. Set it in Vercel Dashboard → Settings → Environment Variables.'
     );
   }
 
-  const databaseUrl = buildDatabaseUrl(rawDatabaseUrl);
+  const databaseUrl = buildDatabaseUrl(rawUrl);
 
-  console.log(`[DB] Using database: ${safeLogUrl(databaseUrl)}`);
+  console.log(`[DB] Connecting: ${safeLogUrl(databaseUrl)}`);
 
   return new PrismaClient({
-    datasources: {
-      db: {
-        url: databaseUrl,
-      },
-    },
-    log:
-      process.env.NODE_ENV === 'production'
-        ? ['error']
-        : ['query', 'warn', 'error'],
+    datasources: { db: { url: databaseUrl } },
+    log: process.env.NODE_ENV === 'production' ? ['error'] : ['warn', 'error'],
   });
 }
 
-// Lazy singleton
-let _prisma: PrismaClient | undefined;
-
 function getPrisma(): PrismaClient {
-  if (_prisma) return _prisma;
-  _prisma = createPrismaClient();
-  return _prisma;
+  // Use globalThis in ALL environments (not just dev) to survive
+  // Vercel's hot-reloading and function reuse within the same instance
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
 }
 
-// Proxy-based lazy export — PrismaClient is only created when first accessed
-export const db: PrismaClient = new Proxy({} as PrismaClient, {
-  get(_target, prop, receiver) {
-    const client = getPrisma();
-    const value = Reflect.get(client, prop, receiver);
-    if (typeof value === 'function') {
-      return value.bind(client);
-    }
-    return value;
-  },
-});
+// Single shared instance — always use globalThis
+export const db = getPrisma();
 
-// Cache in dev for HMR
-if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
-  globalForPrisma.prisma = getPrisma();
+// Cleanup on process exit (dev only)
+if (process.env.NODE_ENV !== 'production') {
+  process.on('beforeExit', async () => {
+    await globalForPrisma.prisma?.$disconnect();
+  });
 }
 
 export default db;
