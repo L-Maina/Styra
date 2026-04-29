@@ -3,16 +3,18 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
-  // Local SQLite database for development.
-  // For production (Supabase PostgreSQL), change provider to "postgresql"
-  // and set DATABASE_URL to the Supabase Connection Pooling URL (Session mode, port 6543):
+  // Supabase Connection Pooling URL (Session mode, port 6543):
   //   postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+  // Set as DATABASE_URL in Vercel Dashboard → Settings → Environment Variables.
+  //
+  // For /api/db-setup (table creation), also set DIRECT_URL with the direct connection (port 5432).
 }
 
 // ============================================================
-// Styra — Grooming Marketplace Prisma Schema (SQLite / PostgreSQL)
+// Styra — Grooming Marketplace Prisma Schema (PostgreSQL)
+// 48 models total — matches Supabase database exactly
 // JSON fields stored as String; parse with JSON.parse() in app code.
 // ============================================================
 
