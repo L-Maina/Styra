@@ -5,21 +5,16 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /**
- * Build the database URL for Supabase pooler (Supavisor).
+ * Build a safe database URL with connection pooling parameters.
  *
- * Supavisor (port 6543) does NOT support prepared statements.
- * Prisma uses prepared statements by default, which causes:
- *   Error 42P05: "prepared statement already exists"
- *
- * The pgbouncer=true flag tells Prisma to use the simple query
- * protocol instead, which avoids this error entirely.
- *
- * We also set connection_limit=1 for Vercel serverless to prevent
- * connection pool exhaustion on cold starts.
+ * - Adds pgbouncer=true for Supabase Supavisor (port 6543) compatibility
+ * - Adds connection_limit=1 for Vercel serverless
+ * - Adds sslmode=require for secure connections
+ * - Adds pool_timeout for reasonable timeouts
  */
 function buildDatabaseUrl(url: string): string {
-  // Only modify PostgreSQL URLs going through Supabase pooler
-  if (!url.includes('supabase') && !url.includes('pooler')) {
+  // SQLite paths — return as-is
+  if (url.startsWith('file:')) {
     return url;
   }
 
@@ -46,31 +41,28 @@ function buildDatabaseUrl(url: string): string {
 
 /**
  * Safely log the database URL, masking any passwords.
- * Handles both PostgreSQL URLs (user:pass@host) and SQLite file paths.
  */
 function safeLogUrl(url: string): string {
   if (url.startsWith('file:')) {
-    // SQLite — log the path directly, no password to mask
     return url;
   }
-  // PostgreSQL — mask password between : and @
   return url.replace(/:[^:@]+@/, ':****@');
 }
 
 /**
- * Create a PrismaClient that works with both SQLite (local dev)
- * and Supabase PostgreSQL (production).
+ * Create a PrismaClient for Supabase PostgreSQL.
  *
- * ENV VARS:
- *   DATABASE_URL — either a SQLite path (file:./db/custom.db)
- *                  or a Supabase Connection Pooling URL
+ * IMPORTANT for Vercel:
+ *   Use the Supabase Connection Pooling URL (port 6543) as DATABASE_URL:
+ *   postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+ *
+ *   The direct connection (port 5432) is NOT accessible from Vercel's network.
  */
 function createPrismaClient() {
   const rawDatabaseUrl = process.env.DATABASE_URL;
 
   if (!rawDatabaseUrl) {
     if (process.env.NODE_ENV !== 'production') {
-      // In local dev, let Prisma use the .env DATABASE_URL (may be SQLite)
       return new PrismaClient({
         log: ['query', 'warn', 'error'],
       });
@@ -78,11 +70,11 @@ function createPrismaClient() {
     throw new Error(
       '[FATAL] DATABASE_URL is not set.\n\n' +
       'Fix: Go to Vercel Dashboard → Settings → Environment Variables → Add DATABASE_URL.\n' +
-      'Value: Supabase Connection Pooling URL (Session mode) from Supabase → Settings → Database → Connection string.'
+      'Value: Supabase Connection Pooling URL from Supabase → Settings → Database → Connection string.\n' +
+      'Format: postgresql://postgres.[ref]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres'
     );
   }
 
-  // Build the URL with pooler-compatible parameters (no-op for SQLite)
   const databaseUrl = buildDatabaseUrl(rawDatabaseUrl);
 
   console.log(`[DB] Using database: ${safeLogUrl(databaseUrl)}`);
