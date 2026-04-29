@@ -45,13 +45,25 @@ function buildDatabaseUrl(url: string): string {
 }
 
 /**
- * Create a PrismaClient optimized for Supabase + Vercel serverless.
+ * Safely log the database URL, masking any passwords.
+ * Handles both PostgreSQL URLs (user:pass@host) and SQLite file paths.
+ */
+function safeLogUrl(url: string): string {
+  if (url.startsWith('file:')) {
+    // SQLite — log the path directly, no password to mask
+    return url;
+  }
+  // PostgreSQL — mask password between : and @
+  return url.replace(/:[^:@]+@/, ':****@');
+}
+
+/**
+ * Create a PrismaClient that works with both SQLite (local dev)
+ * and Supabase PostgreSQL (production).
  *
- * REQUIRED ENV VARS (set in Vercel Dashboard → Settings → Environment Variables):
- *
- *   DATABASE_URL = Supabase Connection Pooling URL (Session mode, port 6543)
- *     Format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
- *     The ?pgbouncer=true param is auto-appended for Supabase URLs.
+ * ENV VARS:
+ *   DATABASE_URL — either a SQLite path (file:./db/custom.db)
+ *                  or a Supabase Connection Pooling URL
  */
 function createPrismaClient() {
   const rawDatabaseUrl = process.env.DATABASE_URL;
@@ -70,12 +82,10 @@ function createPrismaClient() {
     );
   }
 
-  // Build the URL with pooler-compatible parameters
+  // Build the URL with pooler-compatible parameters (no-op for SQLite)
   const databaseUrl = buildDatabaseUrl(rawDatabaseUrl);
 
-  // CRITICAL: Pass the modified URL via datasources — do NOT rely on env var
-  // because the env var does NOT have pgbouncer=true appended
-  console.log(`[DB] Using database: ${databaseUrl.replace(/:[^:@]+@/, ':****@')}`);
+  console.log(`[DB] Using database: ${safeLogUrl(databaseUrl)}`);
 
   return new PrismaClient({
     datasources: {
