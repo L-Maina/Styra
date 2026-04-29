@@ -694,9 +694,9 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
                   <p className="text-sm">
                     By submitting this application, you confirm that all information provided is accurate and 
                     you agree to our{' '}
-                    <button type="button" className="text-primary hover:underline">Terms of Service</button>
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a>
                     {' '}and{' '}
-                    <button type="button" className="text-primary hover:underline">Business Policies</button>.
+                    <a href="/provider-policies" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Business Policies</a>.
                   </p>
                 </div>
               </motion.div>

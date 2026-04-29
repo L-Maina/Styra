@@ -15,8 +15,10 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {};
     // Business model uses isVerified (boolean), not verificationStatus
-    if (status === 'pending') where.isVerified = false;
-    else if (status === 'approved') where.isVerified = true;
+    const statusLower = (status || '').toLowerCase();
+    if (statusLower === 'pending') where.isVerified = false;
+    else if (statusLower === 'approved') where.isVerified = true;
+    else if (statusLower === 'rejected') { where.isVerified = false; where.isActive = false; }
     if (query) {
       where.OR = [
         { name: { contains: query } },

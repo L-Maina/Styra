@@ -138,6 +138,48 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Notify the business owner that their application was received
+    try {
+      await db.notification.create({
+        data: {
+          userId: session.userId,
+          title: 'Application Received',
+          message: `Your business "${body.name}" has been submitted for review. You will be notified once it is approved.`,
+          type: 'VERIFICATION_UPDATE',
+        },
+      });
+    } catch (notificationError) {
+      console.error('Failed to create applicant notification:', notificationError);
+    }
+
+    // Notify all admin users about new business application
+    try {
+      const admins = await db.user.findMany({
+        where: {
+          OR: [
+            { role: 'ADMIN' },
+            { role: 'admin' },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (admins.length > 0) {
+        await db.notification.createMany({
+          data: admins.map(admin => ({
+            userId: admin.id,
+            title: 'New Business Application',
+            message: `${body.name} has submitted a new business application and is awaiting review.`,
+            type: 'SYSTEM_ALERT',
+            link: `/admin?tab=businesses`,
+          })),
+        });
+      }
+    } catch (notificationError) {
+      console.error('Failed to create admin notifications:', notificationError);
+      // Don't fail the business creation if notification fails
+    }
+
     return successResponse(business, 201);
   } catch (error) {
     if (error instanceof Response) return error as NextResponse;

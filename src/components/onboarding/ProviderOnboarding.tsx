@@ -27,6 +27,7 @@ import {
   Info,
   Calendar,
   Image as ImageIcon,
+  Plus,
 } from 'lucide-react';
 import {
   GlassCard,
@@ -37,6 +38,8 @@ import {
 import { PhoneInput } from '@/components/ui/custom/PhoneInput';
 import { cn } from '@/lib/utils';
 import { useAuthStore, useAdminStore } from '@/store';
+import api from '@/lib/api-client';
+import { toast } from 'sonner';
 import type { User as UserType } from '@/types';
 
 interface ProviderOnboardingProps {
@@ -274,8 +277,40 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
     setError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      // Clean website: add protocol if missing
+      let cleanWebsite = profileData.website?.trim() || undefined;
+      if (cleanWebsite && !cleanWebsite.startsWith('http://') && !cleanWebsite.startsWith('https://')) {
+        cleanWebsite = `https://${cleanWebsite}`;
+      }
+
+      // Create business via real API
+      const result = await api.createBusiness({
+        name: profileData.businessName,
+        description: profileData.description || undefined,
+        address: profileData.address,
+        city: profileData.city,
+        country: profileData.country || 'N/A',
+        phone: profileData.phone || undefined,
+        email: profileData.email || undefined,
+        website: cleanWebsite,
+        serviceRadius: 10,
+      });
+
+      const businessId = (result.data as { id: string }).id;
+
+      // Create services via real API
+      for (const service of services) {
+        await api.createService({
+          businessId,
+          name: service.name,
+          description: service.description,
+          category: service.category,
+          duration: service.duration,
+          price: service.price,
+        });
+      }
+
+      // Also store in local admin store for backward compatibility
       const application = {
         id: `app-${Date.now()}`,
         userId: user.id,
@@ -296,7 +331,6 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         status: 'PENDING' as const,
         submittedAt: new Date(),
       };
-      
       addApplication(application);
       
       const updatedUser: UserType = {
@@ -316,10 +350,12 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
       localStorage.setItem('styra-verification-status', 'PENDING');
       localStorage.setItem('styra-business-name', profileData.businessName);
       
+      toast.success('Application submitted successfully! We will review it shortly.');
       updateUser(updatedUser);
       onComplete?.(updatedUser);
-    } catch {
-      setError('Failed to submit application. Please try again.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to submit application. Please try again.';
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -800,6 +836,16 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                       ))}
                     </div>
                   )}
+                  {services.length > 0 && (
+                    <div className="flex items-center justify-center gap-4 pt-4">
+                      <GlassButton variant="outline" onClick={addService} leftIcon={<Plus className="h-4 w-4" />}>
+                        Add More
+                      </GlassButton>
+                      <GlassButton variant="primary" onClick={handleNext} rightIcon={<Check className="h-4 w-4" />}>
+                        Done
+                      </GlassButton>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -833,7 +879,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                     ))}
 
                     {portfolio.length < 10 && (
-                      <label className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex flex-col items-center justify-center bg-muted/30">
+                      <label className="relative aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex flex-col items-center justify-center bg-muted/30">
                         <Camera className="h-8 w-8 text-muted-foreground mb-2" />
                         <span className="text-sm text-muted-foreground">Add Photo</span>
                         <input
@@ -1108,9 +1154,9 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                   <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
                     <p className="text-sm">
                       By submitting, you confirm that all information is accurate and agree to our{' '}
-                      <button type="button" className="text-primary hover:underline">Terms of Service</button>
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a>
                       {' '}and{' '}
-                      <button type="button" className="text-primary hover:underline">Provider Policies</button>.
+                      <a href="/provider-policies" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Provider Policies</a>.
                     </p>
                   </div>
                 </div>
