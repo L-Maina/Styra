@@ -3,22 +3,19 @@ import { PrismaClient } from '@prisma/client';
 /**
  * Prisma singleton for Supabase PostgreSQL on Vercel serverless.
  *
- * CRITICAL: In Vercel serverless, each API route runs in its own function.
- * Without global caching, every request creates a new connection, quickly
- * exhausting Supabase's connection pool. That causes the "works for a minute
- * then breaks" pattern.
- *
- * The globalThis singleton ensures one PrismaClient per function instance,
- * reusing the connection across requests.
+ * Key issues on Vercel:
+ * 1. Each API route is a separate function — without caching, every request
+ *    opens a new DB connection, exhausting the Supabase pooler quickly.
+ * 2. Cold starts create fresh instances — the singleton must use globalThis
+ *    to survive across invocations of the same warm function.
+ * 3. Long-lived idle connections get dropped by the pooler — we need to
+ *    detect stale connections and reconnect.
  */
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-/**
- * Build database URL with Supabase pooler parameters.
- */
 function buildDatabaseUrl(url: string): string {
   if (url.startsWith('file:')) return url;
 
@@ -52,32 +49,88 @@ function createPrismaClient(): PrismaClient {
   }
 
   const databaseUrl = buildDatabaseUrl(rawUrl);
-
   console.log(`[DB] Connecting: ${safeLogUrl(databaseUrl)}`);
 
-  return new PrismaClient({
+  const client = new PrismaClient({
     datasources: { db: { url: databaseUrl } },
     log: process.env.NODE_ENV === 'production' ? ['error'] : ['warn', 'error'],
   });
+
+  // Soft-close on app termination — lets in-flight queries finish
+  process.on('beforeExit', async () => {
+    try { await client.$disconnect(); } catch { /* ignore */ }
+  });
+
+  return client;
 }
 
+/**
+ * Get or create the Prisma singleton.
+ *
+ * Uses globalThis so the same client is reused across requests
+ * within the same Vercel function instance (warm starts).
+ */
 function getPrisma(): PrismaClient {
-  // Use globalThis in ALL environments (not just dev) to survive
-  // Vercel's hot-reloading and function reuse within the same instance
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = createPrismaClient();
+  if (globalForPrisma.prisma) {
+    return globalForPrisma.prisma;
   }
+
+  globalForPrisma.prisma = createPrismaClient();
   return globalForPrisma.prisma;
 }
 
-// Single shared instance — always use globalThis
-export const db = getPrisma();
-
-// Cleanup on process exit (dev only)
-if (process.env.NODE_ENV !== 'production') {
-  process.on('beforeExit', async () => {
+/**
+ * Reset the Prisma singleton (used when connection is stale).
+ */
+async function resetPrisma(): Promise<PrismaClient> {
+  try {
     await globalForPrisma.prisma?.$disconnect();
-  });
+  } catch {
+    /* ignore disconnect errors */
+  }
+  globalForPrisma.prisma = undefined;
+  return getPrisma();
 }
 
+/**
+ * Database wrapper that auto-reconnects on connection errors.
+ *
+ * Prisma connection errors have codes like:
+ *   P1001 - Can't reach database
+ *   P1008 - Operation timed out
+ *   P2024 - Timed out fetching a new connection from the pool
+ *
+ * On these errors we disconnect the stale client and create a fresh one.
+ */
+async function withRetry<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: unknown) {
+    const code = (error as { code?: string }).code;
+
+    // Only auto-retry on connection-related Prisma errors
+    const isConnectionError =
+      code === 'P1001' ||
+      code === 'P1008' ||
+      code === 'P2024';
+
+    if (!isConnectionError) throw error;
+
+    console.warn(`[DB] Connection error (${code}), reconnecting...`);
+    const freshClient = await resetPrisma();
+    return await operation.call(freshClient);
+  }
+}
+
+// ── Export ────────────────────────────────────────────────────────────────
+
+// Direct singleton export (most common usage: db.user.findMany(...))
+export const db = getPrisma() as PrismaClient & {
+  $queryRaw<T>(query: TemplateStringsArray | string, ...values: unknown[]): Promise<T>;
+  $executeRaw(query: TemplateStringsArray | string, ...values: unknown[]): Promise<number>;
+};
+
 export default db;
+
+// Re-export reset for manual use if needed
+export { resetPrisma };

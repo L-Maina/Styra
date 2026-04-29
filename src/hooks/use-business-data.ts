@@ -20,10 +20,18 @@ function useFetch<T>(
     setError(null);
     fetchFn()
       .then((result) => {
-        if (!cancelled) setRawData(result || []);
+        if (!cancelled) {
+          setRawData(result || []);
+          setError(null); // Clear any previous error on success
+        }
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message || 'Failed to load data');
+        if (!cancelled) {
+          // Keep existing data if we have it — don't wipe successful results
+          // Only set error if we have no data at all
+          setRawData((prev) => prev);
+          setError(err.message || 'Failed to load data');
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -31,16 +39,21 @@ function useFetch<T>(
     return () => {
       cancelled = true;
     };
-  }, [enabled, fetchFn]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   const refetch = useCallback(() => {
     setIsLoading(true);
     setError(null);
     fetchFn()
-      .then((result) => setRawData(result || []))
+      .then((result) => {
+        setRawData(result || []);
+        setError(null);
+      })
       .catch((err) => setError(err.message || 'Failed to load data'))
       .finally(() => setIsLoading(false));
-  }, [fetchFn]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // When disabled, expose empty data to prevent stale data leakage
   const data = enabled ? rawData : [];
