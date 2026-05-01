@@ -56,9 +56,11 @@ export default function GlobalErrorBoundary({ error, reset }: ErrorBoundaryProps
             </button>
             <button
               onClick={() => {
-                // Clear all client state and reload
+                // Clear client state but preserve theme preference
                 if (typeof window !== 'undefined') {
+                  const theme = localStorage.getItem('theme');
                   localStorage.clear();
+                  if (theme) localStorage.setItem('theme', theme);
                   window.location.href = '/';
                 }
               }}

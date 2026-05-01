@@ -998,8 +998,8 @@ export default function HomePage() {
       </div>
 
       <main id="main-content" className="flex-1 pt-16">
-        {/* Error banner for businesses fetch — non-blocking */}
-        {businessesError && (
+        {/* Error banner for businesses fetch — non-blocking, hidden on map page (map handles its own empty state) */}
+        {businessesError && currentPage !== 'map' && (
           <div className="max-w-xl mx-auto mt-6 px-4">
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-center">
               <p className="text-sm text-destructive font-medium">Could not load businesses</p>
