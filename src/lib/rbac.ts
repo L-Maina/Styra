@@ -71,7 +71,7 @@ export function normalizeRoles(roles: string[]): UserRole[] {
  * @returns Properly normalized User object
  */
 export function normalizeUserFromAPI(apiUser: Record<string, unknown>): User {
-  const rawRole = (apiUser.role as string) || 'customer';
+  const rawRole = (apiUser.role as string) || 'CUSTOMER';
   const normalizedRole = normalizeRole(rawRole);
 
   // Build roles array: if the API returns a roles array, normalize it;

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS "User" (
     "name" TEXT NOT NULL,
     "phone" TEXT,
     "avatar" TEXT,
-    "role" TEXT NOT NULL DEFAULT 'customer',
+    "role" TEXT NOT NULL DEFAULT 'CUSTOMER',
     "isVerified" BOOLEAN NOT NULL DEFAULT false,
     "isBanned" BOOLEAN NOT NULL DEFAULT false,
     "banReason" TEXT,

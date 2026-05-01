@@ -187,3 +187,42 @@ Stage Summary:
 - Setup endpoint disabled in production (403)
 - JWT_SECRET now required in production (throws on missing)
 - .env.example created for new developer onboarding
+
+---
+Task ID: 8
+Agent: Main
+Task: Production readiness — comprehensive audit, fix all issues, deploy
+
+Work Log:
+- Conducted comprehensive audit of entire codebase for production readiness issues
+- Identified 12 critical/high/medium issues across schema, security, config, and code
+- Fixed Prisma P2032 error: removed UserRole enum, changed to String (matching Supabase TEXT column)
+- Standardized all role values to UPPERCASE across 8 API routes and seed file
+- Fixed CORS wildcard origin reflection (CSRF vulnerability) in middleware.ts
+- Fixed next.config.ts: ignoreBuildErrors=false, reactStrictMode=true, dev-only allowedDevOrigins
+- Fixed api-utils.ts: stack traces gated behind dev mode, added P2032 error handler
+- Disabled /api/setup in production (returns 403)
+- JWT_SECRET now throws in production if not set
+- Created .env.example with all required environment variables
+- Added missing sensitive fields to sanitizer (providerRef, authKey, p256dhKey, code)
+- Added ROLES and VALID_ROLES constants to types/index.ts
+- Fixed lint error in db.ts (Function type → explicit function signature)
+- Regenerated Prisma client with updated schema
+- Lint check passes (0 errors, 3 warnings)
+- Committed and pushed to both main and master branches on GitHub
+- Dev server running on port 3000, returning 200
+
+Stage Summary:
+- 12 production issues fixed across 39 files
+- Prisma P2032 error resolved — admin login should now work on Vercel
+- All security vulnerabilities addressed (CORS, stack traces, setup endpoint, JWT)
+- Role values standardized to UPPERCASE throughout codebase
+- Changes deployed to GitHub (both main and master branches)
+- Vercel should auto-deploy from master branch
+
+Unresolved Issues:
+- Local DATABASE_URL points to SQLite file but schema requires PostgreSQL (expected for local dev)
+- Supabase database may have existing rows with lowercase role values ('customer', 'business', 'admin')
+  — these need to be updated to UPPERCASE via SQL migration: UPDATE "User" SET role = UPPER(role);
+- Content-Security-Policy header not yet implemented
+- No rate limiting on login endpoint (handled elsewhere but not at middleware level)

@@ -532,7 +532,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       const data = response.data as { id: string; email: string; name: string; role: string; message?: string };
 
       // Build user object from the verify response (user was just created)
-      const normalizedRole = (data.role || 'customer').toUpperCase() as UserRole;
+      const normalizedRole = (data.role || 'CUSTOMER').toUpperCase() as UserRole;
       const user: UserType = {
         id: data.id,
         email: data.email,

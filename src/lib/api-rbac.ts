@@ -264,7 +264,7 @@ export async function requireBusinessOwner(businessId: string): Promise<Verified
 
   if (userRole === 'ADMIN') return user;
 
-  if (userRole !== 'BUSINESS') {
+  if (userRole !== 'BUSINESS_OWNER') {
     throw new Response(JSON.stringify({ error: 'Insufficient permissions' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
