@@ -4,9 +4,9 @@ const nextConfig: NextConfig = {
   // Do NOT use output: "standalone" on Vercel — it breaks the deployment.
   // Vercel uses its own build output handler.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  reactStrictMode: true,
 
   // IMPORTANT: Tell Turbopack NOT to bundle these Node.js packages.
   // Without this, Turbopack tries to bundle them into client chunks,
@@ -31,9 +31,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "ui-avatars.com" },
     ],
   },
-  allowedDevOrigins: [
-    "https://preview-chat-6d31c628-88c7-439a-805c-7a7eb14c3083.space.z.ai",
-  ],
+  allowedDevOrigins: process.env.NODE_ENV === 'development'
+    ? ["https://preview-chat-6d31c628-88c7-439a-805c-7a7eb14c3083.space.z.ai"]
+    : [],
   async headers() {
     return [
       {

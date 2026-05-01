@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
 
     // Filter by user role
-    if (session.role === 'customer') {
+    if (session.role === 'CUSTOMER') {
       where.customerId = session.userId;
-    } else if (session.role === 'business') {
+    } else if (session.role === 'BUSINESS_OWNER') {
       const business = await db.business.findFirst({
         where: { ownerId: session.userId },
         select: { id: true },

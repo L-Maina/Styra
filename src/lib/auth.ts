@@ -13,7 +13,11 @@ export interface AuthUser {
   tokenVersion?: number;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'styra-dev-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || (
+  process.env.NODE_ENV === 'production'
+    ? (() => { throw new Error('JWT_SECRET must be set in production'); })()
+    : 'styra-dev-secret-change-in-production'
+);
 const JWT_EXPIRES_IN = '7d';
 
 // Password hashing
@@ -99,8 +103,8 @@ export async function requireAdmin(): Promise<any> {
 }
 
 export async function requireBusinessOwner(businessId: string): Promise<any> {
-  const session = await requireRole('business', 'admin');
-  if ((session.role || '').toUpperCase() === 'BUSINESS') {
+  const session = await requireRole('BUSINESS_OWNER', 'ADMIN');
+  if ((session.role || '').toUpperCase() === 'BUSINESS_OWNER') {
     const business = await db.business.findFirst({ where: { id: businessId, ownerId: session.userId } });
     if (!business) {
       throw new Response(JSON.stringify({ error: 'Not your business' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
@@ -122,7 +126,7 @@ export function canManageBusiness(user: any, ownerId: string): boolean {
  * Used for booking endpoints where both customers and business owners can book.
  */
 export async function requireCustomerOrBusiness(): Promise<any> {
-  return requireRole('customer', 'business');
+  return requireRole('CUSTOMER', 'BUSINESS_OWNER');
 }
 
 /**
@@ -134,7 +138,7 @@ export async function requireCustomerOrBusiness(): Promise<any> {
  */
 export async function blockRole(...blockedRoles: string[]): Promise<any> {
   const session = await requireAuth();
-  if (blockedRoles.includes(session.role)) {
+  if (blockedRoles.map(r => r.toUpperCase()).includes((session.role || '').toUpperCase())) {
     // Log unauthorized attempt
     try {
       await db.auditLog.create({

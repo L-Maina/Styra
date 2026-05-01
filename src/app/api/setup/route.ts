@@ -12,6 +12,14 @@ import bcrypt from 'bcryptjs';
  * in production by deleting this file or adding a guard.
  */
 export async function POST(request: NextRequest) {
+  // Disable setup endpoint in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'Setup is not available in production' },
+      { status: 403 }
+    );
+  }
+
   try {
     // Check if setup key is required (optional security layer)
     const body = await request.json().catch(() => ({}));

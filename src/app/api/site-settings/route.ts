@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
     let stats: Record<string, unknown> | null = null;
     try {
       const [providers, customers, businesses] = await Promise.all([
-        db.user.count({ where: { role: 'business' } }),
-        db.user.count({ where: { role: 'customer' } }),
+        db.user.count({ where: { role: 'BUSINESS_OWNER' } }),
+        db.user.count({ where: { role: 'CUSTOMER' } }),
         db.business.findMany({ select: { city: true }, distinct: ['city'] }),
       ]);
 

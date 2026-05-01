@@ -61,8 +61,8 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
   const errorMessage = error instanceof Error ? error.message : 'unknown';
   console.error(`[API Error] Type: ${errorType}, Message: ${errorMessage}`);
 
-  // Log stack in all environments for debugging
-  if (error instanceof Error && error.stack) {
+  // Log stack only in development for debugging
+  if (process.env.NODE_ENV === 'development' && error instanceof Error && error.stack) {
     console.error(`[API Error Stack] ${error.stack}`);
   }
 
@@ -139,6 +139,8 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
         return errorResponse('Record not found', 404, undefined, code);
       case 'P2003':
         return errorResponse('Invalid reference to related record', 400, undefined, code);
+      case 'P2032':
+        return errorResponse('Database type mismatch — please contact support', 500);
       case 'P2021':
         // Table does not exist in database
         const tableMatch = msg.match(/table `?\w+`\.`?(\w+)`?/i) || msg.match(/relation "(\w+)"/);

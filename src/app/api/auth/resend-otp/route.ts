@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       name,
       phone,
       hashedPassword,
-      role: 'customer',
+      role: 'CUSTOMER',
     });
 
     const otpCode = await createOTP(null, registrationData, phone, 'phone_verification');

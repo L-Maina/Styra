@@ -18,14 +18,6 @@ datasource db {
 // JSON fields stored as String; parse with JSON.parse() in app code.
 // ============================================================
 
-// ── Enums ────────────────────────────────────────────────────
-
-enum UserRole {
-  CUSTOMER
-  BUSINESS_OWNER
-  ADMIN
-}
-
 // ── Core ────────────────────────────────────────────────────
 
 model User {
@@ -35,7 +27,7 @@ model User {
   name          String
   phone         String?
   avatar        String?
-  role          UserRole @default(CUSTOMER)
+  role          String   @default("CUSTOMER")
   isVerified    Boolean  @default(false)
   isBanned      Boolean  @default(false)
   banReason     String?

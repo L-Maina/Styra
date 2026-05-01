@@ -2,6 +2,19 @@
 
 export type UserRole = 'CUSTOMER' | 'BUSINESS_OWNER' | 'ADMIN';
 
+/**
+ * Role constants — use these everywhere instead of raw strings.
+ * All values are UPPERCASE to match the database convention.
+ */
+export const ROLES = {
+  ADMIN: 'ADMIN',
+  BUSINESS_OWNER: 'BUSINESS_OWNER',
+  CUSTOMER: 'CUSTOMER',
+} as const;
+
+/** All valid role values for validation */
+export const VALID_ROLES: readonly string[] = Object.values(ROLES);
+
 // User can have multiple roles and an active mode
 export type UserMode = 'CLIENT' | 'PROVIDER' | 'ADMIN';
 

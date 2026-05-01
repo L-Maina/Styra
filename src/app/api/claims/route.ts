@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine user type
-    const userType = session.role === 'business' ? 'provider' : 'customer';
+    const userType = session.role === 'BUSINESS_OWNER' ? 'provider' : 'customer';
 
     // Generate claim number
     const claimCount = await db.insuranceClaim.count();

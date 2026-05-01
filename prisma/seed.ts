@@ -27,7 +27,7 @@ async function main() {
       password: passwordHash,
       name: 'John Mwangi',
       phone: '+254712345678',
-      role: 'customer',
+      role: 'CUSTOMER',
       isVerified: true,
     },
   });
@@ -41,7 +41,7 @@ async function main() {
       password: passwordHash,
       name: 'Jane Wanjiku',
       phone: '+254723456789',
-      role: 'business',
+      role: 'BUSINESS_OWNER',
       isVerified: true,
     },
   });
@@ -54,7 +54,7 @@ async function main() {
       email: 'admin@styra.app',
       password: passwordHash,
       name: 'Admin User',
-      role: 'admin',
+      role: 'ADMIN',
       isVerified: true,
     },
   });

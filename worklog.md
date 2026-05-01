@@ -139,3 +139,51 @@ Work Log:
 Stage Summary:
 - Project compiles and builds successfully
 - Ready for GitHub push
+
+---
+Task ID: 1-2
+Agent: Subagent
+Task: Fix Prisma Schema (remove UserRole enum) + Standardize role values to UPPERCASE
+
+Work Log:
+- Removed `enum UserRole { CUSTOMER, BUSINESS_OWNER, ADMIN }` block from prisma/schema.prisma
+- Changed `role UserRole @default(CUSTOMER)` to `role String @default("CUSTOMER")` in User model
+- This fixes P2032 error where Prisma tried to read enum values from a TEXT column in Supabase
+- Updated prisma/seed.ts: 'customer' → 'CUSTOMER', 'business' → 'BUSINESS_OWNER', 'admin' → 'ADMIN'
+- Updated src/app/api/auth/register/route.ts: 'customer' → 'CUSTOMER' in registration data
+- Updated src/app/api/auth/resend-otp/route.ts: 'customer' → 'CUSTOMER' in registration data
+- Updated src/app/api/site-settings/route.ts: 'business' → 'BUSINESS_OWNER', 'customer' → 'CUSTOMER' in DB queries
+- Updated src/app/api/bookings/route.ts: === 'customer' → === 'CUSTOMER', === 'business' → === 'BUSINESS_OWNER'
+- Updated src/app/api/claims/route.ts: === 'business' → === 'BUSINESS_OWNER'
+- Updated src/lib/auth.ts: requireBusinessOwner now uses 'BUSINESS_OWNER'/'ADMIN', comparison changed from 'BUSINESS' to 'BUSINESS_OWNER'
+- Updated src/lib/auth.ts: requireCustomerOrBusiness now uses 'CUSTOMER'/'BUSINESS_OWNER'
+- Fixed blockRole function to use case-insensitive comparison (matching requireRole's pattern) — prevents breakage when session.role is uppercase but callers pass lowercase
+- Ran `bun run db:generate` — Prisma client regenerated successfully
+
+Stage Summary:
+- UserRole enum removed from Prisma schema; role field is now String matching Supabase TEXT column
+- All 8 files updated with consistent UPPERCASE role values (CUSTOMER, BUSINESS_OWNER, ADMIN)
+- blockRole function made case-insensitive to prevent future mismatches
+- Prisma client regenerated with updated schema
+
+---
+Task ID: 3
+Agent: Security Fix Agent
+Task: Fix critical production security issues (6 fixes)
+
+Work Log:
+- Fix 1 (CORS): Replaced wildcard origin reflection in src/middleware.ts with explicit allowlist check. Only origins in [NEXT_PUBLIC_APP_URL, http://localhost:3000] are reflected back; all others get the first allowed origin instead.
+- Fix 2 (next.config.ts): Set ignoreBuildErrors to false, enabled reactStrictMode, and made allowedDevOrigins conditional on NODE_ENV === 'development' so the preview URL is not exposed in production.
+- Fix 3 (api-utils.ts): Gated stack trace logging behind NODE_ENV === 'development' (was logging in all environments). Added P2032 case to PrismaClientKnownRequestError switch for database type mismatch errors.
+- Fix 4 (api/setup): Added production guard at top of POST handler — returns 403 with "Setup is not available in production" when NODE_ENV === 'production'.
+- Fix 5 (.env.example): Created /home/z/my-project/.env.example documenting all required environment variables: DATABASE_URL, JWT_SECRET, NEXT_PUBLIC_APP_URL, RESEND_API_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET.
+- Fix 6 (auth.ts): Replaced hardcoded JWT_SECRET fallback with a pattern that throws in production instead of using 'styra-dev-secret-change-in-production'. Dev fallback still works for local development.
+
+Stage Summary:
+- 6 critical production security issues resolved
+- CORS no longer enables CSRF via origin reflection
+- TypeScript errors no longer silently swallowed at build time
+- Stack traces no longer leak in production API responses
+- Setup endpoint disabled in production (403)
+- JWT_SECRET now required in production (throws on missing)
+- .env.example created for new developer onboarding

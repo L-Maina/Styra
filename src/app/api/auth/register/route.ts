@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       name: validated.data.name,
       phone: validated.data.phone || null,
       hashedPassword,
-      role: 'customer',
+      role: 'CUSTOMER',
     });
 
     // Create OTP — the registration payload is stored in the email field
