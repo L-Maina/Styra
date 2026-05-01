@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = { userId: user.userId };
 
     // Admin can see all payments
-    if (user.role === 'admin') {
+    if (user.role === 'ADMIN') {
       delete where.userId;
     }
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       where: { id: user.userId },
       select: { isVerified: true },
     });
-    if (!fullUser?.isVerified && user.role !== 'admin') {
+    if (!fullUser?.isVerified && user.role !== 'ADMIN') {
       return errorResponse('Please verify your email first', 403);
     }
 

@@ -71,7 +71,7 @@ export async function PATCH(
       return errorResponse('Business not found', 404);
     }
 
-    if (session.role !== 'admin' && business.ownerId !== session.userId) {
+    if (session.role !== 'ADMIN' && business.ownerId !== session.userId) {
       return errorResponse('You do not have permission to update this business', 403);
     }
 
@@ -130,7 +130,7 @@ export async function DELETE(
       return errorResponse('Business not found', 404);
     }
 
-    if (session.role !== 'admin' && business.ownerId !== session.userId) {
+    if (session.role !== 'ADMIN' && business.ownerId !== session.userId) {
       return errorResponse('You do not have permission to delete this business', 403);
     }
 

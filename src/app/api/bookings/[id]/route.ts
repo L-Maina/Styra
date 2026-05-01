@@ -7,7 +7,7 @@ import { sanitizeResponse } from '@/lib/response-sanitizer';
 
 // Helper: check if user can view/manage a booking
 async function canViewBooking(user: any, customerId: string, businessId: string): Promise<boolean> {
-  if (user.role === 'admin') return true;
+  if (user.role === 'ADMIN') return true;
   if (user.userId === customerId) return true;
   const business = await db.business.findUnique({ where: { id: businessId } });
   if (business && business.ownerId === user.userId) return true;
@@ -175,7 +175,7 @@ export async function DELETE(
     const bookingDate = new Date(`${booking.date}T${booking.time}`);
     const now = new Date();
     const hoursUntilAppointment = (bookingDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    if (hoursUntilAppointment < 24 && user.role !== 'admin') {
+    if (hoursUntilAppointment < 24 && user.role !== 'ADMIN') {
       return errorResponse('Cannot cancel less than 24 hours before your appointment. Please contact support.', 400);
     }
 

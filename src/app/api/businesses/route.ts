@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
         where: {
           OR: [
             { role: 'ADMIN' },
-            { role: 'admin' },
+            { role: 'ADMIN' },
           ],
         },
         select: { id: true },

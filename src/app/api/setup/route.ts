@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
           email: 'admin@styra.app',
           password: passwordHash,
           name: 'Admin User',
-          role: 'admin',
+          role: 'ADMIN',
           isVerified: true,
         },
       });
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
           password: passwordHash,
           name: 'Jane Wanjiku',
           phone: '+254723456789',
-          role: 'business',
+          role: 'BUSINESS_OWNER',
           isVerified: true,
         },
       });
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
           password: passwordHash,
           name: 'John Mwangi',
           phone: '+254712345678',
-          role: 'customer',
+          role: 'CUSTOMER',
           isVerified: true,
         },
       });

@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       where: { id: session.userId },
       select: { isVerified: true },
     });
-    if (!fullUser?.isVerified && session.role !== 'admin') {
+    if (!fullUser?.isVerified && session.role !== 'ADMIN') {
       return errorResponse('Please verify your email first', 403);
     }
 
