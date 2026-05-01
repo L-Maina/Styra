@@ -24,6 +24,7 @@ import {
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import { cn } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 import type { Business } from '@/types';
 
 // Dynamically import map components to avoid SSR issues
@@ -323,6 +324,7 @@ interface MapPageProps {
 }
 
 export const MapPage: React.FC<MapPageProps> = ({ businesses, onSelectBusiness, onBookBusiness }) => {
+  const { resolvedTheme } = useTheme();
   // State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBusiness, setSelectedBusiness] = useState<MapBusiness | null>(null);
@@ -330,9 +332,8 @@ export const MapPage: React.FC<MapPageProps> = ({ businesses, onSelectBusiness, 
   const [isLocating, setIsLocating] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
-  const [mapTheme, setMapTheme] = useState<MapTheme>('standard');
+  const [manualMapTheme, setManualMapTheme] = useState<MapTheme | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [viewMode, setViewMode] = useState<'map' | 'list' | 'split'>('map');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([]);
@@ -391,29 +392,10 @@ export const MapPage: React.FC<MapPageProps> = ({ businesses, onSelectBusiness, 
     return () => cancelAnimationFrame(timer);
   }, []);
 
-  // Detect dark mode and set map theme accordingly
-  useEffect(() => {
-    const checkDarkMode = () => {
-      const isDark = document.documentElement.classList.contains('dark');
-      setIsDarkMode(isDark);
-      setMapTheme(isDark ? 'dark' : 'standard');
-    };
-    
-    checkDarkMode();
-    
-    // Watch for theme changes
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'class') {
-          checkDarkMode();
-        }
-      });
-    });
-    
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    
-    return () => observer.disconnect();
-  }, []);
+  // Map theme follows the app theme — use next-themes resolvedTheme for reliable detection
+  // User can manually override (e.g., satellite), otherwise auto-follows light=standard, dark=dark
+  const isDarkMode = resolvedTheme === 'dark';
+  const mapTheme: MapTheme = manualMapTheme ?? (isDarkMode ? 'dark' : 'standard');
 
   // Click outside to close search results
   useEffect(() => {
@@ -997,7 +979,7 @@ export const MapPage: React.FC<MapPageProps> = ({ businesses, onSelectBusiness, 
                       <button
                         key={theme}
                         onClick={() => {
-                          setMapTheme(theme);
+                          setManualMapTheme(theme);
                           setShowThemeMenu(false);
                         }}
                         className={cn(
