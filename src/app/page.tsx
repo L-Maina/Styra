@@ -94,6 +94,9 @@ export default function HomePage() {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [authPromptAction, setAuthPromptAction] = useState<'book' | 'favorite' | 'message' | 'review' | 'block' | 'report' | 'support' | 'dashboard'>('book');
 
+  // Conversation pre-selection for messaging
+  const [initialConversationId, setInitialConversationId] = useState<string | null>(null);
+
   // Aria live region state
   const [ariaMessage, setAriaMessage] = useState<string | null>(null);
   const announceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -364,8 +367,33 @@ export default function HomePage() {
               requireAuth('favorite');
             }}
             onMessage={() => {
-              // Require auth for messaging
-              requireAuth('message');
+              // Require auth for messaging, then create/find conversation and navigate to chat
+              requireAuth('message', async () => {
+                const ownerId = selectedBusiness?.ownerId || selectedBusiness?.owner?.id;
+                if (ownerId) {
+                  try {
+                    const res = await fetch('/api/conversations', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ otherUserId: ownerId }),
+                    });
+                    const json = await res.json();
+                    if (json.success && json.data?.id) {
+                      setInitialConversationId(json.data.id);
+                    } else if (json.conversation?.id) {
+                      setInitialConversationId(json.conversation.id);
+                    } else {
+                      setInitialConversationId(null);
+                    }
+                  } catch {
+                    setInitialConversationId(null);
+                  }
+                } else {
+                  setInitialConversationId(null);
+                }
+                navigate('chat');
+              });
             }}
             isGuest={isGuest}
           />
@@ -718,7 +746,7 @@ export default function HomePage() {
 
       case 'chat':
         return (
-          <ChatPage key="chat" user={user} onNavigate={navigate} />
+          <ChatPage key="chat" user={user} onNavigate={navigate} initialConversationId={initialConversationId} onConversationSelected={() => setInitialConversationId(null)} />
         );
 
       case 'calendar':

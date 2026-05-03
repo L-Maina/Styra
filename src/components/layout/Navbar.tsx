@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuthStore, useCurrencyStore } from '@/store';
+import { useNotificationPolling } from '@/hooks/useNotificationPolling';
 import { GlassButton, GlassBadge, GlassInput } from '@/components/ui/custom/glass-components';
 import {
   Search,
@@ -221,15 +222,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
   const isOnlyProvider = !isAdmin && user?.roles?.includes('BUSINESS_OWNER') && !user?.roles?.includes('CUSTOMER');
   
   // Use real data from props (falls back to empty arrays)
-  const [notifications, setNotifications] = useState(propNotifications || []);
   const [localConversations] = useState(propConversations || []);
 
-  // Sync notifications when prop changes
-  React.useEffect(() => {
-    if (propNotifications) {
-      setNotifications(propNotifications);
-    }
-  }, [propNotifications]);
+  // Notification polling for real-time updates
+  const {
+    notifications,
+    unreadCount,
+    markAsRead: pollMarkAsRead,
+    markAllAsRead: pollMarkAllAsRead,
+  } = useNotificationPolling();
 
   // Click-outside handler to close dropdowns
   useEffect(() => {
@@ -273,7 +274,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
     { id: 'marketplace', label: 'Marketplace', icon: Search },
   ];
 
-  const hasUnreadNotifications = (notifications || []).some(n => !n.isRead);
+  const hasUnreadNotifications = unreadCount > 0;
   const hasUnreadMessages = (localConversations || []).some(c => (c as any).unreadCount > 0);
 
   const handleNavigate = (page: string, tab?: string) => {
@@ -286,13 +287,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
   };
 
   const markNotificationAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, isRead: true } : n)
-    );
+    pollMarkAsRead(id);
   };
 
   const markAllNotificationsAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    pollMarkAllAsRead();
   };
 
   const getNotificationIcon = (type: string) => {
@@ -908,21 +907,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                                     label="Disputes"
                                     onClick={() => handleNavigate('admin-dashboard', 'disputes-reports')}
                                   />
+                                  <div className="border-t border-border/50 my-1" />
+                                  <MenuItem
+                                    icon={Settings}
+                                    label="Platform Settings"
+                                    onClick={() => handleNavigate('admin-dashboard', 'settings')}
+                                  />
+                                  <MenuItem
+                                    icon={Globe}
+                                    label="View Website"
+                                    onClick={() => handleNavigate('home')}
+                                  />
                                 </>
                               )}
-
-                              <div className="border-t border-border/50 my-1" />
-                              
-                              <MenuItem
-                                icon={Settings}
-                                label="Platform Settings"
-                                onClick={() => handleNavigate('admin-dashboard', 'settings')}
-                              />
-                              <MenuItem
-                                icon={Globe}
-                                label="View Website"
-                                onClick={() => handleNavigate('home')}
-                              />
 
                               <div className="border-t border-border/50 my-1" />
 

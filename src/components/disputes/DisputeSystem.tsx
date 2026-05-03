@@ -1122,10 +1122,27 @@ export const DisputeCenter: React.FC<DisputeCenterProps> = ({ className }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/disputes');
+      const response = await fetch('/api/disputes');
       if (!response.ok) throw new Error(`Failed to fetch disputes (${response.status})`);
       const data = await response.json();
-      const mapped = (data.disputes || []).map(mapApiDispute);
+      // /api/disputes returns paginated response: { data: [...], pagination: {...} }
+      const rawDisputes = data.data || data.disputes || [];
+      const mapped = rawDisputes.map((d: Record<string, unknown>) => mapApiDispute({
+        id: d.id as string,
+        bookingId: d.bookingId as string,
+        customerId: d.customerId as string,
+        customerName: (d.customer as Record<string, string>)?.name || 'Unknown',
+        providerId: d.providerId as string,
+        providerName: (d.provider as Record<string, string>)?.name || 'Unknown',
+        type: (d.reason as string) || 'SERVICE_ISSUE',
+        description: (d.description as string) || '',
+        status: d.status as string,
+        amount: ((d.booking as Record<string, number>)?.totalPrice) || 0,
+        resolution: d.resolution as string | null,
+        resolvedAt: null,
+        createdAt: d.createdAt as string,
+        updatedAt: d.updatedAt as string,
+      }));
       setDisputes(mapped);
     } catch (err) {
       console.error('Error fetching disputes:', err);

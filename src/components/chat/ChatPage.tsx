@@ -46,6 +46,8 @@ import { AuthPromptModal } from '@/components/auth/AuthPromptModal';
 interface ChatPageProps {
   user: UserType | null;
   onNavigate?: (page: string) => void;
+  initialConversationId?: string | null;
+  onConversationSelected?: () => void;
 }
 
 // Types matching the API response
@@ -90,7 +92,7 @@ const emojiCategories = {
 
 const STYRA_AI_ID = 'styra-ai';
 
-export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
+export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate, initialConversationId, onConversationSelected }) => {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -183,6 +185,17 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate }) => {
       setIsLoadingConversations(false);
     }
   }, [isAuthenticated, fetchConversations]);
+
+  // ─── Auto-select conversation when initialConversationId is provided ──
+  useEffect(() => {
+    if (initialConversationId && conversations.length > 0) {
+      const exists = conversations.find((c) => c.id === initialConversationId);
+      if (exists) {
+        setSelectedConversation(initialConversationId);
+        onConversationSelected?.();
+      }
+    }
+  }, [initialConversationId, conversations, onConversationSelected]);
 
   // ─── Load messages when conversation is selected ──────────────
   useEffect(() => {

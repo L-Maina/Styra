@@ -54,12 +54,15 @@ export async function GET(request: NextRequest) {
       skip: (page - 1) * limit,
       take: limit,
       include: {
+        customer: { select: { id: true, name: true, email: true } },
+        provider: { select: { id: true, name: true, email: true } },
         booking: {
           select: {
             id: true,
             date: true,
             totalPrice: true,
             status: true,
+            serviceName: true,
             service: { select: { name: true } },
           },
         },

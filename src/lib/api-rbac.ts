@@ -177,7 +177,7 @@ export async function requireAdmin(): Promise<VerifiedUser> {
  * @throws Response with 401 or 403 status
  */
 export async function requireBusinessOrAdmin(): Promise<VerifiedUser> {
-  const check = await requireRole(['business', 'admin']);
+  const check = await requireRole(['business_owner', 'admin']);
   if (!check.authorized) {
     throw new Response(JSON.stringify({ error: check.error }), {
       status: check.status,
@@ -194,7 +194,7 @@ export async function requireBusinessOrAdmin(): Promise<VerifiedUser> {
  * @throws Response with 401 or 403 status
  */
 export async function requireCustomerOrBusiness(): Promise<VerifiedUser> {
-  const check = await requireRole(['customer', 'business']);
+  const check = await requireRole(['customer', 'business_owner']);
   if (!check.authorized) {
     throw new Response(JSON.stringify({ error: check.error }), {
       status: check.status,

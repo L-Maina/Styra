@@ -1279,7 +1279,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
               ].map((item) => (
                 <button
                   key={item.label}
-                  onClick={() => setActiveSection(item.section)}
+                  onClick={() => {
+                    setActiveSection(item.section);
+                    // Pre-set status filter for business applications
+                    if (item.section === 'businesses') {
+                      setBizStatusFilter('pending');
+                    }
+                  }}
                   className="w-full flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors text-left"
                 >
                   <span className="text-sm">{item.label}</span>
@@ -1346,7 +1352,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
               ].map((item) => (
                 <button
                   key={item.label}
-                  onClick={() => setActiveSection(item.section)}
+                  onClick={() => {
+                    setActiveSection(item.section);
+                    // Pre-set status filter for business applications
+                    if (item.section === 'businesses') {
+                      setBizStatusFilter('pending');
+                    }
+                  }}
                   className={cn(
                     'w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left',
                     `bg-${item.color}-500/10 hover:bg-${item.color}-500/20`,

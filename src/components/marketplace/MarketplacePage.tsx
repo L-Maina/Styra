@@ -121,7 +121,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   // Price filter state
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
-  const [priceSliderValue, setPriceSliderValue] = useState<[number, number]>([0, 500]);
+  const [priceSliderValue, setPriceSliderValue] = useState<[number, number]>([0, 99999]);
   const [freeConsultation, setFreeConsultation] = useState(false);
   
   // Rating filter state
@@ -319,23 +319,32 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
       );
     }
 
-    // Filter by price range
-    const minPriceNum = minPrice ? parseInt(minPrice) : priceSliderValue[0];
-    const maxPriceNum = maxPrice ? parseInt(maxPrice) : priceSliderValue[1];
-    
-    result = result.filter((b) => {
-      if (freeConsultation) {
-        // Check if any service is free or has a free consultation tag
+    // Filter by price range — only apply if user explicitly set price bounds
+    if (minPrice || maxPrice) {
+      const minPriceNum = minPrice ? parseInt(minPrice) : 0;
+      const maxPriceNum = maxPrice ? parseInt(maxPrice) : 99999;
+      
+      result = result.filter((b) => {
+        if (freeConsultation) {
+          const hasFreeService = b.services?.some((s) => s.price === 0);
+          if (!hasFreeService) return false;
+        }
+        
+        // Businesses with no services pass the price filter (no price to filter on)
+        const prices = b.services?.length ? b.services.map((s) => s.price) : null;
+        if (!prices) return true;
+        
+        const businessMinPrice = Math.min(...prices);
+        const businessMaxPrice = Math.max(...prices);
+        
+        return businessMinPrice <= maxPriceNum && businessMaxPrice >= minPriceNum;
+      });
+    } else if (freeConsultation) {
+      result = result.filter((b) => {
         const hasFreeService = b.services?.some((s) => s.price === 0);
-        if (!hasFreeService) return false;
-      }
-      
-      const prices = b.services?.map((s) => s.price) || [0];
-      const businessMinPrice = Math.min(...prices);
-      const businessMaxPrice = Math.max(...prices);
-      
-      return businessMinPrice <= maxPriceNum && businessMaxPrice >= minPriceNum;
-    });
+        return hasFreeService;
+      });
+    }
 
     // Filter by rating
     if (minRating > 0) {
@@ -365,15 +374,19 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         break;
       case 'price_low':
         result.sort((a, b) => {
-          const aMin = Math.min(...(a.services?.map((s) => s.price) || [0]));
-          const bMin = Math.min(...(b.services?.map((s) => s.price) || [0]));
+          const aPrices = a.services?.length ? a.services.map((s) => s.price) : [0];
+          const bPrices = b.services?.length ? b.services.map((s) => s.price) : [0];
+          const aMin = Math.min(...aPrices);
+          const bMin = Math.min(...bPrices);
           return aMin - bMin;
         });
         break;
       case 'price_high':
         result.sort((a, b) => {
-          const aMax = Math.max(...(a.services?.map((s) => s.price) || [0]));
-          const bMax = Math.max(...(b.services?.map((s) => s.price) || [0]));
+          const aPrices = a.services?.length ? a.services.map((s) => s.price) : [0];
+          const bPrices = b.services?.length ? b.services.map((s) => s.price) : [0];
+          const aMax = Math.max(...aPrices);
+          const bMax = Math.max(...bPrices);
           return bMax - aMax;
         });
         break;
@@ -401,7 +414,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     setSelectedCategories(['all']);
     setMinPrice('');
     setMaxPrice('');
-    setPriceSliderValue([0, 500]);
+    setPriceSliderValue([0, 99999]);
     setFreeConsultation(false);
     setMinRating(0);
     setAvailableNow(false);
@@ -426,7 +439,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
       case 'price':
         setMinPrice('');
         setMaxPrice('');
-        setPriceSliderValue([0, 500]);
+        setPriceSliderValue([0, 99999]);
         break;
       case 'freeConsultation':
         setFreeConsultation(false);
