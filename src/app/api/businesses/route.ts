@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
 import { parseSort } from '@/lib/query-optimization';
+import { performAutoVerify } from '@/lib/auto-verify';
 
 // Search/list businesses
 export async function GET(request: NextRequest) {
@@ -132,6 +133,11 @@ export async function POST(request: NextRequest) {
         country: body.country || null,
         latitude: body.latitude ?? null,
         longitude: body.longitude ?? null,
+        // ID verification fields
+        idType: body.idType || null,
+        idNumber: body.idNumber || null,
+        idDocumentUrl: body.idDocumentUrl || null,
+        boothPhotoUrl: body.boothPhotoUrl || null,
       },
       include: {
         services: true,
@@ -177,7 +183,33 @@ export async function POST(request: NextRequest) {
       // Don't fail the business creation if notification fails
     }
 
-    return successResponse(business, 201);
+    // Trigger auto-verification directly (no HTTP fetch — avoids CSRF & URL issues)
+    let autoVerifyResult: Awaited<ReturnType<typeof performAutoVerify>> | null = null;
+    try {
+      autoVerifyResult = await performAutoVerify(business.id);
+    } catch (autoVerifyError) {
+      console.error('Failed to run auto-verification:', autoVerifyError);
+      // Don't fail the business creation if auto-verify fails
+    }
+
+    // If auto-verified, refresh the business data to reflect updated status
+    const responseBusiness = autoVerifyResult?.autoVerified
+      ? await db.business.findUnique({
+          where: { id: business.id },
+          include: { services: true },
+        })
+      : business;
+
+    return successResponse({
+      ...responseBusiness,
+      _autoVerify: autoVerifyResult
+        ? {
+            autoVerified: autoVerifyResult.autoVerified,
+            verificationStatus: autoVerifyResult.verificationStatus,
+            message: autoVerifyResult.message,
+          }
+        : undefined,
+    }, 201);
   } catch (error) {
     if (error instanceof Response) return error as NextResponse;
     return handleApiError(error);

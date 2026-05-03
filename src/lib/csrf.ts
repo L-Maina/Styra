@@ -32,9 +32,18 @@ const CSRF_EXEMPT_PATHS = [
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/auth/verify-otp',
+  '/api/auth/resend-otp',
+  '/api/auth/resend-verification',
+  '/api/auth/verify-email',
+  '/api/auth/logout',
+  '/api/auth/logout-all',
   '/api/auth/me',
   '/api/webhooks/',
   '/api/health',
+  '/api/businesses/auto-verify', // Called internally during registration
+  '/api/cron/', // Cron jobs are server-side only
+  '/api/setup',
+  '/api/db-setup',
 ];
 
 const STATE_CHANGING_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
@@ -108,7 +117,7 @@ export function validateCsrf(request: NextRequest): NextResponse | null {
   }
 
   // Only enforce CSRF for authenticated requests (those with an auth cookie)
-  const hasAuthCookie = !!request.cookies.get('auth-token')?.value;
+  const hasAuthCookie = !!request.cookies.get('styra-token')?.value;
   if (!hasAuthCookie) {
     // No session = no CSRF risk — attacker can't forge a request
     // that has the user's httpOnly auth cookie

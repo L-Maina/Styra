@@ -91,6 +91,10 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
     user?.idDocumentUrl || null
   );
 
+  // Booth photo
+  const [boothPhoto, setBoothPhoto] = useState<File | null>(null);
+  const [boothPhotoPreview, setBoothPhotoPreview] = useState<string | null>(null);
+
   const steps: { id: Step; label: string }[] = [
     { id: 'business', label: 'Business Details' },
     { id: 'id', label: 'ID Verification' },
@@ -127,6 +131,27 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
       } else {
         setIdDocumentPreview(null);
       }
+    }
+  };
+
+  const handleBoothPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+        setError('Please upload a valid image (JPG, PNG)');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size must be less than 5MB');
+        return;
+      }
+      setBoothPhoto(file);
+      setError('');
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setBoothPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -192,6 +217,34 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
         cleanWebsite = `https://${cleanWebsite}`;
       }
 
+      // Upload ID document
+      let idDocumentUrl: string | undefined;
+      if (idDocument) {
+        try {
+          const uploadResult = await api.uploadFile(idDocument, 'id-document');
+          idDocumentUrl = uploadResult.data?.url;
+        } catch (uploadErr) {
+          console.error('Failed to upload ID document:', uploadErr);
+          toast.error('Failed to upload ID document. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Upload booth photo
+      let boothPhotoUrl: string | undefined;
+      if (boothPhoto) {
+        try {
+          const uploadResult = await api.uploadFile(boothPhoto, 'booth-photo');
+          boothPhotoUrl = uploadResult.data?.url;
+        } catch (uploadErr) {
+          console.error('Failed to upload booth photo:', uploadErr);
+          toast.error('Failed to upload booth photo. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       // Create business via real API
       const result = await api.createBusiness({
         name: businessName,
@@ -203,7 +256,17 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
         email: businessEmail || undefined,
         website: cleanWebsite,
         serviceRadius: 10,
+        // ID verification fields
+        idType,
+        idNumber,
+        idDocumentUrl,
+        boothPhotoUrl,
       });
+
+      // Check if the business was auto-verified
+      const autoVerify = (result.data as any)?._autoVerify;
+      const wasAutoVerified = autoVerify?.autoVerified === true;
+      const autoVerifyMessage = autoVerify?.message;
 
       // Create services if any were added
       for (const service of services) {
@@ -219,6 +282,7 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
       }
 
       // Update user in local store with business verification status
+      const verificationStatus = wasAutoVerified ? 'APPROVED' : 'PENDING';
       const updatedUser: User = {
         ...user,
         businessName,
@@ -227,11 +291,33 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
         businessCity,
         businessCountry,
         businessWebsite,
-        businessVerificationStatus: 'PENDING',
+        businessVerificationStatus: verificationStatus,
+        // If auto-verified, also update the role
+        ...(wasAutoVerified
+          ? {
+              role: 'BUSINESS_OWNER' as const,
+              roles: [...(user.roles || []), 'BUSINESS_OWNER' as const].filter(
+                (v, i, a) => a.indexOf(v) === i
+              ),
+              activeMode: 'PROVIDER' as const,
+            }
+          : {}),
       };
       updateUser(updatedUser);
 
-      toast.success('Business application submitted!');
+      if (wasAutoVerified) {
+        toast.success('Auto-Verified Successfully! Your business is now active.');
+      } else {
+        toast.success('Business application submitted!');
+      }
+
+      // If auto-verified with a message, also show an info toast
+      if (wasAutoVerified && autoVerifyMessage) {
+        setTimeout(() => {
+          toast.info(autoVerifyMessage);
+        }, 1500);
+      }
+
       onComplete?.(updatedUser);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to submit application. Please try again.';
@@ -286,8 +372,14 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
                   <p className="font-medium">{user?.businessName}</p>
                   <p className="text-sm text-muted-foreground mt-2 mb-1">Status</p>
                   <p className="font-medium text-red-500">
-                    Rejected — Please contact support for details.
+                    Rejected
                   </p>
+                  {(user as any)?.rejectionReason && (
+                    <>
+                      <p className="text-sm text-muted-foreground mt-2 mb-1">Reason</p>
+                      <p className="text-sm text-red-400">{(user as any).rejectionReason}</p>
+                    </>
+                  )}
                 </div>
                 <GlassButton
                   variant="default"
@@ -492,6 +584,52 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
                       leftIcon={<Globe className="h-4 w-4" />}
                     />
                   </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Booth / Shop Photo</label>
+                    <div
+                      className={cn(
+                        'relative border-2 border-dashed rounded-xl p-6 text-center transition-all',
+                        boothPhoto ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                      )}
+                    >
+                      {boothPhotoPreview ? (
+                        <div className="relative inline-block">
+                          <img
+                            src={boothPhotoPreview}
+                            alt="Booth Photo"
+                            className="max-h-48 mx-auto rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBoothPhoto(null);
+                              setBoothPhotoPreview(null);
+                            }}
+                            className="absolute -top-2 -right-2 p-1 rounded-full bg-destructive text-white"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Upload a photo of your booth or shop
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Supports JPG, PNG (max 5MB)
+                          </p>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/jpg"
+                        onChange={handleBoothPhotoChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -689,6 +827,21 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
                     />
                   )}
                 </div>
+
+                {/* Booth Photo Summary */}
+                {boothPhotoPreview && (
+                  <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+                    <h3 className="font-medium flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      Booth / Shop Photo
+                    </h3>
+                    <img
+                      src={boothPhotoPreview}
+                      alt="Booth Photo"
+                      className="max-h-32 rounded-lg"
+                    />
+                  </div>
+                )}
 
                 <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
                   <p className="text-sm">

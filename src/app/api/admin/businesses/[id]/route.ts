@@ -38,7 +38,16 @@ export async function GET(
       return errorResponse('Business not found', 404);
     }
 
-    return successResponse(business);
+    // Include verification details in the response
+    const response = {
+      ...business,
+      rejectionReason: business.rejectionReason,
+      verificationResult: business.verificationResult
+        ? (() => { try { return JSON.parse(business.verificationResult); } catch { return business.verificationResult; } })()
+        : null,
+    };
+
+    return successResponse(response);
   } catch (error) {
     return handleApiError(error);
   }
@@ -55,32 +64,106 @@ export async function PATCH(
     const body = await request.json();
     const { verificationStatus, reason } = body;
 
-    // Map verificationStatus to isVerified boolean
-    const isVerified = verificationStatus === 'APPROVED';
-    const isActive = verificationStatus !== 'REJECTED';
+    // Validate verification status
+    const validStatuses = ['PENDING', 'VERIFIED', 'REJECTED', 'APPROVED', 'AUTO_VERIFIED'];
+    if (!verificationStatus || !validStatuses.includes(verificationStatus)) {
+      return errorResponse(`Invalid verificationStatus. Must be one of: ${validStatuses.join(', ')}`, 400);
+    }
+
+    // When REJECTED, require a reason
+    if (verificationStatus === 'REJECTED' && !reason) {
+      return errorResponse('A reason is required when rejecting a business', 400);
+    }
+
+    // Build update data based on verification status
+    const updateData: Record<string, unknown> = {
+      verificationStatus,
+    };
+
+    if (verificationStatus === 'APPROVED') {
+      updateData.isVerified = true;
+      updateData.isActive = true;
+      updateData.verifiedAt = new Date();
+      updateData.rejectionReason = null; // Clear any previous rejection reason
+    } else if (verificationStatus === 'VERIFIED') {
+      updateData.isVerified = true;
+      updateData.verifiedAt = new Date();
+      updateData.rejectionReason = null;
+    } else if (verificationStatus === 'REJECTED') {
+      updateData.isVerified = false;
+      updateData.isActive = false;
+      updateData.rejectionReason = reason;
+      updateData.verifiedAt = null;
+    } else if (verificationStatus === 'PENDING') {
+      updateData.rejectionReason = null;
+    }
 
     const business = await db.business.update({
       where: { id },
-      data: {
-        isVerified,
-        isActive,
-      },
+      data: updateData,
     });
 
+    // ── Update user role to BUSINESS_OWNER when business is approved/verified ──
+    if (verificationStatus === 'APPROVED' || verificationStatus === 'VERIFIED' || verificationStatus === 'AUTO_VERIFIED') {
+      try {
+        const currentUser = await db.user.findUnique({
+          where: { id: business.ownerId },
+          select: { role: true },
+        });
+        // Only upgrade role — never downgrade an ADMIN to BUSINESS_OWNER
+        if (currentUser && currentUser.role !== 'ADMIN' && currentUser.role !== 'BUSINESS_OWNER') {
+          await db.user.update({
+            where: { id: business.ownerId },
+            data: { role: 'BUSINESS_OWNER' },
+          });
+        }
+      } catch (roleError) {
+        console.error('Failed to update user role on business approval:', roleError);
+        // Don't fail the approval if role update fails
+      }
+    }
+
     // Create notification for business owner
-    await db.notification.create({
-      data: {
-        userId: business.ownerId,
-        title: 'Verification Update',
-        message: reason || `Your business verification status is now ${verificationStatus}`,
-        type: 'VERIFICATION_UPDATE',
-        link: `/business/${id}`,
-      },
-    });
+    try {
+      await db.notification.create({
+        data: {
+          userId: business.ownerId,
+          title: 'Verification Update',
+          message:
+            verificationStatus === 'REJECTED'
+              ? `Your business verification has been rejected. Reason: ${reason}`
+              : verificationStatus === 'APPROVED'
+                ? `Your business "${business.name}" has been approved and is now active!`
+                : verificationStatus === 'VERIFIED'
+                  ? `Your business "${business.name}" ID verification has been confirmed.`
+                  : `Your business verification status has been updated to ${verificationStatus}.`,
+          type: 'VERIFICATION_UPDATE',
+          link: `/business/${id}`,
+        },
+      });
+    } catch (notificationError) {
+      console.error('Failed to create verification notification:', notificationError);
+    }
+
+    // Log the admin action
+    try {
+      await db.auditLog.create({
+        data: {
+          action: `BUSINESS_${verificationStatus}`,
+          resource: `business:${id}`,
+          details: reason || `Status changed to ${verificationStatus}`,
+        },
+      });
+    } catch (auditError) {
+      console.error('Failed to create audit log:', auditError);
+    }
 
     return successResponse({
       ...business,
-      verificationStatus: isVerified ? 'APPROVED' : (isActive ? 'PENDING' : 'REJECTED'),
+      rejectionReason: business.rejectionReason,
+      verificationResult: business.verificationResult
+        ? (() => { try { return JSON.parse(business.verificationResult); } catch { return business.verificationResult; } })()
+        : null,
     });
   } catch (error) {
     return handleApiError(error);

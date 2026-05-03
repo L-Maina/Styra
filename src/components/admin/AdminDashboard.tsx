@@ -256,6 +256,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   const [rejectReason, setRejectReason] = useState('');
   const [rejectType, setRejectType] = useState<'business' | 'listing'>('business');
 
+  // Business detail modal
+  const [showBusinessDetailModal, setShowBusinessDetailModal] = useState(false);
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
+  const [businessDetail, setBusinessDetail] = useState<any>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>(null);
   const [disputeResponse, setDisputeResponse] = useState('');
@@ -489,11 +495,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
     try {
       await api.updateBusinessStatus(id, 'APPROVED');
       setDisplayBusinesses(prev => prev.map(b => b.id === id ? { ...b, verificationStatus: 'APPROVED' } : b));
+      if (showBusinessDetailModal && selectedBusinessId === id) {
+        setBusinessDetail((prev: any) => prev ? { ...prev, verificationStatus: 'APPROVED', isActive: true } : prev);
+      }
       toast.success('Business approved successfully');
     } catch (err) {
       console.error('Failed to approve business:', err);
+      toast.error('Failed to approve business. Please try again.');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const openBusinessDetail = async (id: string) => {
+    setSelectedBusinessId(id);
+    setIsLoadingDetail(true);
+    setShowBusinessDetailModal(true);
+    try {
+      const res = await api.request(`/admin/businesses/${id}`);
+      setBusinessDetail(res.data);
+    } catch (err) {
+      console.error('Failed to load business details:', err);
+      toast.error('Failed to load business details');
+    } finally {
+      setIsLoadingDetail(false);
     }
   };
 
@@ -513,6 +538,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         setDisplayBusinesses(prev => prev.map(b =>
           b.id === rejectTarget ? { ...b, verificationStatus: 'REJECTED' } : b
         ));
+        if (showBusinessDetailModal && selectedBusinessId === rejectTarget) {
+          setBusinessDetail((prev: any) => prev ? { ...prev, verificationStatus: 'REJECTED', rejectionReason: rejectReason } : prev);
+        }
         toast.success('Business rejected');
       } else {
         // Reject listing — update status via listings API
@@ -550,6 +578,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       toast.success(`User ${action === 'suspend' ? 'suspended' : 'activated'} successfully`);
     } catch (err) {
       console.error('Failed to toggle user:', err);
+      toast.error('Failed to update user status. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -591,6 +620,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       setPartialRefundAmount(0);
     } catch (err) {
       console.error('Failed to process dispute:', err);
+      toast.error('Failed to process dispute. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -636,6 +666,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       toast.success('Claim updated');
     } catch (err) {
       console.error('Failed to update claim:', err);
+      toast.error('Failed to update claim. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -657,6 +688,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       toast.success('Listing updated');
     } catch (err) {
       console.error('Failed to save listing:', err);
+      toast.error('Failed to save listing. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -675,6 +707,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       toast.success(`Listing ${status.toLowerCase()}`);
     } catch (err) {
       console.error('Failed to update listing:', err);
+      toast.error('Failed to update listing. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -696,6 +729,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       toast.success('Page content saved');
     } catch (err) {
       console.error('Failed to save page content:', err);
+      toast.error('Failed to save page content. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -711,6 +745,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       toast.success('Settings saved successfully');
     } catch (err) {
       console.error('Failed to save settings:', err);
+      toast.error('Failed to save settings. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -728,6 +763,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       setSettings(prev => ({ ...prev, ...data }));
     } catch (err) {
       console.error('Failed to save website settings:', err);
+      toast.error('Failed to save website settings. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -1720,16 +1756,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                     <td className="py-3 pr-4"><GlassBadge variant={statusColor(b.verificationStatus)}>{b.verificationStatus}</GlassBadge></td>
                     <td className="py-3 pr-4 text-muted-foreground text-xs">{fmtDate(b.createdAt)}</td>
                     <td className="py-3 text-right">
-                      {b.verificationStatus === 'PENDING' && (
-                        <div className="flex items-center justify-end gap-2">
-                          <GlassButton size="sm" variant="primary" onClick={() => handleApproveBusiness(b.id)} disabled={isProcessing}>
-                            <Check className="h-3 w-3" /> Approve
-                          </GlassButton>
-                          <GlassButton size="sm" variant="outline" onClick={() => openRejectModal(b.id, 'business')} disabled={isProcessing}>
-                            <X className="h-3 w-3" /> Reject
-                          </GlassButton>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-end gap-2">
+                        <GlassButton size="icon" variant="ghost" onClick={() => openBusinessDetail(b.id)} title="View details">
+                          <Eye className="h-4 w-4" />
+                        </GlassButton>
+                        {b.verificationStatus === 'PENDING' && (
+                          <>
+                            <GlassButton size="sm" variant="primary" onClick={() => handleApproveBusiness(b.id)} disabled={isProcessing}>
+                              <Check className="h-3 w-3" /> Approve
+                            </GlassButton>
+                            <GlassButton size="sm" variant="outline" onClick={() => openRejectModal(b.id, 'business')} disabled={isProcessing}>
+                              <X className="h-3 w-3" /> Reject
+                            </GlassButton>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -3800,6 +3841,213 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             </GlassButton>
           </div>
         </div>
+      </GlassModal>
+
+      {/* Business Detail Modal */}
+      <GlassModal isOpen={showBusinessDetailModal} onClose={() => { setShowBusinessDetailModal(false); setBusinessDetail(null); setSelectedBusinessId(null); }} title="Business Details" size="lg">
+        {isLoadingDetail ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : businessDetail ? (
+          <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+            {/* Business Info */}
+            <div className="space-y-4">
+              <h3 className="font-semibold flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> Business Information</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Name:</span> <span className="font-medium ml-1">{businessDetail.name}</span></div>
+                <div><span className="text-muted-foreground">Category:</span> <span className="ml-1">{businessDetail.category || 'N/A'}</span></div>
+                <div className="col-span-2"><span className="text-muted-foreground">Description:</span> <span className="ml-1">{businessDetail.description || 'N/A'}</span></div>
+                <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="ml-1">{businessDetail.address || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">City:</span> <span className="ml-1">{businessDetail.city || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Country:</span> <span className="ml-1">{businessDetail.country || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Phone:</span> <span className="ml-1">{businessDetail.phone || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Email:</span> <span className="ml-1">{businessDetail.email || 'N/A'}</span></div>
+                <div className="col-span-2"><span className="text-muted-foreground">Website:</span> <span className="ml-1">{businessDetail.website || 'N/A'}</span></div>
+              </div>
+            </div>
+
+            {/* ID Verification */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> ID Verification</h3>
+                {businessDetail.idNumber && (!businessDetail.verificationResult || businessDetail.verificationStatus === 'PENDING') && (
+                  <GlassButton
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      setIsProcessing(true);
+                      try {
+                        const res = await api.request(`/businesses/verify-id`, {
+                          method: 'POST',
+                          body: JSON.stringify({ businessId: businessDetail.id }),
+                        });
+                        if (res.data?.result) {
+                          setBusinessDetail((prev: any) => prev ? {
+                            ...prev,
+                            verificationStatus: res.data.verificationStatus,
+                            verificationResult: res.data.result,
+                            rejectionReason: res.data.verificationStatus === 'REJECTED' ? res.data.result.notes : prev.rejectionReason,
+                          } : prev);
+                          toast.success(res.data.verificationStatus === 'VERIFIED' ? 'ID verified successfully' : 'ID verification did not pass');
+                        }
+                      } catch (err) {
+                        console.error('ID verification failed:', err);
+                      } finally {
+                        setIsProcessing(false);
+                      }
+                    }}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                    Verify ID
+                  </GlassButton>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">ID Type:</span> <span className="ml-1">{businessDetail.idType || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">ID Number:</span> <span className="ml-1 font-mono">{businessDetail.idNumber || 'N/A'}</span></div>
+              </div>
+              {businessDetail.idDocumentUrl && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">ID Document:</p>
+                  <img
+                    src={businessDetail.idDocumentUrl}
+                    alt="ID Document"
+                    className="max-h-48 rounded-lg border border-border"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
+              {businessDetail.boothPhotoUrl && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Booth / Shop Photo:</p>
+                  <img
+                    src={businessDetail.boothPhotoUrl}
+                    alt="Booth Photo"
+                    className="max-h-48 rounded-lg border border-border"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
+              {/* Web Search Verification Evidence */}
+              {businessDetail.verificationResult?.webSearchEvidence && (
+                <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                  <p className="text-sm font-medium mb-2 flex items-center gap-1"><Globe className="h-3 w-3" /> Government Record Search</p>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className={businessDetail.verificationResult.webSearchEvidence.governmentRecordMatch ? 'text-green-600' : 'text-amber-600'}>
+                        {businessDetail.verificationResult.webSearchEvidence.governmentRecordMatch ? '✓ Government record match found' : '⚠ No direct government record match'}
+                      </span>
+                    </div>
+                    <div><span className="text-muted-foreground">Sources checked:</span> {businessDetail.verificationResult.webSearchEvidence.resultsFound || 0}</div>
+                    {businessDetail.verificationResult.webSearchEvidence.relevantResults?.length > 0 && (
+                      <div className="space-y-1">
+                        <span className="text-muted-foreground">Relevant sources:</span>
+                        {businessDetail.verificationResult.webSearchEvidence.relevantResults.slice(0, 3).map((r: any, i: number) => (
+                          <div key={i} className="pl-2 text-muted-foreground">
+                            • {r.snippet?.substring(0, 100) || r.url}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {businessDetail.verificationResult.webSearchEvidence.details && (
+                      <div className="text-muted-foreground">{businessDetail.verificationResult.webSearchEvidence.details}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {/* AI Verification Summary */}
+              {businessDetail.verificationResult && (
+                <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                  <p className="text-sm font-medium mb-2 flex items-center gap-1"><ClipboardCheck className="h-3 w-3" /> AI Verification Summary</p>
+                  <div className="space-y-1 text-xs">
+                    <div><span className="text-muted-foreground">Confidence:</span> {Math.round((businessDetail.verificationResult.confidence || 0) * 100)}%</div>
+                    <div><span className="text-muted-foreground">Document Authentic:</span> {businessDetail.verificationResult.appearsAuthentic ? '✓ Yes' : '✗ No'}</div>
+                    <div><span className="text-muted-foreground">Type Match:</span> {businessDetail.verificationResult.documentTypeMatch ? '✓ Yes' : '✗ No'}</div>
+                    {businessDetail.verificationResult.extractedName && (
+                      <div><span className="text-muted-foreground">Extracted Name:</span> {businessDetail.verificationResult.extractedName}</div>
+                    )}
+                    {businessDetail.verificationResult.extractedIdNumber && (
+                      <div><span className="text-muted-foreground">Extracted ID:</span> <span className="font-mono">{businessDetail.verificationResult.extractedIdNumber}</span></div>
+                    )}
+                    {businessDetail.verificationResult.notes && (
+                      <div className="text-muted-foreground mt-1">{businessDetail.verificationResult.notes}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Owner Info */}
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Owner Information</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Name:</span> <span className="ml-1">{businessDetail.owner?.name || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Email:</span> <span className="ml-1">{businessDetail.owner?.email || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Phone:</span> <span className="ml-1">{businessDetail.owner?.phone || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Joined:</span> <span className="ml-1">{fmtDate(businessDetail.owner?.createdAt)}</span></div>
+              </div>
+            </div>
+
+            {/* Verification Status */}
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-primary" /> Verification Status</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Status:</span> <GlassBadge variant={statusColor(businessDetail.verificationStatus)} className="ml-1">{businessDetail.verificationStatus}</GlassBadge></div>
+                <div><span className="text-muted-foreground">Active:</span> <span className="ml-1">{businessDetail.isActive ? 'Yes' : 'No'}</span></div>
+                <div><span className="text-muted-foreground">Verified At:</span> <span className="ml-1">{fmtDate(businessDetail.verifiedAt)}</span></div>
+                {businessDetail.rejectionReason && (
+                  <div className="col-span-2"><span className="text-muted-foreground">Rejection Reason:</span> <span className="ml-1 text-destructive">{businessDetail.rejectionReason}</span></div>
+                )}
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Stats</h3>
+              <div className="grid grid-cols-4 gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <p className="text-xl font-bold">{businessDetail._count?.services ?? businessDetail.services?.length ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Services</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <p className="text-xl font-bold">{businessDetail._count?.staff ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Staff</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <p className="text-xl font-bold">{businessDetail._count?.bookings ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Bookings</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <p className="text-xl font-bold">{businessDetail._count?.reviews ?? businessDetail.reviewCount ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Reviews</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Created date */}
+            <div className="text-sm text-muted-foreground">
+              Created: {fmtDateTime(businessDetail.createdAt)}
+            </div>
+
+            {/* Action buttons */}
+            {(businessDetail.verificationStatus === 'PENDING' || businessDetail.verificationStatus === 'AUTO_VERIFIED') && (
+              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                <GlassButton variant="outline" onClick={() => { openRejectModal(businessDetail.id, 'business'); }} disabled={isProcessing}>
+                  <X className="h-4 w-4" /> Reject
+                </GlassButton>
+                {businessDetail.verificationStatus === 'PENDING' && (
+                  <GlassButton variant="primary" onClick={() => handleApproveBusiness(businessDetail.id)} disabled={isProcessing}>
+                    <Check className="h-4 w-4" /> Approve
+                  </GlassButton>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="py-12 text-center text-muted-foreground">No data available</div>
+        )}
       </GlassModal>
     </div>
   );

@@ -5,11 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  // Supabase Connection Pooling URL (Session mode, port 6543):
-  //   postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
-  // Set as DATABASE_URL in Vercel Dashboard → Settings → Environment Variables.
-  //
-  // For /api/db-setup (table creation), also set DIRECT_URL with the direct connection (port 5432).
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================================
@@ -85,6 +81,15 @@ model Business {
   isActive        Boolean  @default(true)
   operatingHours  String?
   amenities       String?
+  // ID Verification fields
+  idType          String?  // PASSPORT, NATIONAL_ID, DRIVERS_LICENSE
+  idNumber        String?  // The ID/passport/DL number
+  idDocumentUrl   String?  // URL of uploaded ID document image
+  boothPhotoUrl   String?  // Business booth/shop photo URL
+  verificationStatus String? @default("PENDING") // PENDING, VERIFIED, REJECTED, AUTO_VERIFIED
+  verificationResult String? // JSON string with AI verification details
+  rejectionReason String?  // Reason for rejection (shown to provider)
+  verifiedAt      DateTime? // When verification was completed
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
