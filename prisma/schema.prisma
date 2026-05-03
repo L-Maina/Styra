@@ -25,6 +25,7 @@ model User {
   avatar        String?
   role          String   @default("CUSTOMER")
   isVerified    Boolean  @default(false)
+  emailVerified Boolean  @default(false)
   isBanned      Boolean  @default(false)
   banReason     String?
   tokenVersion  Int      @default(0)
@@ -79,6 +80,10 @@ model Business {
   reviewCount     Int      @default(0)
   isVerified      Boolean  @default(false)
   isActive        Boolean  @default(true)
+  slug            String?   @unique
+  subscriptionPlan String   @default("free")
+  totalEarnings   Float    @default(0)
+  serviceRadius   Int?      @default(25)
   operatingHours  String?
   amenities       String?
   // ID Verification fields
@@ -115,10 +120,11 @@ model Service {
   price       Float
   duration    Int
   category    String?
-  isActive    Boolean  @default(true)
-  image       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive     Boolean  @default(true)
+  discountPrice Float?
+  image        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   bookings   Booking[]
@@ -890,11 +896,20 @@ model PremiumListing {
 // ── Platform Config ────────────────────────────────────────
 
 model PlatformSetting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  key                   String   @unique
+  value                 String
+  platformFee           Float    @default(10)
+  minWithdrawal         Float    @default(500)
+  autoApproveBusinesses Boolean  @default(false)
+  requireIdVerification Boolean  @default(true)
+  maintenanceMode       Boolean  @default(false)
+  emailNotifications    Boolean  @default(true)
+  smsNotifications      Boolean  @default(true)
+  featuredListingPrice  Float    @default(499)
+  premiumListingPrice   Float    @default(999)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 // ── CMS: FAQ ───────────────────────────────────────────────
