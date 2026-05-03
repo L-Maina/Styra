@@ -3878,16 +3878,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                     onClick={async () => {
                       setIsProcessing(true);
                       try {
-                        const res = await api.request(`/businesses/verify-id`, {
+                        const res = await api.request<{
+                          result?: { notes?: string; [key: string]: unknown };
+                          verificationStatus?: string;
+                          [key: string]: unknown;
+                        }>(`/businesses/verify-id`, {
                           method: 'POST',
                           body: JSON.stringify({ businessId: businessDetail.id }),
                         });
                         if (res.data?.result) {
+                          const result = res.data.result;
                           setBusinessDetail((prev: any) => prev ? {
                             ...prev,
                             verificationStatus: res.data.verificationStatus,
-                            verificationResult: res.data.result,
-                            rejectionReason: res.data.verificationStatus === 'REJECTED' ? res.data.result.notes : prev.rejectionReason,
+                            verificationResult: result,
+                            rejectionReason: res.data.verificationStatus === 'REJECTED' ? result.notes : prev.rejectionReason,
                           } : prev);
                           toast.success(res.data.verificationStatus === 'VERIFIED' ? 'ID verified successfully' : 'ID verification did not pass');
                         }

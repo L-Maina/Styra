@@ -459,7 +459,7 @@ class ApiClient {
   }
 
   // File upload
-  async uploadFile(file: File, type: 'avatar' | 'portfolio' | 'logo' = 'avatar') {
+  async uploadFile(file: File, type: 'avatar' | 'portfolio' | 'logo' | 'id-document' | 'booth-photo' = 'avatar') {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
