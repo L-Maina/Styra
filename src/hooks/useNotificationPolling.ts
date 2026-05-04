@@ -23,7 +23,7 @@ interface NotificationEventDetail {
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-const POLL_INTERVAL_MS = 15_000; // 15 seconds
+const POLL_INTERVAL_MS = 15_000; // 15 seconds (fallback for when Pusher is unavailable)
 const API_LIMIT = 20;
 
 // ── Custom Event Helper ────────────────────────────────────────────────
@@ -77,6 +77,85 @@ async function patchAllNotificationsRead(): Promise<boolean> {
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+// ── Pusher Setup ──────────────────────────────────────────────────────
+
+let pusherClient: any = null;
+let pusherChannel: any = null;
+let pusherInitialized = false;
+
+async function initPusher(userId: string, onNewNotification: (data: any) => void) {
+  if (pusherInitialized || typeof window === 'undefined') return;
+  pusherInitialized = true;
+
+  try {
+    // Dynamically import Pusher client
+    const Pusher = (await import('pusher-js')).default;
+    const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
+    const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu';
+
+    if (!key) {
+      // Pusher not configured — fall back to polling only
+      return;
+    }
+
+    pusherClient = new Pusher(key, {
+      cluster,
+      authEndpoint: '/api/pusher/auth',
+      auth: {
+        headers: {},
+      },
+      authTransport: 'ajax',
+    });
+
+    pusherChannel = pusherClient.subscribe(`user-${userId}`);
+
+    pusherChannel.bind('new-notification', (data: any) => {
+      onNewNotification(data);
+    });
+
+    pusherChannel.bind('booking-update', () => {
+      // Refresh notifications when booking status changes
+      onNewNotification({ type: 'booking-update' });
+    });
+
+    pusherChannel.bind('payment-update', () => {
+      // Refresh notifications when payment status changes
+      onNewNotification({ type: 'payment-update' });
+    });
+  } catch (err) {
+    console.warn('Pusher initialization failed, using polling fallback:', err);
+  }
+}
+
+function disconnectPusher() {
+  if (pusherChannel) {
+    pusherChannel.unbind_all();
+    pusherChannel.unsubscribe();
+    pusherChannel = null;
+  }
+  if (pusherClient) {
+    pusherClient.disconnect();
+    pusherClient = null;
+  }
+  pusherInitialized = false;
+}
+
+// ── Admin Pusher Channel ─────────────────────────────────────────────
+
+let adminPusherChannel: any = null;
+
+async function initAdminPusher(onBusinessStatusChanged: (data: any) => void) {
+  try {
+    if (!pusherClient) return;
+    adminPusherChannel = pusherClient.subscribe('admin-channel');
+    adminPusherChannel.bind('business-status-changed', (data: any) => {
+      onBusinessStatusChanged(data);
+    });
+  } catch (err) {
+    console.warn('Admin Pusher channel init failed:', err);
   }
 }
 
@@ -180,7 +259,14 @@ export function useNotificationPolling(): UseNotificationPollingReturn {
     }
   }, [refresh]);
 
-  // ── Visibility-based polling ────────────────────────────────────────
+  // ── Pusher real-time callback ──────────────────────────────────────
+
+  const handlePusherNotification = useCallback(() => {
+    // When Pusher sends a real-time event, immediately refresh notifications
+    refresh();
+  }, [refresh]);
+
+  // ── Visibility-based polling + Pusher setup ────────────────────────
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -193,13 +279,23 @@ export function useNotificationPolling(): UseNotificationPollingReturn {
         clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
       }
+      disconnectPusher();
       return;
     }
 
     // Initial fetch
     refresh();
 
-    // Start polling interval
+    // Initialize Pusher for real-time updates
+    if (user?.id) {
+      initPusher(user.id, handlePusherNotification);
+      // If admin, also subscribe to admin channel
+      if ((user.role || '').toUpperCase() === 'ADMIN') {
+        initAdminPusher(handlePusherNotification);
+      }
+    }
+
+    // Start polling interval as fallback (even with Pusher, polling ensures nothing is missed)
     pollTimerRef.current = setInterval(() => {
       // Only poll when the tab is visible
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
@@ -226,8 +322,9 @@ export function useNotificationPolling(): UseNotificationPollingReturn {
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
+      disconnectPusher();
     };
-  }, [isAuthenticated, user?.id, refresh]);
+  }, [isAuthenticated, user?.id, refresh, handlePusherNotification]);
 
   return {
     notifications,

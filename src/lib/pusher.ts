@@ -19,6 +19,8 @@ function getPusherServer(): Pusher | null {
   return _pusherServer;
 }
 
+export { getPusherServer };
+
 // Export a getter instead of a direct instance
 export const pusherServer = {
   trigger: (...args: Parameters<Pusher['trigger']>) => {

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { getPusherServer } from '@/lib/pusher';
 
 // Get business details (admin)
 export async function GET(
@@ -84,9 +85,15 @@ export async function PATCH(
       updateData.isVerified = true;
       updateData.isActive = true;
       updateData.verifiedAt = new Date();
-      updateData.rejectionReason = null; // Clear any previous rejection reason
+      updateData.rejectionReason = null;
     } else if (verificationStatus === 'VERIFIED') {
       updateData.isVerified = true;
+      updateData.isActive = true;
+      updateData.verifiedAt = new Date();
+      updateData.rejectionReason = null;
+    } else if (verificationStatus === 'AUTO_VERIFIED') {
+      updateData.isVerified = true;
+      updateData.isActive = true;
       updateData.verifiedAt = new Date();
       updateData.rejectionReason = null;
     } else if (verificationStatus === 'REJECTED') {
@@ -95,6 +102,8 @@ export async function PATCH(
       updateData.rejectionReason = reason;
       updateData.verifiedAt = null;
     } else if (verificationStatus === 'PENDING') {
+      updateData.isVerified = false;
+      updateData.isActive = true;
       updateData.rejectionReason = null;
     }
 
@@ -141,8 +150,36 @@ export async function PATCH(
           link: `/business/${id}`,
         },
       });
+
+      // Push real-time notification to the business owner
+      const pusher = getPusherServer();
+      if (pusher) {
+        pusher.trigger(`user-${business.ownerId}`, 'new-notification', {
+          title: 'Verification Update',
+          message:
+            verificationStatus === 'REJECTED'
+              ? `Your business verification has been rejected.`
+              : `Your business "${business.name}" has been ${verificationStatus.toLowerCase()}!`,
+          type: 'VERIFICATION_UPDATE',
+          link: `/business/${id}`,
+        }).catch((err: unknown) => console.error('Pusher notify error:', err));
+      }
     } catch (notificationError) {
       console.error('Failed to create verification notification:', notificationError);
+    }
+
+    // Push real-time update to admin channel so other admin tabs refresh
+    try {
+      const pusher = getPusherServer();
+      if (pusher) {
+        pusher.trigger('admin-channel', 'business-status-changed', {
+          businessId: id,
+          verificationStatus,
+          businessName: business.name,
+        }).catch((err: unknown) => console.error('Pusher admin update error:', err));
+      }
+    } catch (pushError) {
+      console.error('Failed to push admin update:', pushError);
     }
 
     // Log the admin action

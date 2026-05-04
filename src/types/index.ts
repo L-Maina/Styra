@@ -234,6 +234,7 @@ export interface Notification {
   message: string;
   type: NotificationType;
   data?: Record<string, unknown>;
+  link?: string;
   isRead: boolean;
   createdAt: Date;
 }

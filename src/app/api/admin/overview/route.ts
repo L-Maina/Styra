@@ -92,8 +92,8 @@ export async function GET(request: NextRequest) {
         _sum: { amount: true },
       }),
       db.booking.count({ where: { createdAt: { gte: startOfMonth } } }),
-      // Business model uses isVerified (boolean), not verificationStatus
-      db.business.count({ where: { isVerified: false } }),
+      // Count businesses pending verification (using verificationStatus)
+      db.business.count({ where: { verificationStatus: 'PENDING' } }),
       db.adminReport.count({ where: { status: 'PENDING' } }),
       db.dispute.count({ where: { status: 'OPEN' } }),
       db.premiumListing.count({ where: { status: 'ACTIVE' } }),

@@ -290,6 +290,33 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
     pollMarkAsRead(id);
   };
 
+  const handleNotificationClick = (notification: Notification) => {
+    // Mark as read
+    if (!notification.isRead) {
+      pollMarkAsRead(notification.id);
+    }
+    // Close the notification panel
+    setIsNotificationsOpen(false);
+
+    // Navigate to the link if present
+    if (notification.link) {
+      // Parse the link to determine navigation
+      const link = notification.link;
+      if (link.startsWith('/admin')) {
+        const tab = link.includes('tab=') ? link.split('tab=')[1]?.split('&')[0] : undefined;
+        handleNavigate('admin-dashboard', tab as string | undefined);
+      } else if (link.startsWith('/bookings/')) {
+        handleNavigate('customer-dashboard', 'bookings');
+      } else if (link.startsWith('/business/')) {
+        if (isAdmin) {
+          handleNavigate('admin-dashboard', 'businesses');
+        } else {
+          handleNavigate('business-dashboard');
+        }
+      }
+    }
+  };
+
   const markAllNotificationsAsRead = () => {
     pollMarkAllAsRead();
   };
@@ -558,7 +585,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                                 return (
                                   <div
                                     key={notification.id}
-                                    onClick={() => markNotificationAsRead(notification.id)}
+                                    onClick={() => handleNotificationClick(notification)}
                                     className={cn(
                                       'p-4 border-b border-border/30 last:border-0 cursor-pointer transition-colors',
                                       !notification.isRead ? 'bg-primary/5' : 'hover:bg-muted/30'

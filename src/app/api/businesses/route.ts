@@ -28,8 +28,12 @@ export async function GET(request: NextRequest) {
     };
 
     // Filter by owner to allow users to fetch their own businesses
+    // When filtering by owner, show all their businesses (including unapproved)
+    // Otherwise, only show verified/approved businesses to the public
     if (ownerId) {
       where.ownerId = ownerId;
+    } else {
+      where.verificationStatus = { in: ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'] };
     }
 
     if (query) {
@@ -152,6 +156,7 @@ export async function POST(request: NextRequest) {
           title: 'Application Received',
           message: `Your business "${body.name}" has been submitted for review. You will be notified once it is approved.`,
           type: 'VERIFICATION_UPDATE',
+          link: `/business/${business.id}`,
         },
       });
     } catch (notificationError) {

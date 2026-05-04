@@ -14,11 +14,14 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('query');
 
     const where: Record<string, unknown> = {};
-    // Business model uses isVerified (boolean), not verificationStatus
     const statusLower = (status || '').toLowerCase();
-    if (statusLower === 'pending') { where.isVerified = false; where.isActive = true; }
-    else if (statusLower === 'approved') where.isVerified = true;
-    else if (statusLower === 'rejected') { where.isVerified = false; where.isActive = false; }
+    if (statusLower === 'pending') {
+      where.verificationStatus = 'PENDING';
+    } else if (statusLower === 'approved') {
+      where.verificationStatus = { in: ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'] };
+    } else if (statusLower === 'rejected') {
+      where.verificationStatus = 'REJECTED';
+    }
     if (query) {
       where.OR = [
         { name: { contains: query } },
@@ -33,7 +36,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         include: {
           owner: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true, email: true, phone: true },
           },
           _count: {
             select: { services: true, bookings: true, reviews: true },
@@ -44,10 +47,10 @@ export async function GET(request: NextRequest) {
       db.business.count({ where }),
     ]);
 
-    // Map isVerified to verificationStatus for frontend compatibility
+    // Use actual verificationStatus from DB, fall back to isVerified-based mapping
     const mapped = businesses.map(b => ({
       ...b,
-      verificationStatus: b.isVerified ? 'APPROVED' : 'PENDING',
+      verificationStatus: b.verificationStatus || (b.isVerified ? 'APPROVED' : 'PENDING'),
       isActive: b.isActive,
       rating: b.rating,
       reviewCount: b.reviewCount,
@@ -55,6 +58,7 @@ export async function GET(request: NextRequest) {
         id: b.owner.id,
         name: b.owner.name,
         email: b.owner.email,
+        phone: b.owner.phone,
       } : null,
       _count: b._count,
     }));
