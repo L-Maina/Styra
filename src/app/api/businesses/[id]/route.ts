@@ -46,7 +46,13 @@ export async function GET(
       return errorResponse('Business not found', 404);
     }
 
-    return successResponse(business);
+    // Use boothPhotoUrl as fallback for coverImage
+    const response = {
+      ...business,
+      coverImage: business.coverImage || business.boothPhotoUrl || null,
+    };
+
+    return successResponse(response);
   } catch (error) {
     return handleApiError(error);
   }

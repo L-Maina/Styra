@@ -84,9 +84,10 @@ const typeColors: Record<string, string> = {
  * Takes user role into account so admins go to admin-dashboard
  * and business owners go to business-dashboard/onboarding.
  */
-function resolvePageFromLink(link?: string, type?: string, userRole?: string): string | null {
-  const isAdmin = (userRole || '').toUpperCase() === 'ADMIN';
-  const isBusinessOwner = (userRole || '').toUpperCase() === 'BUSINESS_OWNER';
+function resolvePageFromLink(link?: string, type?: string, userRoles?: string[]): string | null {
+  const roles = (userRoles || []).map((r) => (r || '').toUpperCase());
+  const isAdmin = roles.includes('ADMIN');
+  const isBusinessOwner = roles.includes('BUSINESS_OWNER');
 
   // ── Link-based routing (takes priority) ──
   if (link) {
@@ -100,7 +101,8 @@ function resolvePageFromLink(link?: string, type?: string, userRole?: string): s
     if (link.startsWith('/booking')) {
       return isAdmin ? 'admin-dashboard' : (isBusinessOwner ? 'business-dashboard' : 'customer-dashboard');
     }
-    if (link.startsWith('/wallet')) {
+    if (link.startsWith('/wallet') || link.startsWith('/payments')) {
+      if (isAdmin) return 'admin-dashboard';
       return isBusinessOwner ? 'business-dashboard' : 'customer-dashboard';
     }
   }
@@ -115,13 +117,14 @@ function resolvePageFromLink(link?: string, type?: string, userRole?: string): s
     return isAdmin ? 'admin-dashboard' : (isBusinessOwner ? 'business-dashboard' : 'customer-dashboard');
   }
   if (t.includes('VERIFICATION')) {
-    return isAdmin ? 'admin-dashboard' : 'onboarding';
+    if (isAdmin) return 'admin-dashboard';
+    return isBusinessOwner ? 'business-dashboard' : 'onboarding';
   }
   if (t.includes('REVIEW')) {
     return isAdmin ? 'admin-dashboard' : (isBusinessOwner ? 'business-dashboard' : 'home');
   }
   if (t.includes('MESSAGE')) return 'chat';
-  if (t.includes('SYSTEM')) {
+  if (t.includes('SYSTEM') || t.includes('ALERT')) {
     return isAdmin ? 'admin-dashboard' : (isBusinessOwner ? 'business-dashboard' : 'home');
   }
   return null;
@@ -340,7 +343,7 @@ export function NotificationBadge({
     setIsOpen(false);
 
     // Navigate to the appropriate page
-    const page = resolvePageFromLink(notification.link, notification.type, user?.role);
+    const page = resolvePageFromLink(notification.link, notification.type, user?.roles);
     if (page && onNavigate) {
       onNavigate(page);
     }

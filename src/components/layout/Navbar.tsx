@@ -308,7 +308,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
         const tab = link.includes('tab=') ? link.split('tab=')[1]?.split('&')[0] : undefined;
         handleNavigate('admin-dashboard', tab as string | undefined);
       } else if (link.startsWith('/bookings/')) {
-        handleNavigate('customer-dashboard', 'bookings');
+        if (isAdmin) {
+          handleNavigate('admin-dashboard', 'bookings');
+        } else if (isProvider) {
+          handleNavigate('business-dashboard', 'bookings');
+        } else {
+          handleNavigate('customer-dashboard', 'bookings');
+        }
       } else if (link.startsWith('/business/')) {
         if (isAdmin) {
           handleNavigate('admin-dashboard', 'businesses');
@@ -316,23 +322,64 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
           handleNavigate('business-dashboard');
         }
       } else if (link.startsWith('/wallet') || link.startsWith('/payments')) {
-        handleNavigate('customer-dashboard', 'wallet');
+        if (isAdmin) {
+          handleNavigate('admin-dashboard', 'payments');
+        } else if (isProvider) {
+          handleNavigate('business-dashboard', 'earnings');
+        } else {
+          handleNavigate('customer-dashboard', 'wallet');
+        }
       } else if (link.startsWith('/chat') || link.startsWith('/conversations')) {
         handleNavigate('chat');
       }
     } else {
       // No link — derive from notification type
       const type = (notification.type || '').toUpperCase();
+      const isAdminUser = user?.roles?.includes('ADMIN');
+      const isBusinessOwner = user?.roles?.includes('BUSINESS_OWNER');
+
       if (type.includes('BOOKING')) {
-        handleNavigate(isProvider ? 'business-dashboard' : 'customer-dashboard', 'bookings');
+        if (isAdminUser) {
+          handleNavigate('admin-dashboard', 'bookings');
+        } else if (isProvider) {
+          handleNavigate('business-dashboard', 'bookings');
+        } else {
+          handleNavigate('customer-dashboard', 'bookings');
+        }
       } else if (type.includes('PAYMENT')) {
-        handleNavigate('customer-dashboard', 'wallet');
+        if (isAdminUser) {
+          handleNavigate('admin-dashboard', 'payments');
+        } else if (isProvider) {
+          handleNavigate('business-dashboard', 'earnings');
+        } else {
+          handleNavigate('customer-dashboard', 'wallet');
+        }
       } else if (type.includes('VERIFICATION')) {
-        handleNavigate(isProvider ? 'business-dashboard' : 'onboarding');
+        if (isAdminUser) {
+          handleNavigate('admin-dashboard', 'businesses');
+        } else if (isProvider) {
+          handleNavigate('business-dashboard');
+        } else {
+          handleNavigate('onboarding');
+        }
       } else if (type.includes('REVIEW')) {
-        handleNavigate(isProvider ? 'business-dashboard' : 'customer-dashboard');
+        if (isAdminUser) {
+          handleNavigate('admin-dashboard', 'reviews');
+        } else if (isProvider) {
+          handleNavigate('business-dashboard');
+        } else {
+          handleNavigate('customer-dashboard', 'favorites');
+        }
       } else if (type.includes('MESSAGE')) {
         handleNavigate('chat');
+      } else if (type.includes('SYSTEM') || type.includes('ALERT')) {
+        if (isAdminUser) {
+          handleNavigate('admin-dashboard', 'overview');
+        } else if (isProvider) {
+          handleNavigate('business-dashboard');
+        } else {
+          handleNavigate('customer-dashboard', 'overview');
+        }
       }
     }
   };
@@ -973,7 +1020,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                               <MenuItem
                                 icon={LogOut}
                                 label="Sign Out"
-                                onClick={() => {
+                                onClick={async () => {
+                                  try { await api.logout(); } catch (e) { /* ignore - still clear local */ }
                                   logout();
                                   setIsProfileOpen(false);
                                 }}
@@ -1475,7 +1523,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                   {/* Sign Out */}
                   <div className="px-4 py-3 border-t border-border/30 mt-2">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
+                        try { await api.logout(); } catch (e) { /* ignore - still clear local */ }
                         logout();
                         setIsProfileOpen(false);
                       }}

@@ -75,10 +75,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Map _count.reviews to reviewCount for frontend compatibility
+    // Use boothPhotoUrl as fallback for coverImage if coverImage is not set
     const mappedBusinesses = businesses.map((b) => ({
       ...b,
       reviewCount: b._count.reviews,
       reviews: [],
+      coverImage: b.coverImage || b.boothPhotoUrl || null,
     }));
 
     // Filter by distance if coordinates provided

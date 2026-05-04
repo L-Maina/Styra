@@ -43,6 +43,7 @@ import { CareersPage } from '@/components/pages/CareersPage';
 import { ApiDocumentation } from '@/components/docs/ApiDocumentation';
 import { GlassButton, GlassCard } from '@/components/ui/custom/glass-components';
 import { useAuthStore, useAdminStore } from '@/store';
+import { api } from '@/lib/api-client';
 import { useBusinesses, useBookings, useApiNotifications, useConversations } from '@/hooks/use-business-data';
 import type { Business, Service } from '@/types';
 
@@ -263,7 +264,8 @@ export default function HomePage() {
   }, [navigate]);
 
   // Handle logout
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    try { await api.logout(); } catch (e) { /* still clear local state */ }
     logout();
     navigate('home');
   }, [navigate, logout]);

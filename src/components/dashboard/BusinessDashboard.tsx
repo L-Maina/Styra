@@ -496,12 +496,11 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   };
 
   // Save business profile
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!businessId) return;
     setIsLoading(true);
-    setTimeout(() => {
-      // Update the store - this will reflect across the app
-      updateBusiness(businessId, {
+    try {
+      const updateData: Record<string, unknown> = {
         name: businessProfile.name,
         description: businessProfile.description,
         phone: businessProfile.phone,
@@ -512,13 +511,54 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
         website: businessProfile.website,
         latitude: businessProfile.latitude,
         longitude: businessProfile.longitude,
+        operatingHours: businessProfile.hours,
+      };
+
+      // Upload logo if it's a base64 data URL (newly uploaded file)
+      if (businessProfile.logo && businessProfile.logo.startsWith('data:')) {
+        try {
+          const logoBlob = await (await fetch(businessProfile.logo)).blob();
+          const logoFile = new File([logoBlob], 'logo.jpg', { type: 'image/jpeg' });
+          const uploadRes = await api.uploadFile(logoFile, 'logo');
+          updateData.logo = uploadRes.data?.url;
+        } catch (err) {
+          console.error('Failed to upload logo:', err);
+        }
+      } else if (businessProfile.logo) {
+        updateData.logo = businessProfile.logo;
+      }
+
+      // Upload cover image if it's a base64 data URL (newly uploaded file)
+      if (businessProfile.coverImage && businessProfile.coverImage.startsWith('data:')) {
+        try {
+          const coverBlob = await (await fetch(businessProfile.coverImage)).blob();
+          const coverFile = new File([coverBlob], 'cover.jpg', { type: 'image/jpeg' });
+          const uploadRes = await api.uploadFile(coverFile, 'portfolio');
+          updateData.coverImage = uploadRes.data?.url;
+        } catch (err) {
+          console.error('Failed to upload cover image:', err);
+        }
+      } else if (businessProfile.coverImage) {
+        updateData.coverImage = businessProfile.coverImage;
+      }
+
+      // Persist to backend
+      await api.updateBusiness(businessId, updateData);
+      
+      // Update local Zustand store
+      updateBusiness(businessId, {
+        ...updateData,
         isActive: businessProfile.isActive,
         hours: businessProfile.hours,
       });
       
       toast.success('Business profile updated! Changes are now live.');
+    } catch (err) {
+      console.error('Failed to save profile:', err);
+      toast.error('Failed to save profile. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
   
   // Toggle business active status

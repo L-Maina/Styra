@@ -1,6 +1,6 @@
 // API Client for frontend to interact with backend
 // Includes CSRF token on all state-changing requests (POST, PUT, PATCH, DELETE)
-// Features: request timeout (10s), exponential backoff retry for GET, timeout error handling
+// Features: request timeout (30s), exponential backoff retry for GET, timeout error handling
 import { toast } from 'sonner';
 
 const API_BASE = '/api';
@@ -10,7 +10,7 @@ const STATE_CHANGING_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 // ============================================
 // TIMEOUT & RETRY CONFIGURATION
 // ============================================
-const DEFAULT_TIMEOUT = 10000; // 10 seconds
+const DEFAULT_TIMEOUT = 30000; // 30 seconds
 const SPINNER_TIMEOUT = 30000; // 30 seconds — kill infinite spinners
 
 interface RequestOptions extends RequestInit {
@@ -270,6 +270,7 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
       noRetry: true,
+      timeout: 120000, // 2 minutes for AI auto-verification
     });
   }
 
@@ -427,11 +428,11 @@ class ApiClient {
 
   // Admin endpoints
   async getAdminStats() {
-    return this.request('/admin/stats');
+    return this.request('/admin/stats', { timeout: 30000 });
   }
 
   async getAdminUsers(params?: { role?: string; query?: string }) {
-    return this.request('/admin/users', { params });
+    return this.request('/admin/users', { params, timeout: 30000 });
   }
 
   async getAdminUser(id: string) {
@@ -447,7 +448,7 @@ class ApiClient {
   }
 
   async getAdminBusinesses(params?: { status?: string; query?: string }) {
-    return this.request('/admin/businesses', { params });
+    return this.request('/admin/businesses', { params, timeout: 30000 });
   }
 
   async updateBusinessStatus(id: string, verificationStatus: string, reason?: string) {
@@ -473,7 +474,7 @@ class ApiClient {
 
     // File upload with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds for file uploads
 
     try {
       const response = await fetch('/api/upload', {
