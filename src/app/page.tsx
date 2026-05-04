@@ -65,7 +65,7 @@ const pageVariants = {
 
 export default function HomePage() {
   // Use auth store for user state
-  const { user, logout, switchMode, activateProviderMode, isAuthenticated } = useAuthStore();
+  const { user, logout, updateUser, switchMode, activateProviderMode, isAuthenticated } = useAuthStore();
   
   const [currentPage, setCurrentPage] = useState<string>(() => {
     // Lazy init: check persisted auth on mount
@@ -77,7 +77,14 @@ export default function HomePage() {
         if (u) {
           const roles = (u.roles || [u.role]).map((r: string) => (r || '').toUpperCase());
           if (roles.includes('ADMIN')) return 'admin-dashboard';
-          if (roles.includes('BUSINESS_OWNER') && u.activeMode === 'PROVIDER') return 'business-dashboard';
+          if (roles.includes('BUSINESS_OWNER') && u.activeMode === 'PROVIDER') {
+            // Check verification status before routing to dashboard
+            const status = u.businessVerificationStatus;
+            if (['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(status || '')) {
+              return 'business-dashboard';
+            }
+            return 'onboarding';
+          }
         }
       }
     } catch { /* ignore parse errors */ }
@@ -138,6 +145,32 @@ export default function HomePage() {
       if (announceRef.current) clearTimeout(announceRef.current);
     };
   }, [currentPage]);
+
+  // ─── Refresh verification status from server when navigating to business-dashboard/onboarding ──
+  // This ensures the client-side Zustand store has the latest businessVerificationStatus
+  // from the database, fixing the issue where admin approval doesn't reflect on the business side.
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    if (currentPage !== 'business-dashboard' && currentPage !== 'onboarding') return;
+
+    let cancelled = false;
+    const refreshStatus = async () => {
+      try {
+        const profileRes = await api.getProfile();
+        if (!cancelled && profileRes.data) {
+          // Only update if status actually changed (avoid unnecessary re-renders)
+          const newStatus = (profileRes.data as any).businessVerificationStatus;
+          if (newStatus && newStatus !== user.businessVerificationStatus) {
+            updateUser(profileRes.data as Partial<typeof user>);
+          }
+        }
+      } catch {
+        // Non-critical — don't disrupt the UI
+      }
+    };
+    refreshStatus();
+    return () => { cancelled = true; };
+  }, [currentPage, isAuthenticated, user, updateUser]);
 
   // ─── RBAC: Check if user can perform client-side actions (booking, payment, review, favorites) ──
   const canPerformAction = useCallback((action: 'book' | 'favorite' | 'message' | 'review' | 'block' | 'report' | 'support' | 'dashboard'): { allowed: boolean; reason?: string } => {
@@ -255,9 +288,9 @@ export default function HomePage() {
     navigate('home');
   }, [navigate, user, getApplicationByUserId, refetchBusinesses]);
 
-  // Handle onboarding complete
+  // Handle onboarding complete — navigate to business dashboard (NOT back to onboarding)
   const handleOnboardingComplete = useCallback(() => {
-    navigate('onboarding');
+    navigate('business-dashboard');
   }, [navigate]);
 
   // Handle logout
@@ -618,6 +651,7 @@ export default function HomePage() {
         // Check verification status from auth store (synced with server)
         const serverStatus = user?.businessVerificationStatus;
         const isApproved = ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(serverStatus || '');
+        const application = user ? getApplicationByUserId(user.id) : null;
         if (!isApproved) {
           // Has role but not verified - redirect to onboarding
           return (
@@ -704,9 +738,8 @@ export default function HomePage() {
           return renderAccessDenied('Admin accounts cannot become providers. Admin is a control role only.');
         }
         // If already an approved provider, redirect to dashboard
-        const serverStatus = user?.businessVerificationStatus;
-        const isApproved = ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(serverStatus || '');
-        if (isApproved) {
+        const onboardingApproved = ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(user?.businessVerificationStatus || '');
+        if (onboardingApproved) {
           return (
             <motion.div
               key="onboarding-already-approved"

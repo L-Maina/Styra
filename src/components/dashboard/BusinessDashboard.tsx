@@ -314,7 +314,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
       category: service.category,
       duration: service.duration,
       price: service.price,
-      imageUrl: service.imageUrl || '',
+      imageUrl: (service as any).image || '',
     });
     setShowServiceModal(true);
   };
@@ -837,8 +837,8 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center overflow-hidden">
-                              {service.imageUrl ? (
-                                <img src={service.imageUrl} alt={service.name} className="w-full h-full object-cover" />
+                              {(service as any).image ? (
+                                <img src={(service as any).image} alt={service.name} className="w-full h-full object-cover" />
                               ) : (
                                 <Scissors className="h-6 w-6 text-primary" />
                               )}

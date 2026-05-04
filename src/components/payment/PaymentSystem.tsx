@@ -1179,8 +1179,8 @@ export const PaymentCheckout: React.FC<PaymentCheckoutProps> = ({
                   <div className="flex gap-4">
                     {/* Service Image */}
                     <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {service.imageUrl ? (
-                        <img src={service.imageUrl} alt={service.name} className="w-full h-full object-cover" />
+                      {(service as any).image ? (
+                        <img src={(service as any).image} alt={service.name} className="w-full h-full object-cover" />
                       ) : (
                         <Star className="h-8 w-8 text-primary/40" />
                       )}

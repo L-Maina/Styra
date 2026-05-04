@@ -18,7 +18,7 @@ export const VALID_ROLES: readonly string[] = Object.values(ROLES);
 // User can have multiple roles and an active mode
 export type UserMode = 'CLIENT' | 'PROVIDER' | 'ADMIN';
 
-export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+export type VerificationStatus = 'PENDING' | 'APPROVED' | 'VERIFIED' | 'AUTO_VERIFIED' | 'REJECTED' | 'SUSPENDED';
 
 export type SubscriptionPlan = 'FREE' | 'PREMIUM' | 'FEATURED';
 
@@ -95,6 +95,8 @@ export interface Business {
   description?: string;
   logo?: string;
   coverImage?: string;
+  boothPhotoUrl?: string;
+  idDocumentUrl?: string;
   phone?: string;
   email?: string;
   website?: string;
@@ -129,7 +131,7 @@ export interface Service {
   duration: number;
   price: number;
   discountPrice?: number;
-  imageUrl?: string;
+  image?: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -153,15 +155,10 @@ export interface Staff {
 export interface PortfolioItem {
   id: string;
   businessId: string;
-  mediaType: MediaType;
-  fileUrl: string;
-  thumbnailUrl?: string;
-  caption?: string;
-  tags?: string[];
-  isFeatured: boolean;
-  likes: number;
+  title?: string;
+  description?: string;
+  image: string;
   createdAt: Date;
-  updatedAt: Date;
 }
 
 // Booking

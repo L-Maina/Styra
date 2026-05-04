@@ -396,6 +396,27 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         });
       }
 
+      // Upload portfolio photos and create PortfolioItem records
+      if (portfolio.length > 0) {
+        for (const item of portfolio) {
+          try {
+            if (item.image && typeof item.image === 'string') {
+              await api.request('/portfolio', {
+                method: 'POST',
+                body: JSON.stringify({
+                  businessId,
+                  image: item.image,
+                  title: (item as any).caption || null,
+                }),
+                noRetry: true,
+              });
+            }
+          } catch (portfolioErr) {
+            console.error('Failed to upload portfolio image:', portfolioErr);
+          }
+        }
+      }
+
       // Store in local admin store for backward compatibility
       addApplication({
         id: `app-${Date.now()}`,
@@ -434,7 +455,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         idType: idData.idType,
         idNumber: idData.idNumber,
         idDocumentUrl,
-        businessVerificationStatus: serverStatus,
+        businessVerificationStatus: serverStatus as import('@/types').VerificationStatus,
       };
       
       localStorage.setItem('styra-verification-status', serverStatus);
@@ -479,9 +500,9 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                 <p className="text-muted-foreground mb-4">
                   Unfortunately, your application was not approved.
                 </p>
-                {(user as Record<string, unknown>)?.rejectionReason && (
+                {(user as any)?.rejectionReason && (
                   <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-left mb-4">
-                    <p className="text-sm font-medium text-red-500">{(user as Record<string, unknown>).rejectionReason}</p>
+                    <p className="text-sm font-medium text-red-500">{String((user as any).rejectionReason)}</p>
                   </div>
                 )}
                 <GlassButton variant="default" onClick={() => window.location.reload()} className="w-full">

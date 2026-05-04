@@ -308,8 +308,8 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                 >
                   <div className="flex gap-4">
                     <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center flex-shrink-0">
-                      {service.imageUrl ? (
-                        <img src={service.imageUrl} alt={service.name} className="w-full h-full object-cover rounded-lg" />
+                      {service.image ? (
+                        <img src={service.image} alt={service.name} className="w-full h-full object-cover rounded-lg" />
                       ) : (
                         <span className="text-xl">✂️</span>
                       )}
@@ -340,14 +340,24 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
           {/* Portfolio Tab */}
           {selectedTab === 'portfolio' && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center overflow-hidden"
-                >
-                  <span className="text-4xl">💇</span>
+              {business.portfolio && business.portfolio.length > 0 ? (
+                business.portfolio.map((item) => (
+                  <div
+                    key={item.id}
+                    className="aspect-square rounded-xl overflow-hidden"
+                  >
+                    <img
+                      src={item.image}
+                      alt={item.title || 'Portfolio'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-muted-foreground">No portfolio photos yet.</p>
                 </div>
-              ))}
+              )}
             </div>
           )}
 

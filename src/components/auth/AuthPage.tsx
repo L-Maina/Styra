@@ -209,7 +209,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   onLogin,
   onNavigate,
 }) => {
-  const { login: storeLogin } = useAuthStore();
+  const { login: storeLogin, updateUser } = useAuthStore();
   const [currentMode, setCurrentMode] = useState(mode);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -359,8 +359,20 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       // Update auth store (session cookie is set by the API)
       storeLogin(user, 'session');
 
+      // Fetch enriched user data from /api/auth/me to get businessVerificationStatus
+      try {
+        const profileRes = await api.getProfile();
+        if (profileRes.data) {
+          updateUser(profileRes.data as Partial<typeof user>);
+          onLogin?.({ ...user, ...profileRes.data } as typeof user);
+        } else {
+          onLogin?.(user);
+        }
+      } catch {
+        onLogin?.(user);
+      }
+
       toast.success('Welcome back!');
-      onLogin?.(user);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Sign in failed. Please try again.';
       setError(message);
@@ -549,8 +561,20 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       // Update auth store (session cookie was set by verify-otp API)
       storeLogin(user, 'session');
 
+      // Fetch enriched user data from /api/auth/me to get businessVerificationStatus
+      try {
+        const profileRes = await api.getProfile();
+        if (profileRes.data) {
+          updateUser(profileRes.data as Partial<typeof user>);
+          onLogin?.({ ...user, ...profileRes.data } as typeof user);
+        } else {
+          onLogin?.(user);
+        }
+      } catch {
+        onLogin?.(user);
+      }
+
       toast.success(data.message || 'Account created successfully!');
-      onLogin?.(user);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid verification code. Please try again.';
       setOtpError(message);

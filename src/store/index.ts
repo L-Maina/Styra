@@ -1342,6 +1342,7 @@ interface BusinessApplication {
   idType: 'PASSPORT' | 'NATIONAL_ID' | 'DRIVERS_LICENSE';
   idNumber: string;
   idDocumentUrl?: string;
+  boothPhotoUrl?: string;
   // Business Details
   businessName: string;
   businessDescription?: string;

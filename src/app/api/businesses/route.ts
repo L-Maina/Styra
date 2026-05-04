@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
             where: { isActive: true },
             take: 5,
           },
+          portfolio: { take: 4 },
           _count: {
             select: { reviews: true },
           },
