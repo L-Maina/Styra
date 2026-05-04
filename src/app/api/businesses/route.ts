@@ -139,6 +139,8 @@ export async function POST(request: NextRequest) {
         country: body.country || null,
         latitude: body.latitude ?? null,
         longitude: body.longitude ?? null,
+        logo: body.logo || null,
+        coverImage: body.coverImage || null,
         // ID verification fields
         idType: body.idType || null,
         idNumber: body.idNumber || null,

@@ -110,7 +110,7 @@ export const useAuthStore = create<AuthState>()(
             roles: newRoles,
             role: 'BUSINESS_OWNER', // Update primary role
             activeMode: 'PROVIDER',
-            businessVerificationStatus: 'PENDING',
+            // Don't override businessVerificationStatus — let the server be the source of truth
           }
         };
       }),

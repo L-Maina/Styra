@@ -234,21 +234,18 @@ export default function HomePage() {
     const mode = currentUser.activeMode || 'CLIENT';
     
     if (hasBusinessRole && mode === 'PROVIDER') {
-      // Provider mode - check verification
-      const application = getApplicationByUserId(currentUser.id);
+      // Provider mode - check verification status from auth store (synced with server)
+      const serverStatus = currentUser.businessVerificationStatus;
+      const isApproved = ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(serverStatus || '');
       
-      if (!application || application.status === 'PENDING') {
+      if (!isApproved) {
+        // PENDING, REJECTED, or unknown — go to onboarding
         navigate('onboarding');
         return;
       }
       
-      if (application.status === 'APPROVED') {
+      if (isApproved) {
         navigate('business-dashboard');
-        return;
-      }
-      
-      if (application.status === 'REJECTED') {
-        navigate('onboarding');
         return;
       }
     }
@@ -618,9 +615,10 @@ export default function HomePage() {
           // Authenticated but not a provider - show access denied
           return renderAccessDenied('You need to be a Business Owner to access this.');
         }
-        // Check verification status
-        const application = user ? getApplicationByUserId(user.id) : null;
-        if (!application || application.status !== 'APPROVED') {
+        // Check verification status from auth store (synced with server)
+        const serverStatus = user?.businessVerificationStatus;
+        const isApproved = ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(serverStatus || '');
+        if (!isApproved) {
           // Has role but not verified - redirect to onboarding
           return (
             <motion.div
@@ -706,8 +704,9 @@ export default function HomePage() {
           return renderAccessDenied('Admin accounts cannot become providers. Admin is a control role only.');
         }
         // If already an approved provider, redirect to dashboard
-        const existingApp = getApplicationByUserId(user.id);
-        if (existingApp?.status === 'APPROVED') {
+        const serverStatus = user?.businessVerificationStatus;
+        const isApproved = ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(serverStatus || '');
+        if (isApproved) {
           return (
             <motion.div
               key="onboarding-already-approved"

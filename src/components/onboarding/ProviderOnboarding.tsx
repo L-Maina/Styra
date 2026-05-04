@@ -90,18 +90,46 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
   onComplete,
 }) => {
   const { user, updateUser } = useAuthStore();
-  const { addApplication, getApplicationByUserId } = useAdminStore();
+  const { addApplication } = useAdminStore();
   
   const [currentStep, setCurrentStep] = useState<Step>('welcome');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(true);
   const [error, setError] = useState('');
   
-  // Check existing application
-  const existingApplication = user ? getApplicationByUserId(user.id) : null;
-  const hasSubmitted = !!existingApplication;
-  const isVerified = existingApplication?.status === 'APPROVED';
-  const isRejected = existingApplication?.status === 'REJECTED';
-  const isPending = existingApplication?.status === 'PENDING';
+  // ── Fetch fresh verification status from server on mount ──
+  // The Zustand/localStorage stores are stale. Always check the server.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await api.getProfile();
+        if (cancelled || !result.success || !result.data) return;
+        const serverUser = result.data as Record<string, unknown>;
+        const serverStatus = serverUser.businessVerificationStatus as string | undefined;
+        if (serverStatus && serverStatus !== user?.businessVerificationStatus) {
+          updateUser({
+            businessVerificationStatus: serverStatus as any,
+            role: (serverUser.role as string) || user?.role,
+            roles: (serverUser.roles as string[]) || user?.roles,
+            activeMode: (serverUser.activeMode as string) || user?.activeMode,
+            businessName: (serverUser.businessName as string) || user?.businessName,
+          } as any);
+        }
+      } catch {
+        // Non-critical — use whatever we have locally
+      } finally {
+        if (!cancelled) setIsRefreshing(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Check status from auth store (synced with server via /api/auth/me)
+  const hasSubmitted = !!user?.businessVerificationStatus;
+  const isVerified = ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(user?.businessVerificationStatus || '');
+  const isRejected = user?.businessVerificationStatus === 'REJECTED';
+  const isPending = user?.businessVerificationStatus === 'PENDING';
 
   // Form states
   const [profileData, setProfileData] = useState({
@@ -135,6 +163,8 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
     idDocument: null as string | null,
   });
 
+  const [boothPhoto, setBoothPhoto] = useState<File | null>(null);
+  const [boothPhotoPreview, setBoothPhotoPreview] = useState<string | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
 
@@ -283,7 +313,57 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         cleanWebsite = `https://${cleanWebsite}`;
       }
 
-      // Create business via real API
+      // Upload ID document to server
+      let idDocumentUrl: string | undefined;
+      if (idData.idDocument) {
+        try {
+          const idBlob = await (await fetch(idData.idDocument)).blob();
+          const idFile = new File([idBlob], 'id-document.jpg', { type: 'image/jpeg' });
+          const uploadRes = await api.uploadFile(idFile, 'id-document');
+          idDocumentUrl = uploadRes.data?.url;
+        } catch (uploadErr) {
+          console.error('Failed to upload ID document:', uploadErr);
+        }
+      }
+
+      // Upload booth photo to server
+      let boothPhotoUrl: string | undefined;
+      if (boothPhoto) {
+        try {
+          const uploadRes = await api.uploadFile(boothPhoto, 'booth-photo');
+          boothPhotoUrl = uploadRes.data?.url;
+        } catch (uploadErr) {
+          console.error('Failed to upload booth photo:', uploadErr);
+        }
+      }
+
+      // Upload logo to server
+      let logoUrl: string | undefined;
+      if (logo) {
+        try {
+          const logoBlob = await (await fetch(logo)).blob();
+          const logoFile = new File([logoBlob], 'logo.jpg', { type: 'image/jpeg' });
+          const uploadRes = await api.uploadFile(logoFile, 'logo');
+          logoUrl = uploadRes.data?.url;
+        } catch (uploadErr) {
+          console.error('Failed to upload logo:', uploadErr);
+        }
+      }
+
+      // Upload cover image to server
+      let coverImageUrl: string | undefined;
+      if (coverImage) {
+        try {
+          const coverBlob = await (await fetch(coverImage)).blob();
+          const coverFile = new File([coverBlob], 'cover.jpg', { type: 'image/jpeg' });
+          const uploadRes = await api.uploadFile(coverFile, 'portfolio');
+          coverImageUrl = uploadRes.data?.url;
+        } catch (uploadErr) {
+          console.error('Failed to upload cover image:', uploadErr);
+        }
+      }
+
+      // Create business via real API with ALL fields including photos
       const result = await api.createBusiness({
         name: profileData.businessName,
         description: profileData.description || undefined,
@@ -294,6 +374,12 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         email: profileData.email || undefined,
         website: cleanWebsite,
         serviceRadius: 10,
+        idType: idData.idType,
+        idNumber: idData.idNumber,
+        idDocumentUrl,
+        boothPhotoUrl,
+        logo: logoUrl,
+        coverImage: coverImageUrl,
       });
 
       const businessId = (result.data as { id: string }).id;
@@ -310,8 +396,8 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         });
       }
 
-      // Also store in local admin store for backward compatibility
-      const application = {
+      // Store in local admin store for backward compatibility
+      addApplication({
         id: `app-${Date.now()}`,
         userId: user.id,
         userName: user.name || 'Unknown',
@@ -319,7 +405,8 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         userPhone: profileData.phone,
         idType: idData.idType,
         idNumber: idData.idNumber,
-        idDocumentUrl: idData.idDocument || undefined,
+        idDocumentUrl,
+        boothPhotoUrl,
         businessName: profileData.businessName,
         businessDescription: profileData.description,
         businessAddress: profileData.address,
@@ -330,9 +417,12 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         businessEmail: profileData.email,
         status: 'PENDING' as const,
         submittedAt: new Date(),
-      };
-      addApplication(application);
+      });
       
+      // Check if auto-verified from server response
+      const autoVerify = (result.data as Record<string, unknown>)?._autoVerify as { autoVerified: boolean; verificationStatus: string } | undefined;
+      const serverStatus = autoVerify?.autoVerified ? autoVerify.verificationStatus : 'PENDING';
+
       const updatedUser: UserType = {
         ...user,
         businessName: profileData.businessName,
@@ -343,11 +433,11 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         businessWebsite: profileData.website,
         idType: idData.idType,
         idNumber: idData.idNumber,
-        idDocumentUrl: idData.idDocument || undefined,
-        businessVerificationStatus: 'PENDING',
+        idDocumentUrl,
+        businessVerificationStatus: serverStatus,
       };
       
-      localStorage.setItem('styra-verification-status', 'PENDING');
+      localStorage.setItem('styra-verification-status', serverStatus);
       localStorage.setItem('styra-business-name', profileData.businessName);
       
       toast.success('Application submitted successfully! We will review it shortly.');
@@ -362,7 +452,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
   };
 
   // Show status if already submitted
-  if (hasSubmitted) {
+  if (hasSubmitted && !isRefreshing) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <FadeIn>
@@ -374,7 +464,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                 </div>
                 <h2 className="text-2xl font-bold mb-2">Application Approved!</h2>
                 <p className="text-muted-foreground mb-6">
-                  Congratulations! Your business has been verified. You can now access your dashboard and start accepting bookings.
+                  Congratulations! Your business "{user?.businessName || 'your business'}" has been verified. You can now access your dashboard and start accepting bookings.
                 </p>
                 <GlassButton variant="primary" onClick={() => onComplete?.(user as UserType)} className="w-full">
                   Go to Dashboard
@@ -389,9 +479,11 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                 <p className="text-muted-foreground mb-4">
                   Unfortunately, your application was not approved.
                 </p>
-                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-left mb-4">
-                  <p className="text-sm font-medium text-red-500">{existingApplication?.rejectionReason}</p>
-                </div>
+                {(user as Record<string, unknown>)?.rejectionReason && (
+                  <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-left mb-4">
+                    <p className="text-sm font-medium text-red-500">{(user as Record<string, unknown>).rejectionReason}</p>
+                  </div>
+                )}
                 <GlassButton variant="default" onClick={() => window.location.reload()} className="w-full">
                   Contact Support
                 </GlassButton>
@@ -403,12 +495,8 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                 </div>
                 <h2 className="text-2xl font-bold mb-2">Application Under Review</h2>
                 <p className="text-muted-foreground mb-6">
-                  Your application is being reviewed. This usually takes 1-2 business days.
+                  Your application for "{user?.businessName || 'your business'}" is being reviewed. This usually takes 1-2 business days.
                 </p>
-                <div className="p-4 rounded-lg bg-muted/50 text-left">
-                  <p className="text-sm text-muted-foreground">Submitted</p>
-                  <p className="font-medium">{new Date(existingApplication?.submittedAt || Date.now()).toLocaleDateString()}</p>
-                </div>
               </>
             )}
           </GlassCard>
@@ -1074,6 +1162,59 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                         type="file"
                         accept="image/*,.pdf"
                         onChange={(e) => handleFileUpload(e, (base64) => setIdData({ ...idData, idDocument: base64 }))}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Booth / Shop Photo Upload */}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Business / Booth Photo
+                    </label>
+                    <p className="text-xs text-muted-foreground mb-3">Upload a photo of your business premises, booth, or shop front. This will be shown to customers.</p>
+                    <div className={cn(
+                      'relative border-2 border-dashed rounded-xl p-8 text-center',
+                      boothPhotoPreview ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                    )}>
+                      {boothPhotoPreview ? (
+                        <div className="relative inline-block">
+                          <img src={boothPhotoPreview} alt="Booth" className="max-h-48 rounded-lg mx-auto" />
+                          <button
+                            type="button"
+                            onClick={() => { setBoothPhoto(null); setBoothPhotoPreview(null); }}
+                            className="absolute -top-2 -right-2 p-1 bg-destructive text-white rounded-full"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <Camera className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Upload a photo of your business
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            JPG, PNG (max 5MB) — optional but recommended
+                          </p>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              setError('Booth photo must be less than 5MB');
+                              return;
+                            }
+                            setBoothPhoto(file);
+                            const reader = new FileReader();
+                            reader.onload = (ev) => setBoothPhotoPreview(ev.target?.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
                         className="absolute inset-0 opacity-0 cursor-pointer"
                       />
                     </div>
