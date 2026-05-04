@@ -254,6 +254,7 @@ class ApiClient {
     radius?: number;
     page?: number;
     limit?: number;
+    ownerId?: string;
   }) {
     return this.request<{
       data: unknown[];

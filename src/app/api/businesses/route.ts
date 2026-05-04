@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
@@ -55,21 +56,27 @@ export async function GET(request: NextRequest) {
       where.rating = { gte: parseFloat(minRating) };
     }
 
+    // Build include — only include portfolio when fetching by owner (not public listing)
+    // to prevent huge response payloads from base64 images
+    const includeOptions: Prisma.BusinessInclude = {
+      services: {
+        where: { isActive: true },
+        take: 5,
+      },
+      _count: {
+        select: { reviews: true },
+      },
+    };
+    if (ownerId) {
+      includeOptions.portfolio = { take: 20 };
+    }
+
     const [businesses, total] = await Promise.all([
       db.business.findMany({
         where,
         skip,
         take: limit,
-        include: {
-          services: {
-            where: { isActive: true },
-            take: 5,
-          },
-          portfolio: { take: 4 },
-          _count: {
-            select: { reviews: true },
-          },
-        },
+        include: includeOptions,
         orderBy: { [resolvedSortField]: sortOrder },
       }),
       db.business.count({ where }),

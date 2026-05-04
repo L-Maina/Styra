@@ -288,10 +288,11 @@ export default function HomePage() {
     navigate('home');
   }, [navigate, user, getApplicationByUserId, refetchBusinesses]);
 
-  // Handle onboarding complete — navigate to business dashboard (NOT back to onboarding)
+  // Handle onboarding complete — activate provider role and navigate to dashboard
   const handleOnboardingComplete = useCallback(() => {
+    activateProviderMode();
     navigate('business-dashboard');
-  }, [navigate]);
+  }, [navigate, activateProviderMode]);
 
   // Handle logout
   const handleLogout = useCallback(async () => {

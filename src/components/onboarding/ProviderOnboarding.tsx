@@ -446,6 +446,9 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
 
       const updatedUser: UserType = {
         ...user,
+        roles: [...new Set([...(user.roles || []), 'BUSINESS_OWNER' as import('@/types').UserRole])],
+        role: 'BUSINESS_OWNER' as import('@/types').UserRole,
+        activeMode: 'PROVIDER' as import('@/types').UserMode,
         businessName: profileData.businessName,
         businessDescription: profileData.description,
         businessAddress: profileData.address,

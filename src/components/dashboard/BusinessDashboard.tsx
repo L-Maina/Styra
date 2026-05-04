@@ -51,7 +51,7 @@ import {
 } from '@/components/ui/custom/glass-components';
 import { PhoneInput } from '@/components/ui/custom/PhoneInput';
 import { LocationAutocomplete } from '@/components/ui/custom/LocationAutocomplete';
-import { useAuthStore, useBusinessDataStore } from '@/store';
+import { useAuthStore } from '@/store';
 import { useBusinessServices, useBusinessStaff } from '@/hooks/use-business-data';
 import { cn } from '@/lib/utils';
 import { BrandLogo } from '@/components/ui/brand-logo';
@@ -84,16 +84,56 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   bookings: apiBookings,
 }) => {
   const { isAuthenticated } = useAuthStore();
-  const { businesses, updateBusiness, toggleBusinessActive } = useBusinessDataStore();
+
+  // ─── Fetch user's actual business from API ─────────────────────────
+  const [resolvedBusinessId, setResolvedBusinessId] = useState<string | null>(null);
+  const [isFetchingBusiness, setIsFetchingBusiness] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    api.getBusinesses({ ownerId: user.id, limit: 1 }).then(res => {
+      if (cancelled) return;
+      const bizArray = res.data?.data || (res.data as any)?.data || [];
+      // Handle both paginated response and direct array
+      const bizList = Array.isArray(bizArray) ? bizArray : (Array.isArray(res.data) ? res.data : []);
+      if (bizList.length > 0) {
+        const biz = bizList[0] as any;
+        setResolvedBusinessId(biz.id);
+        setBusinessProfile(prev => ({
+          ...prev,
+          name: biz.name || prev.name,
+          description: biz.description || prev.description,
+          phone: biz.phone || prev.phone,
+          email: biz.email || prev.email,
+          address: biz.address || prev.address,
+          city: biz.city || prev.city,
+          country: biz.country || prev.country,
+          website: biz.website || prev.website,
+          latitude: biz.latitude ?? prev.latitude,
+          longitude: biz.longitude ?? prev.longitude,
+          isActive: biz.isActive ?? prev.isActive,
+          logo: biz.logo || prev.logo,
+          coverImage: biz.coverImage || biz.boothPhotoUrl || prev.coverImage,
+        }));
+        // Load portfolio from API
+        if (biz.portfolio && Array.isArray(biz.portfolio) && biz.portfolio.length > 0) {
+          setGallery(biz.portfolio.map((p: any) => p.image).filter(Boolean));
+        }
+      }
+    }).catch(err => {
+      console.error('Failed to fetch business data:', err);
+    }).finally(() => {
+      if (!cancelled) setIsFetchingBusiness(false);
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const businessId = resolvedBusinessId;
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [isLoading, setIsLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
-  // Business ID - derived from user context
-  const businessIds = Object.keys(businesses);
-  const businessId = businessIds.length > 0 ? businessIds[0] : null;
-  const businessData = businesses[businessId || ''];
-
   // Fetch real services and staff from API
   const { data: apiServices, isLoading: servicesLoading, refetch: refetchServices } = useBusinessServices(businessId);
   const { data: apiStaff, isLoading: staffLoading } = useBusinessStaff(businessId);
@@ -112,37 +152,30 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
     localStatusOverrides[b.id] ? { ...b, status: localStatusOverrides[b.id] } : b
   );
   
-  // Gallery state for portfolio
-  const [gallery, setGallery] = useState<string[]>([
-    'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=600&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=600&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600&h=400&fit=crop',
-  ]);
+  // Gallery state for portfolio (populated from API)
+  const [gallery, setGallery] = useState<string[]>([]);
 
-  // Business profile state - synced with store
+  // Business profile state - will be populated from API in useEffect
   const [businessProfile, setBusinessProfile] = useState({
-    name: businessData?.name || 'Elite Cuts & Style',
-    description: businessData?.description || 'Premium barbershop offering modern cuts, beard grooming, and style consultations. Our experienced team delivers precision cuts in a relaxed atmosphere.',
-    phone: businessData?.phone || '+254 712 345 678',
-    email: businessData?.email || 'contact@elitecuts.com',
-    address: businessData?.address || '123 Style Avenue',
-    city: businessData?.city || 'Nairobi',
-    country: businessData?.country || 'Kenya',
-    website: businessData?.website || 'www.elitecuts.com',
-    latitude: businessData?.latitude || null,
-    longitude: businessData?.longitude || null,
-    isActive: businessData?.isActive ?? true,
-    hours: businessData?.hours || {
+    name: '',
+    description: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: '',
+    country: '',
+    website: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
+    isActive: true,
+    hours: {
       weekday: '9:00 AM - 7:00 PM',
       saturday: '10:00 AM - 5:00 PM',
       sunday: 'Closed',
     },
-    // Photo fields (local state only, not synced with store)
+    // Photo fields (local state, populated from API)
     logo: '',
-    coverImage: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1200&h=400&fit=crop',
+    coverImage: '',
   });
 
   // Modal states
@@ -545,13 +578,6 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
       // Persist to backend
       await api.updateBusiness(businessId, updateData);
       
-      // Update local Zustand store
-      updateBusiness(businessId, {
-        ...updateData,
-        isActive: businessProfile.isActive,
-        hours: businessProfile.hours,
-      });
-      
       toast.success('Business profile updated! Changes are now live.');
     } catch (err) {
       console.error('Failed to save profile:', err);
@@ -562,11 +588,16 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   };
   
   // Toggle business active status
-  const handleToggleBusinessActive = () => {
+  const handleToggleBusinessActive = async () => {
     if (!businessId) return;
     const newStatus = !businessProfile.isActive;
     setBusinessProfile(prev => ({ ...prev, isActive: newStatus }));
-    toggleBusinessActive(businessId);
+    try {
+      await api.updateBusiness(businessId, { isActive: newStatus });
+    } catch (err) {
+      console.error('Failed to toggle business status:', err);
+      toast.error('Failed to update business status');
+    }
     
     if (newStatus) {
       toast.success('Business is now live and visible to customers!', {
@@ -613,6 +644,36 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
               </GlassButton>
             )}
           </div>
+        </GlassCard>
+      </div>
+    );
+  }
+
+  // Show loading while fetching business data
+  if (isFetchingBusiness) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your business data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No business found for this user
+  if (!businessId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <GlassCard className="p-8 text-center max-w-md">
+          <AlertCircle className="h-12 w-12 text-primary mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">No Business Found</h2>
+          <p className="text-muted-foreground mb-4">
+            You don't have a registered business yet. Complete the onboarding process to get started.
+          </p>
+          <GlassButton variant="primary" onClick={() => onNavigate?.('onboarding')}>
+            Register Your Business
+          </GlassButton>
         </GlassCard>
       </div>
     );
