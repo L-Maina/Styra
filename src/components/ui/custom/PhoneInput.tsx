@@ -20,12 +20,13 @@ interface PhoneInputProps {
   onCountryChange?: (country: Country) => void;
 }
 
-// Detect country from phone number
+// Detect country from phone number (handles E.164 format with + prefix)
 const detectCountryFromPhone = (phone: string): { code: string; localDigits: string } => {
   if (!phone) return { code: '', localDigits: '' };
   
-  // Remove any non-digit characters except +
-  const cleanPhone = phone.replace(/[^\d+]/g, '');
+  // Remove any non-digit characters
+  const phoneDigits = phone.replace(/[^\d]/g, '');
+  if (!phoneDigits) return { code: '', localDigits: '' };
   
   // Check for country codes (order by length, longest first)
   const sortedCountries = [...COUNTRIES].sort((a, b) => 
@@ -33,9 +34,7 @@ const detectCountryFromPhone = (phone: string): { code: string; localDigits: str
   );
   
   for (const country of sortedCountries) {
-    // Handle dial codes with format like "+1-268" -> "1268" or "+254" -> "254"
     const dialDigits = country.dialCode.replace(/[^0-9]/g, '');
-    const phoneDigits = cleanPhone.replace(/^\+/, '');
     
     if (phoneDigits.startsWith(dialDigits)) {
       return {
@@ -45,7 +44,7 @@ const detectCountryFromPhone = (phone: string): { code: string; localDigits: str
     }
   }
   
-  return { code: '', localDigits: phone.replace(/[^\d]/g, '') };
+  return { code: '', localDigits: phoneDigits };
 };
 
 // Format phone number with spacing based on country
@@ -188,10 +187,10 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     setShowDropdown(false);
     setSearchQuery('');
     
-    // Update the value with new country code
+    // Update the value with new country code (E.164 format with +)
     if (localDigits) {
       const dialDigits = country.dialCode.replace(/[^0-9]/g, '');
-      onChange(dialDigits + localDigits);
+      onChange(`+${dialDigits}${localDigits}`);
     }
     
     onCountryChange?.(country);
@@ -213,12 +212,12 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     // Limit to reasonable length
     cleaned = cleaned.slice(0, 15);
     
-    // Emit value with country code if selected
+    // Emit value with + prefix and country code for proper E.164 format
     if (activeCountry) {
       const dialDigits = activeCountry.dialCode.replace(/[^0-9]/g, '');
-      onChange(cleaned ? dialDigits + cleaned : '');
+      onChange(cleaned ? `+${dialDigits}${cleaned}` : '');
     } else {
-      onChange(cleaned);
+      onChange(cleaned ? `+${cleaned}` : '');
     }
   }, [activeCountry, onChange]);
   

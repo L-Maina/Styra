@@ -325,6 +325,17 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         cleanWebsite = `https://${cleanWebsite}`;
       }
 
+      // Clean phone: ensure E.164 format (digits only with + prefix)
+      let cleanPhone = profileData.phone?.trim() || undefined;
+      if (cleanPhone) {
+        const digitsOnly = cleanPhone.replace(/[^\d]/g, '');
+        if (digitsOnly.length > 0) {
+          cleanPhone = cleanPhone.startsWith('+') ? cleanPhone : `+${digitsOnly}`;
+        } else {
+          cleanPhone = undefined; // Empty or invalid phone
+        }
+      }
+
       // Upload ID document to server
       let idDocumentUrl: string | undefined;
       if (idData.idDocument) {
@@ -382,7 +393,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         address: profileData.address,
         city: profileData.city,
         country: profileData.country || 'N/A',
-        phone: profileData.phone || undefined,
+        phone: cleanPhone,
         email: profileData.email || undefined,
         website: cleanWebsite,
         serviceRadius: 10,
@@ -499,7 +510,23 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
       onComplete?.(updatedUser);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to submit application. Please try again.';
-      setError(message);
+      // Provide user-friendly error messages for common validation errors
+      if (message.includes('string did not match') || message.includes('pattern')) {
+        setError('Invalid phone number format. Please enter a valid phone number with country code.');
+      } else if (message.includes('phone') || message.includes('Phone')) {
+        setError('Invalid phone number format. Please check your phone number and try again.');
+      } else if (message.includes('email') || message.includes('Email')) {
+        setError('Invalid email address. Please check and try again.');
+      } else if (message.includes('url') || message.includes('URL') || message.includes('website')) {
+        setError('Invalid website URL format. Please enter a valid URL or leave it empty.');
+      } else if (message.includes('Authentication required') || message.includes('401')) {
+        setError('Your session has expired. Please log in again and retry.');
+      } else if (message.includes('already exists') || message.includes('already registered')) {
+        // This is handled by the alreadyExists check above, but just in case
+        toast.info('Your business is already registered.');
+      } else {
+        setError(message);
+      }
     } finally {
       setIsSubmitting(false);
     }
