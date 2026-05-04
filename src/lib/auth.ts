@@ -57,7 +57,9 @@ export async function getSession(): Promise<any | null> {
     return null;
   }
   
-  return { ...payload, user };
+  // Add `id` as alias for `userId` so that code using user.id works correctly.
+  // The JWT payload uses `userId`, but many API routes reference `user.id`.
+  return { ...payload, id: payload.userId, user };
 }
 
 // Create a session (set JWT cookie)

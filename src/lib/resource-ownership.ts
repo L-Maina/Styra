@@ -14,15 +14,15 @@ import { logOwnershipCheckFailed } from './audit-log';
 export async function requireBusinessOwnership(businessId: string): Promise<AuthUser> {
   const user = await requireAuth();
 
-  if (user.role === 'ADMIN') return user;
+  if ((user.role || '').toUpperCase() === 'ADMIN') return user;
 
   const business = await db.business.findUnique({
     where: { id: businessId },
     select: { ownerId: true },
   });
 
-  if (!business || business.ownerId !== user.id) {
-    logOwnershipCheckFailed(user.id, user.email, 'business', businessId, '', '', '');
+  if (!business || business.ownerId !== user.userId) {
+    logOwnershipCheckFailed(user.userId, user.email, 'business', businessId, '', '', '');
     throw new Error('Forbidden');
   }
 
@@ -47,7 +47,7 @@ export async function ownsBusiness(userId: string, businessId: string): Promise<
 
 export async function requireBookingAccess(bookingId: string): Promise<AuthUser & { bookingRole: 'customer' | 'owner' }> {
   const user = await requireAuth();
-  if (user.role === 'ADMIN') return { ...user, bookingRole: 'owner' };
+  if ((user.role || '').toUpperCase() === 'ADMIN') return { ...user, bookingRole: 'owner' };
 
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
@@ -55,20 +55,20 @@ export async function requireBookingAccess(bookingId: string): Promise<AuthUser 
   });
 
   if (!booking) {
-    logOwnershipCheckFailed(user.id, user.email, 'booking', bookingId, '', '', '');
+    logOwnershipCheckFailed(user.userId, user.email, 'booking', bookingId, '', '', '');
     throw new Error('Forbidden');
   }
 
-  if (booking.customerId === user.id) return { ...user, bookingRole: 'customer' };
+  if (booking.customerId === user.userId) return { ...user, bookingRole: 'customer' };
 
   const business = await db.business.findUnique({
     where: { id: booking.businessId },
     select: { ownerId: true },
   });
 
-  if (business?.ownerId === user.id) return { ...user, bookingRole: 'owner' };
+  if (business?.ownerId === user.userId) return { ...user, bookingRole: 'owner' };
 
-  logOwnershipCheckFailed(user.id, user.email, 'booking', bookingId, '', '', '');
+  logOwnershipCheckFailed(user.userId, user.email, 'booking', bookingId, '', '', '');
   throw new Error('Forbidden');
 }
 
@@ -78,15 +78,15 @@ export async function requireBookingAccess(bookingId: string): Promise<AuthUser 
 
 export async function requireReviewOwnership(reviewId: string): Promise<AuthUser> {
   const user = await requireAuth();
-  if (user.role === 'ADMIN') return user;
+  if ((user.role || '').toUpperCase() === 'ADMIN') return user;
 
   const review = await db.review.findUnique({
     where: { id: reviewId },
     select: { customerId: true },
   });
 
-  if (!review || review.customerId !== user.id) {
-    logOwnershipCheckFailed(user.id, user.email, 'review', reviewId, '', '', '');
+  if (!review || review.customerId !== user.userId) {
+    logOwnershipCheckFailed(user.userId, user.email, 'review', reviewId, '', '', '');
     throw new Error('Forbidden');
   }
 
@@ -99,15 +99,15 @@ export async function requireReviewOwnership(reviewId: string): Promise<AuthUser
 
 export async function requirePaymentOwnership(paymentId: string): Promise<AuthUser> {
   const user = await requireAuth();
-  if (user.role === 'ADMIN') return user;
+  if ((user.role || '').toUpperCase() === 'ADMIN') return user;
 
   const payment = await db.payment.findUnique({
     where: { id: paymentId },
     select: { userId: true },
   });
 
-  if (!payment || payment.userId !== user.id) {
-    logOwnershipCheckFailed(user.id, user.email, 'payment', paymentId, '', '', '');
+  if (!payment || payment.userId !== user.userId) {
+    logOwnershipCheckFailed(user.userId, user.email, 'payment', paymentId, '', '', '');
     throw new Error('Forbidden');
   }
 
@@ -120,7 +120,7 @@ export async function requirePaymentOwnership(paymentId: string): Promise<AuthUs
 
 export async function requireConversationAccess(conversationId: string): Promise<AuthUser> {
   const user = await requireAuth();
-  if (user.role === 'ADMIN') return user;
+  if ((user.role || '').toUpperCase() === 'ADMIN') return user;
 
   const conversation = await db.conversation.findUnique({
     where: { id: conversationId },
@@ -128,13 +128,13 @@ export async function requireConversationAccess(conversationId: string): Promise
   });
 
   if (!conversation) {
-    logOwnershipCheckFailed(user.id, user.email, 'conversation', conversationId, '', '', '');
+    logOwnershipCheckFailed(user.userId, user.email, 'conversation', conversationId, '', '', '');
     throw new Error('Forbidden');
   }
 
-  if (conversation.participant1 === user.id || conversation.participant2 === user.id) return user;
+  if (conversation.participant1 === user.userId || conversation.participant2 === user.userId) return user;
 
-  logOwnershipCheckFailed(user.id, user.email, 'conversation', conversationId, '', '', '');
+  logOwnershipCheckFailed(user.userId, user.email, 'conversation', conversationId, '', '', '');
   throw new Error('Forbidden');
 }
 
@@ -144,9 +144,9 @@ export async function requireConversationAccess(conversationId: string): Promise
 
 export async function requireProfileAccess(targetUserId: string): Promise<AuthUser> {
   const user = await requireAuth();
-  if (user.role === 'ADMIN' || user.id === targetUserId) return user;
+  if ((user.role || '').toUpperCase() === 'ADMIN' || user.userId === targetUserId) return user;
 
-  logOwnershipCheckFailed(user.id, user.email, 'profile', targetUserId, '', '', '');
+  logOwnershipCheckFailed(user.userId, user.email, 'profile', targetUserId, '', '', '');
   throw new Error('Forbidden');
 }
 
@@ -156,15 +156,15 @@ export async function requireProfileAccess(targetUserId: string): Promise<AuthUs
 
 export async function requireNotificationOwnership(notificationId: string): Promise<AuthUser> {
   const user = await requireAuth();
-  if (user.role === 'ADMIN') return user;
+  if ((user.role || '').toUpperCase() === 'ADMIN') return user;
 
   const notification = await db.notification.findUnique({
     where: { id: notificationId },
     select: { userId: true },
   });
 
-  if (!notification || notification.userId !== user.id) {
-    logOwnershipCheckFailed(user.id, user.email, 'notification', notificationId, '', '', '');
+  if (!notification || notification.userId !== user.userId) {
+    logOwnershipCheckFailed(user.userId, user.email, 'notification', notificationId, '', '', '');
     throw new Error('Forbidden');
   }
 

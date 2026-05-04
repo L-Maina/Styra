@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     await db.pushSubscription.upsert({
       where: { endpoint },
       create: {
-        userId: user.id,
+        userId: user.userId,
         endpoint,
         authKey: keys.auth,
         p256dhKey: keys.p256dh,
@@ -71,7 +71,7 @@ export async function DELETE(request: NextRequest) {
       return errorResponse('Subscription not found', 404);
     }
 
-    if (subscription.userId !== user.id) {
+    if (subscription.userId !== user.userId) {
       return errorResponse('You do not have permission to remove this subscription', 403);
     }
 

@@ -81,29 +81,50 @@ const typeColors: Record<string, string> = {
 
 /**
  * Map notification type + link to an appropriate app page name.
- * Used by onNavigate to route within the SPA.
+ * Takes user role into account so admins go to admin-dashboard
+ * and business owners go to business-dashboard/onboarding.
  */
-function resolvePageFromLink(link?: string, type?: string): string | null {
-  if (!link) {
-    // Fallback: derive from type
-    if (!type) return null;
-    const t = type.toUpperCase();
-    if (t.includes('BOOKING')) return 'bookings';
-    if (t.includes('PAYMENT')) return 'wallet';
-    if (t.includes('VERIFICATION')) return 'onboarding';
-    if (t.includes('REVIEW')) return 'reviews';
-    if (t.includes('MESSAGE')) return 'chat';
-    return null;
+function resolvePageFromLink(link?: string, type?: string, userRole?: string): string | null {
+  const isAdmin = (userRole || '').toUpperCase() === 'ADMIN';
+  const isBusinessOwner = (userRole || '').toUpperCase() === 'BUSINESS_OWNER';
+
+  // ── Link-based routing (takes priority) ──
+  if (link) {
+    if (link.startsWith('/admin')) return 'admin-dashboard';
+    if (link.startsWith('/chat')) return 'chat';
+    if (link.startsWith('/onboarding')) return 'onboarding';
+    // /business/ links: admin → admin-dashboard, business owner → business-dashboard
+    if (link.startsWith('/business/')) {
+      return isAdmin ? 'admin-dashboard' : (isBusinessOwner ? 'business-dashboard' : 'home');
+    }
+    if (link.startsWith('/booking')) {
+      return isAdmin ? 'admin-dashboard' : (isBusinessOwner ? 'business-dashboard' : 'customer-dashboard');
+    }
+    if (link.startsWith('/wallet')) {
+      return isBusinessOwner ? 'business-dashboard' : 'customer-dashboard';
+    }
   }
-  // Parse the link path
-  if (link.startsWith('/business/')) return 'provider-dashboard';
-  if (link.startsWith('/booking/')) return 'bookings';
-  if (link.startsWith('/bookings')) return 'bookings';
-  if (link.startsWith('/wallet')) return 'wallet';
-  if (link.startsWith('/chat')) return 'chat';
-  if (link.startsWith('/admin')) return 'admin';
-  // Generic fallback — just return the link as a page hint
-  return link.replace(/^\//, '');
+
+  // ── Type-based fallback ──
+  if (!type) return null;
+  const t = type.toUpperCase();
+  if (t.includes('BOOKING')) {
+    return isAdmin ? 'admin-dashboard' : (isBusinessOwner ? 'business-dashboard' : 'customer-dashboard');
+  }
+  if (t.includes('PAYMENT')) {
+    return isAdmin ? 'admin-dashboard' : (isBusinessOwner ? 'business-dashboard' : 'customer-dashboard');
+  }
+  if (t.includes('VERIFICATION')) {
+    return isAdmin ? 'admin-dashboard' : 'onboarding';
+  }
+  if (t.includes('REVIEW')) {
+    return isAdmin ? 'admin-dashboard' : (isBusinessOwner ? 'business-dashboard' : 'home');
+  }
+  if (t.includes('MESSAGE')) return 'chat';
+  if (t.includes('SYSTEM')) {
+    return isAdmin ? 'admin-dashboard' : (isBusinessOwner ? 'business-dashboard' : 'home');
+  }
+  return null;
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -319,7 +340,7 @@ export function NotificationBadge({
     setIsOpen(false);
 
     // Navigate to the appropriate page
-    const page = resolvePageFromLink(notification.link, notification.type);
+    const page = resolvePageFromLink(notification.link, notification.type, user?.role);
     if (page && onNavigate) {
       onNavigate(page);
     }

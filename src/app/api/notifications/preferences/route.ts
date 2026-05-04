@@ -11,13 +11,13 @@ export async function GET() {
     const user = await requireAuth();
 
     let preferences = await db.notificationPreference.findUnique({
-      where: { userId: user.id },
+      where: { userId: user.userId },
     });
 
     // Create default preferences if the user doesn't have any
     if (!preferences) {
       preferences = await db.notificationPreference.create({
-        data: { userId: user.id },
+        data: { userId: user.userId },
       });
     }
 
@@ -104,9 +104,9 @@ export async function PUT(request: NextRequest) {
 
     // Upsert preferences
     const preferences = await db.notificationPreference.upsert({
-      where: { userId: user.id },
+      where: { userId: user.userId },
       create: {
-        userId: user.id,
+        userId: user.userId,
         ...updateData,
       },
       update: updateData,

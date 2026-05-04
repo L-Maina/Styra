@@ -20,7 +20,7 @@ export async function PATCH(
       return errorResponse('Notification not found', 404);
     }
 
-    if (notification.userId !== user.id) {
+    if (notification.userId !== user.userId) {
       return errorResponse('You do not have permission to access this notification', 403);
     }
 
@@ -52,7 +52,7 @@ export async function DELETE(
       return errorResponse('Notification not found', 404);
     }
 
-    if (notification.userId !== user.id) {
+    if (notification.userId !== user.userId) {
       return errorResponse('You do not have permission to delete this notification', 403);
     }
 
