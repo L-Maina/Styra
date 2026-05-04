@@ -56,17 +56,18 @@ export async function GET(request: NextRequest) {
       where.rating = { gte: parseFloat(minRating) };
     }
 
-    // Build include — include services, portfolio and review count
+    // Build include — include services and review count
+    // Portfolio images (base64 data URLs) are ONLY included when fetching
+    // a specific owner's businesses (dashboard use). Public listings skip
+    // portfolio to avoid 50MB+ responses.
     const includeOptions: Prisma.BusinessInclude = {
       services: {
         where: { isActive: true },
         take: 5,
       },
-      portfolio: {
-        take: 6,
-      },
+      ...(ownerId ? { portfolio: { take: 10 } } : {}),
       _count: {
-        select: { reviews: true },
+        select: { reviews: true, portfolio: true },
       },
     };
 
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
       return {
         ...b,
         reviewCount: b._count.reviews,
+        portfolioCount: b._count.portfolio,
         reviews: [],
         // Use coverImage first, fall back to boothPhotoUrl for display
         coverImage: b.coverImage || b.boothPhotoUrl || null,

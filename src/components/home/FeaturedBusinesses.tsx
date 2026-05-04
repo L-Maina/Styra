@@ -175,7 +175,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       )}
       onClick={onClick}
     >
-      {/* Image */
+      {/* Image */}
       <div className="relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20">
         {business.coverImage ? (
           <img

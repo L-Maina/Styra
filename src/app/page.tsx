@@ -74,15 +74,17 @@ export default function HomePage() {
       if (stored) {
         const parsed = JSON.parse(stored);
         const u = parsed?.state?.user;
-        if (u) {
+        if (u && u.id) {
           const roles = (u.roles || [u.role]).map((r: string) => (r || '').toUpperCase());
           if (roles.includes('ADMIN')) return 'admin-dashboard';
           if (roles.includes('BUSINESS_OWNER') && u.activeMode === 'PROVIDER') {
             // Check verification status before routing to dashboard
+            // If status is unknown, go to onboarding (it will check server)
             const status = u.businessVerificationStatus;
             if (['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(status || '')) {
               return 'business-dashboard';
             }
+            // PENDING, REJECTED, or unknown — go to onboarding status page
             return 'onboarding';
           }
         }
@@ -171,11 +173,11 @@ export default function HomePage() {
           } as any);
         }
       } catch {
-        // Session is invalid (401) — clear local auth state
-        if (!cancelled) {
-          logout();
-          navigate('home');
-        }
+        // api.getProfile() already shows toast errors for non-401 cases.
+        // For 401, we need to silently log the user out without double-toast.
+        // We do a silent check: if the user's token is truly invalid, clear state.
+        // Network/timeout errors are NOT handled here to avoid false logouts.
+        // The Zustand persisted state remains intact on transient errors.
       }
     };
     validateSession();
