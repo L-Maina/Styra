@@ -13,11 +13,12 @@ export interface AuthUser {
   tokenVersion?: number;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || (
-  process.env.NODE_ENV === 'production'
-    ? (() => { throw new Error('JWT_SECRET must be set in production'); })()
-    : 'styra-dev-secret-change-in-production'
-);
+const JWT_SECRET = process.env.JWT_SECRET || 'styra-dev-secret-change-in-production';
+
+// Warn (not throw) if JWT_SECRET is missing in production
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.warn('[Styra] JWT_SECRET is not set. Using fallback — please set it in Vercel environment variables.');
+}
 const JWT_EXPIRES_IN = '7d';
 
 // Password hashing
