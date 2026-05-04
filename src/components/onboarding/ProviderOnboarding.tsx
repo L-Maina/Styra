@@ -97,17 +97,28 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(true);
   const [error, setError] = useState('');
   
-  // ── Fetch fresh verification status from server on mount ──
-  // The Zustand/localStorage stores are stale. Always check the server.
+  // ── State to track if user already has a business (from direct DB check) ──
+  const [existingBusinessStatus, setExistingBusinessStatus] = useState<string | null>(null);
+
+  // ── Fetch fresh verification status AND check for existing business on mount ──
+  // This prevents the registration loop: user has a business but status is undefined
+  // causing the onboarding form to show instead of the status page.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        // 1. Try to get enriched user profile (includes verification status)
         const result = await api.getProfile();
-        if (cancelled || !result.success || !result.data) return;
+        if (cancelled || !result.success || !result.data) {
+          // Profile fetch failed — try direct business check as fallback
+          setIsRefreshing(false);
+          return;
+        }
         const serverUser = result.data as Record<string, unknown>;
         const serverStatus = serverUser.businessVerificationStatus as string | undefined;
-        if (serverStatus && serverStatus !== user?.businessVerificationStatus) {
+        if (serverStatus) {
+          // Server returned a verification status → user has (or had) a business
+          setExistingBusinessStatus(serverStatus);
           updateUser({
             businessVerificationStatus: serverStatus as any,
             role: (serverUser.role as string) || user?.role,
@@ -117,7 +128,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
           } as any);
         }
       } catch {
-        // Non-critical — use whatever we have locally
+        // Profile fetch failed — non-critical
       } finally {
         if (!cancelled) setIsRefreshing(false);
       }
@@ -125,11 +136,12 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
     return () => { cancelled = true; };
   }, []);
 
-  // Check status from auth store (synced with server via /api/auth/me)
-  const hasSubmitted = !!user?.businessVerificationStatus;
-  const isVerified = ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(user?.businessVerificationStatus || '');
-  const isRejected = user?.businessVerificationStatus === 'REJECTED';
-  const isPending = user?.businessVerificationStatus === 'PENDING';
+  // Check status: prefer server-verified status, fall back to Zustand store
+  const effectiveStatus = existingBusinessStatus || user?.businessVerificationStatus;
+  const hasSubmitted = !!effectiveStatus;
+  const isVerified = ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(effectiveStatus || '');
+  const isRejected = effectiveStatus === 'REJECTED';
+  const isPending = effectiveStatus === 'PENDING';
 
   // Form states
   const [profileData, setProfileData] = useState({
@@ -382,7 +394,25 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         coverImage: coverImageUrl,
       });
 
-      const businessId = (result.data as { id: string }).id;
+      const resultData = result.data as Record<string, unknown>;
+
+      // Handle case where business already exists — update state and show status page
+      if (resultData?.alreadyExists) {
+        const existingStatus = (resultData.verificationStatus as string) || 'PENDING';
+        const existingName = (resultData.name as string) || user?.businessName || profileData.businessName;
+        setExistingBusinessStatus(existingStatus);
+        updateUser({
+          businessVerificationStatus: existingStatus as any,
+          businessName: existingName,
+          roles: [...new Set([...(user.roles || []), 'BUSINESS_OWNER' as import('@/types').UserRole])],
+          role: 'BUSINESS_OWNER' as import('@/types').UserRole,
+          activeMode: 'PROVIDER' as import('@/types').UserMode,
+        } as any);
+        toast.info('Your business is already registered. Showing your application status.');
+        return;
+      }
+
+      const businessId = (resultData as { id: string }).id;
 
       // Create services via real API
       for (const service of services) {
@@ -441,7 +471,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
       });
       
       // Check if auto-verified from server response
-      const autoVerify = (result.data as Record<string, unknown>)?._autoVerify as { autoVerified: boolean; verificationStatus: string } | undefined;
+      const autoVerify = resultData?._autoVerify as { autoVerified: boolean; verificationStatus: string } | undefined;
       const serverStatus = autoVerify?.autoVerified ? autoVerify.verificationStatus : 'PENDING';
 
       const updatedUser: UserType = {
@@ -475,7 +505,9 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
     }
   };
 
-  // Show status if already submitted
+  // Show status if already submitted (either from server or local state)
+  // This prevents the registration loop where user sees onboarding form
+  // even though they already have a business registered.
   if (hasSubmitted && !isRefreshing) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -488,7 +520,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                 </div>
                 <h2 className="text-2xl font-bold mb-2">Application Approved!</h2>
                 <p className="text-muted-foreground mb-6">
-                  Congratulations! Your business "{user?.businessName || 'your business'}" has been verified. You can now access your dashboard and start accepting bookings.
+                  Congratulations! Your business has been verified. You can now access your dashboard and start accepting bookings.
                 </p>
                 <GlassButton variant="primary" onClick={() => onComplete?.(user as UserType)} className="w-full">
                   Go to Dashboard

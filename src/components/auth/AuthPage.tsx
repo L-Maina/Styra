@@ -438,8 +438,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         inputRefs.current[0]?.focus();
       }, 100);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create account. Please try again.';
-      setError(message);
+      let message = err instanceof Error ? err.message : 'Failed to create account. Please try again.';
+      // If email already exists, suggest login instead
+      if (message.includes('already') || message.includes('different email')) {
+        setError('An account with this email already exists. Please sign in instead.');
+        // Auto-switch to login mode
+        setTimeout(() => setCurrentMode('login'), 2000);
+      } else {
+        setError(message);
+      }
     } finally {
       setIsLoading(false);
     }

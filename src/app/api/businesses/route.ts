@@ -56,20 +56,19 @@ export async function GET(request: NextRequest) {
       where.rating = { gte: parseFloat(minRating) };
     }
 
-    // Build include — only include portfolio when fetching by owner (not public listing)
-    // to prevent huge response payloads from base64 images
+    // Build include — include services, portfolio and review count
     const includeOptions: Prisma.BusinessInclude = {
       services: {
         where: { isActive: true },
         take: 5,
       },
+      portfolio: {
+        take: 6,
+      },
       _count: {
         select: { reviews: true },
       },
     };
-    if (ownerId) {
-      includeOptions.portfolio = { take: 20 };
-    }
 
     const [businesses, total] = await Promise.all([
       db.business.findMany({
@@ -83,13 +82,15 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Map _count.reviews to reviewCount for frontend compatibility
-    // Use boothPhotoUrl as fallback for coverImage if coverImage is not set
-    const mappedBusinesses = businesses.map((b) => ({
-      ...b,
-      reviewCount: b._count.reviews,
-      reviews: [],
-      coverImage: b.coverImage || b.boothPhotoUrl || null,
-    }));
+    const mappedBusinesses = businesses.map((b) => {
+      return {
+        ...b,
+        reviewCount: b._count.reviews,
+        reviews: [],
+        // Use coverImage first, fall back to boothPhotoUrl for display
+        coverImage: b.coverImage || b.boothPhotoUrl || null,
+      };
+    });
 
     // Filter by distance if coordinates provided
     let filteredBusinesses = mappedBusinesses;
@@ -130,7 +131,16 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingBusiness) {
-      return errorResponse('You already have a business registered', 409);
+      // Return the existing business data so the frontend can handle it gracefully
+      // instead of just returning a 409 error that causes a loop
+      return successResponse({
+        ...existingBusiness,
+        reviewCount: await db.review.count({ where: { businessId: existingBusiness.id } }),
+        services: await db.service.findMany({ where: { businessId: existingBusiness.id, isActive: true } }),
+        portfolio: await db.portfolioItem.findMany({ where: { businessId: existingBusiness.id } }),
+        alreadyExists: true,
+        message: 'You already have a business registered',
+      });
     }
 
     const business = await db.business.create({

@@ -175,7 +175,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       )}
       onClick={onClick}
     >
-      {/* Image */}
+      {/* Image */
       <div className="relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20">
         {business.coverImage ? (
           <img
@@ -183,6 +183,14 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
             alt={business.name}
             className="w-full h-full object-cover"
           />
+        ) : (business as any).hasCoverImage ? (
+          // Business has a cover image but it was stripped from listing for performance
+          // Show a gradient placeholder with the business initial
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/30 via-primary/20 to-secondary/30">
+            <span className="text-5xl font-bold text-primary/60">
+              {business.name?.charAt(0)?.toUpperCase() || 'B'}
+            </span>
+          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <span className="text-4xl opacity-50">💇</span>

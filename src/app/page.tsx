@@ -146,6 +146,43 @@ export default function HomePage() {
     };
   }, [currentPage]);
 
+  // ─── Session validation on mount ──────────────────────────────────
+  // If Zustand thinks user is logged in but the session cookie is expired/invalid,
+  // clear the local state to prevent the registration loop and other issues.
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    let cancelled = false;
+    const validateSession = async () => {
+      try {
+        const profileRes = await api.getProfile();
+        if (cancelled) return;
+        if (profileRes.data) {
+          // Session is valid — sync user data from server
+          const serverData = profileRes.data as Record<string, unknown>;
+          // Always update with latest server data (roles, verification status, etc.)
+          updateUser({
+            businessVerificationStatus: serverData.businessVerificationStatus,
+            businessName: (serverData.businessName as string) || user.businessName,
+            role: (serverData.role as string) || user.role,
+            roles: (serverData.roles as string[]) || user.roles,
+            activeMode: (serverData.activeMode as string) || user.activeMode,
+            rejectionReason: (serverData.rejectionReason as string) || undefined,
+          } as any);
+        }
+      } catch {
+        // Session is invalid (401) — clear local auth state
+        if (!cancelled) {
+          logout();
+          navigate('home');
+        }
+      }
+    };
+    validateSession();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ─── Refresh verification status from server when navigating to business-dashboard/onboarding ──
   // This ensures the client-side Zustand store has the latest businessVerificationStatus
   // from the database, fixing the issue where admin approval doesn't reflect on the business side.
