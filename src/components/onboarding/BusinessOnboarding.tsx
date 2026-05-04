@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Building2,
@@ -55,6 +55,7 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
   const [currentStep, setCurrentStep] = useState<Step>('business');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(true);
   const [services] = useState<Array<{
     name: string;
     description: string;
@@ -64,9 +65,43 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
     discountPrice?: number;
   }>>([]);
 
+  // ── Fetch fresh verification status from server on mount ────────────
+  // The Zustand store is persisted to localStorage and can become stale.
+  // When admin approves/rejects a business, the DB is updated but the
+  // client store is not. This effect fetches the authoritative status.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await api.getProfile();
+        if (cancelled || !result.success || !result.data) return;
+        const serverUser = result.data as Record<string, unknown>;
+        const serverStatus = serverUser.businessVerificationStatus as string | undefined;
+        if (serverStatus && serverStatus !== user?.businessVerificationStatus) {
+          // Server has a different status — update the store
+          updateUser({
+            businessVerificationStatus: serverStatus as any,
+            role: (serverUser.role as string) || user?.role,
+            roles: (serverUser.roles as string[]) || user?.roles,
+            activeMode: (serverUser.activeMode as string) || user?.activeMode,
+            businessName: (serverUser.businessName as string) || user?.businessName,
+          } as any);
+        }
+      } catch {
+        // Non-critical
+      } finally {
+        if (!cancelled) setIsRefreshing(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // Check if already submitted based on user's business verification status
+  // APPROVED, VERIFIED, and AUTO_VERIFIED all mean the business is active
   const hasSubmitted = !!user?.businessVerificationStatus;
-  const isVerified = user?.businessVerificationStatus === 'APPROVED';
+  const isVerified = ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(
+    user?.businessVerificationStatus || ''
+  );
   const isRejected = user?.businessVerificationStatus === 'REJECTED';
   const isPending = user?.businessVerificationStatus === 'PENDING';
   const isIdLocked = isVerified || isPending;
@@ -326,6 +361,20 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  // If refreshing, show loading spinner while we check server status
+  if (isRefreshing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <FadeIn>
+          <GlassCard variant="elevated" className="p-8 max-w-md w-full text-center">
+            <Loader2 className="h-10 w-10 text-primary mx-auto mb-4 animate-spin" />
+            <p className="text-muted-foreground">Checking application status...</p>
+          </GlassCard>
+        </FadeIn>
+      </div>
+    );
+  }
 
   // If already submitted, show status
   if (hasSubmitted) {

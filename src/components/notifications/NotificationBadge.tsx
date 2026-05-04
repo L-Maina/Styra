@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store';
 import { getPusherClient } from '@/lib/pusher-client';
+import api from '@/lib/api-client';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -28,12 +29,14 @@ interface NotificationItem {
   type?: string;
   isRead?: boolean;
   createdAt: string;
+  link?: string;
 }
 
 interface NotificationBadgeProps {
   className?: string;
   onViewAll?: () => void;
   onOpenPreferences?: () => void;
+  onNavigate?: (page: string) => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -76,6 +79,33 @@ const typeColors: Record<string, string> = {
   SYSTEM_ALERT: 'text-orange-600 bg-orange-500/10',
 };
 
+/**
+ * Map notification type + link to an appropriate app page name.
+ * Used by onNavigate to route within the SPA.
+ */
+function resolvePageFromLink(link?: string, type?: string): string | null {
+  if (!link) {
+    // Fallback: derive from type
+    if (!type) return null;
+    const t = type.toUpperCase();
+    if (t.includes('BOOKING')) return 'bookings';
+    if (t.includes('PAYMENT')) return 'wallet';
+    if (t.includes('VERIFICATION')) return 'onboarding';
+    if (t.includes('REVIEW')) return 'reviews';
+    if (t.includes('MESSAGE')) return 'chat';
+    return null;
+  }
+  // Parse the link path
+  if (link.startsWith('/business/')) return 'provider-dashboard';
+  if (link.startsWith('/booking/')) return 'bookings';
+  if (link.startsWith('/bookings')) return 'bookings';
+  if (link.startsWith('/wallet')) return 'wallet';
+  if (link.startsWith('/chat')) return 'chat';
+  if (link.startsWith('/admin')) return 'admin';
+  // Generic fallback — just return the link as a page hint
+  return link.replace(/^\//, '');
+}
+
 function formatTimeAgo(dateString: string): string {
   const now = new Date();
   const date = new Date(dateString);
@@ -97,8 +127,9 @@ export function NotificationBadge({
   className,
   onViewAll,
   onOpenPreferences,
+  onNavigate,
 }: NotificationBadgeProps) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, updateUser } = useAuthStore();
   const userId = user?.id;
 
   const [isOpen, setIsOpen] = useState(false);
@@ -107,6 +138,28 @@ export function NotificationBadge({
   const [isNewPulse, setIsNewPulse] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Refresh auth state from server ────────────────────────────────
+  // When a VERIFICATION_UPDATE notification arrives, the user's role or
+  // verification status may have changed on the server. We need to
+  // re-fetch /api/auth/me so the Zustand store stays in sync.
+
+  const refreshAuthState = useCallback(async () => {
+    try {
+      const result = await api.getProfile();
+      if (result.success && result.data) {
+        const serverUser = result.data as Record<string, unknown>;
+        updateUser({
+          role: (serverUser.role as string) || undefined,
+          roles: (serverUser.roles as string[]) || undefined,
+          businessVerificationStatus: serverUser.businessVerificationStatus as string | undefined,
+          activeMode: (serverUser.activeMode as string) || undefined,
+        } as any);
+      }
+    } catch {
+      // Non-critical
+    }
+  }, [updateUser]);
 
   // ── Fetch notifications ─────────────────────────────────────────────
 
@@ -135,6 +188,16 @@ export function NotificationBadge({
   }, [fetchNotifications]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // ── Periodically refresh auth state (every 60s) ────────────────────
+  // This ensures role/verification changes made by admin are eventually
+  // reflected even if the Pusher notification is missed.
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const interval = setInterval(refreshAuthState, 60_000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, refreshAuthState]);
+
   // ── Pusher subscription for real-time updates ───────────────────────
 
   useEffect(() => {
@@ -146,7 +209,7 @@ export function NotificationBadge({
     const channelName = `user-${userId}`;
     const channel = pusher.subscribe(channelName);
 
-    const handleNotification = (data: { title?: string; message?: string; type?: string }) => {
+    const handleNotification = (data: { title?: string; message?: string; type?: string; link?: string }) => {
       setIsNewPulse(true);
       setUnreadCount((prev) => prev + 1);
 
@@ -159,6 +222,7 @@ export function NotificationBadge({
           type: data.type,
           isRead: false,
           createdAt: new Date().toISOString(),
+          link: data.link,
         },
         ...prev.slice(0, 9), // Keep max 10
       ]);
@@ -183,6 +247,12 @@ export function NotificationBadge({
       // Auto-stop pulse
       if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
       pulseTimeoutRef.current = setTimeout(() => setIsNewPulse(false), 3000);
+
+      // ── Refresh auth state for verification/role change notifications ──
+      const type = (data.type || '').toUpperCase();
+      if (type === 'VERIFICATION_UPDATE' || type.includes('VERIFICATION')) {
+        refreshAuthState();
+      }
     };
 
     channel.bind('new-notification', handleNotification);
@@ -195,7 +265,7 @@ export function NotificationBadge({
       channel.unbind('payment-update', handleNotification);
       pusher.unsubscribe(channelName);
     };
-  }, [isAuthenticated, userId]);
+  }, [isAuthenticated, userId, refreshAuthState]);
 
   // ── Close dropdown when clicking outside ────────────────────────────
 
@@ -213,18 +283,45 @@ export function NotificationBadge({
     };
   }, []);
 
-  // ── Mark all as read ────────────────────────────────────────────────
+  // ── Mark all as read (uses api client for CSRF) ───────────────────
 
   const handleMarkAllRead = async () => {
     try {
-      await fetch('/api/notifications', {
-        method: 'PATCH',
-        credentials: 'include',
-      });
+      await api.markAllNotificationsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch {
       // Silently fail
+    }
+  };
+
+  // ── Mark single notification as read and navigate ──────────────────
+
+  const handleNotificationClick = async (notification: NotificationItem) => {
+    // Mark as read in the backend (uses api client for CSRF)
+    if (!notification.isRead) {
+      try {
+        // Only call API for real (non-realtime-placeholder) notifications
+        if (!notification.id.startsWith('realtime-')) {
+          await api.markNotificationRead(notification.id);
+        }
+        // Optimistically update local state
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch {
+        // Don't block navigation on failure
+      }
+    }
+
+    // Close the dropdown
+    setIsOpen(false);
+
+    // Navigate to the appropriate page
+    const page = resolvePageFromLink(notification.link, notification.type);
+    if (page && onNavigate) {
+      onNavigate(page);
     }
   };
 
@@ -280,7 +377,10 @@ export function NotificationBadge({
             </div>
             {unreadCount > 0 && (
               <button
-                onClick={handleMarkAllRead}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMarkAllRead();
+                }}
                 className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
               >
                 <CheckCheck className="h-3 w-3" />
@@ -302,12 +402,15 @@ export function NotificationBadge({
                   const Icon = typeIcons[notification.type || ''] || Bell;
                   const colorClasses =
                     typeColors[notification.type || ''] || 'text-muted-foreground bg-muted';
+                  const isClickable = !!(notification.link || notification.type);
 
                   return (
                     <div
                       key={notification.id}
+                      onClick={() => handleNotificationClick(notification)}
                       className={cn(
-                        'flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/50',
+                        'flex items-start gap-3 px-4 py-3 transition-colors',
+                        isClickable && 'cursor-pointer hover:bg-muted/50',
                         !notification.isRead && 'bg-primary/5'
                       )}
                     >
@@ -346,6 +449,11 @@ export function NotificationBadge({
                           {formatTimeAgo(notification.createdAt)}
                         </span>
                       </div>
+
+                      {/* Navigate indicator */}
+                      {isClickable && (
+                        <ExternalLink className="h-3 w-3 text-muted-foreground/50 flex-shrink-0 mt-1" />
+                      )}
                     </div>
                   );
                 })}

@@ -54,27 +54,28 @@ async function fetchNotifications(): Promise<Notification[]> {
   return [];
 }
 
+/**
+ * Mark a single notification as read via the api client (includes CSRF token).
+ * We dynamically import the api client to avoid circular deps at module level.
+ */
 async function patchNotificationRead(id: string): Promise<boolean> {
   try {
-    const res = await fetch(`/api/notifications/${id}`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return res.ok;
+    const { default: api } = await import('@/lib/api-client');
+    await api.markNotificationRead(id);
+    return true;
   } catch {
     return false;
   }
 }
 
+/**
+ * Mark all notifications as read via the api client (includes CSRF token).
+ */
 async function patchAllNotificationsRead(): Promise<boolean> {
   try {
-    const res = await fetch('/api/notifications', {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return res.ok;
+    const { default: api } = await import('@/lib/api-client');
+    await api.markAllNotificationsRead();
+    return true;
   } catch {
     return false;
   }
@@ -162,7 +163,7 @@ async function initAdminPusher(onBusinessStatusChanged: (data: any) => void) {
 // ── Hook ───────────────────────────────────────────────────────────────
 
 export function useNotificationPolling(): UseNotificationPollingReturn {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, updateUser } = useAuthStore();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -206,6 +207,33 @@ export function useNotificationPolling(): UseNotificationPollingReturn {
         });
       }
 
+      // ── Refresh auth state when verification-related notifications arrive ──
+      // When admin approves/rejects a business, a VERIFICATION_UPDATE notification
+      // is created. We need to refresh the auth store so the user's role and
+      // verification status are up-to-date.
+      const hasVerificationNotif = newNotifications.some(
+        (n) => (n.type || '').toUpperCase().includes('VERIFICATION')
+      );
+      if (hasVerificationNotif) {
+        (async () => {
+          try {
+            const { default: api } = await import('@/lib/api-client');
+            const result = await api.getProfile();
+            if (result.success && result.data) {
+              const serverUser = result.data as Record<string, unknown>;
+              updateUser({
+                role: (serverUser.role as string) || undefined,
+                roles: (serverUser.roles as string[]) || undefined,
+                businessVerificationStatus: serverUser.businessVerificationStatus as string | undefined,
+                activeMode: (serverUser.activeMode as string) || undefined,
+              } as any);
+            }
+          } catch {
+            // Non-critical
+          }
+        })();
+      }
+
       // Update refs
       prevNotificationIdsRef.current = currentIds;
       prevUnreadCountRef.current = count;
@@ -215,7 +243,7 @@ export function useNotificationPolling(): UseNotificationPollingReturn {
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, updateUser]);
 
   // ── Mark as read ────────────────────────────────────────────────────
 

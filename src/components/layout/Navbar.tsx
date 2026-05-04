@@ -210,7 +210,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
   const { currency: currentCurrency, setCurrency } = useCurrency();
   
   // Get auth state
-  const { user, isAuthenticated, logout, switchMode, activateProviderMode, isProvider, isClient } = useAuthStore();
+  const { user, isAuthenticated, logout, switchMode, activateProviderMode } = useAuthStore();
+  const isProviderFn = useAuthStore((s) => s.isProvider);
+  const isProvider = isProviderFn();
   
   // Current active mode
   const currentMode = user?.activeMode || 'CLIENT';
@@ -313,6 +315,24 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
         } else {
           handleNavigate('business-dashboard');
         }
+      } else if (link.startsWith('/wallet') || link.startsWith('/payments')) {
+        handleNavigate('customer-dashboard', 'wallet');
+      } else if (link.startsWith('/chat') || link.startsWith('/conversations')) {
+        handleNavigate('chat');
+      }
+    } else {
+      // No link — derive from notification type
+      const type = (notification.type || '').toUpperCase();
+      if (type.includes('BOOKING')) {
+        handleNavigate(isProvider ? 'business-dashboard' : 'customer-dashboard', 'bookings');
+      } else if (type.includes('PAYMENT')) {
+        handleNavigate('customer-dashboard', 'wallet');
+      } else if (type.includes('VERIFICATION')) {
+        handleNavigate(isProvider ? 'business-dashboard' : 'onboarding');
+      } else if (type.includes('REVIEW')) {
+        handleNavigate(isProvider ? 'business-dashboard' : 'customer-dashboard');
+      } else if (type.includes('MESSAGE')) {
+        handleNavigate('chat');
       }
     }
   };
@@ -1105,7 +1125,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                     return (
                       <div
                         key={notification.id}
-                        onClick={() => markNotificationAsRead(notification.id)}
+                        onClick={() => handleNotificationClick(notification)}
                         className={cn(
                           'p-4 border-b border-white/10 last:border-0 cursor-pointer transition-all duration-200',
                           !notification.isRead 
