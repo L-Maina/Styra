@@ -185,6 +185,19 @@ export default function HomePage() {
             activeMode: (serverData.activeMode as string) || user.activeMode,
             rejectionReason: (serverData.rejectionReason as string) || undefined,
           } as any);
+
+          // ── CRITICAL: Fix registration loop ──
+          // If user is on onboarding but server says APPROVED/VERIFIED, redirect immediately.
+          // This must happen HERE (in the same callback as updateUser) to avoid race conditions
+          // where the auto-redirect useEffect misses the state change.
+          const status = serverData.businessVerificationStatus as string | undefined;
+          const serverRoles = (serverData.roles as string[]) || [];
+          const hasProviderRole = serverRoles.map((r: string) => r.toUpperCase()).includes('BUSINESS_OWNER');
+
+          if (hasProviderRole && ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(status || '') && currentPage === 'onboarding') {
+            activateProviderMode();
+            setCurrentPage('business-dashboard');
+          }
         }
       } catch {
         // api.getProfile() already shows toast errors for non-401 cases.

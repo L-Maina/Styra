@@ -92,40 +92,70 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-    api.getBusinesses({ ownerId: user.id, limit: 1 }).then(res => {
-      if (cancelled) return;
-      const bizArray = res.data?.data || (res.data as any)?.data || [];
-      // Handle both paginated response and direct array
-      const bizList = Array.isArray(bizArray) ? bizArray : (Array.isArray(res.data) ? res.data : []);
-      if (bizList.length > 0) {
-        const biz = bizList[0] as any;
-        setResolvedBusinessId(biz.id);
-        setBusinessProfile(prev => ({
-          ...prev,
-          name: biz.name || prev.name,
-          description: biz.description || prev.description,
-          phone: biz.phone || prev.phone,
-          email: biz.email || prev.email,
-          address: biz.address || prev.address,
-          city: biz.city || prev.city,
-          country: biz.country || prev.country,
-          website: biz.website || prev.website,
-          latitude: biz.latitude ?? prev.latitude,
-          longitude: biz.longitude ?? prev.longitude,
-          isActive: biz.isActive ?? prev.isActive,
-          logo: biz.logo || prev.logo,
-          coverImage: biz.coverImage || biz.boothPhotoUrl || prev.coverImage,
-        }));
-        // Load portfolio from API
-        if (biz.portfolio && Array.isArray(biz.portfolio) && biz.portfolio.length > 0) {
-          setGallery(biz.portfolio.map((p: any) => p.image).filter(Boolean));
+
+    const fetchBusiness = async () => {
+      try {
+        const res = await api.getBusinesses({ ownerId: user.id, limit: 1 });
+        if (cancelled) return;
+
+        // Parse response — handle multiple response formats
+        let bizList: any[] = [];
+        const resData = res.data as any;
+        if (Array.isArray(resData?.data)) {
+          bizList = resData.data;
+        } else if (Array.isArray(resData)) {
+          bizList = resData;
+        } else if (resData?.data && typeof resData.data === 'object' && !Array.isArray(resData.data)) {
+          // Paginated: { data: { data: [...], pagination: {...} } }
+          bizList = Array.isArray(resData.data.data) ? resData.data.data : [resData.data];
+        } else if (resData?.pagination) {
+          // Another paginated format
+          bizList = Array.isArray(resData.data) ? resData.data : [];
         }
+
+        if (bizList.length > 0) {
+          const biz = bizList[0];
+          setResolvedBusinessId(biz.id);
+          setBusinessProfile(prev => ({
+            ...prev,
+            name: biz.name || prev.name,
+            description: biz.description || prev.description,
+            phone: biz.phone || prev.phone,
+            email: biz.email || prev.email,
+            address: biz.address || prev.address,
+            city: biz.city || prev.city,
+            country: biz.country || prev.country,
+            website: biz.website || prev.website,
+            latitude: biz.latitude ?? prev.latitude,
+            longitude: biz.longitude ?? prev.longitude,
+            isActive: biz.isActive ?? prev.isActive,
+            logo: biz.logo || prev.logo,
+            coverImage: biz.coverImage || biz.boothPhotoUrl || prev.coverImage,
+          }));
+          // Load portfolio from API
+          if (biz.portfolio && Array.isArray(biz.portfolio) && biz.portfolio.length > 0) {
+            setGallery(biz.portfolio.map((p: any) => p.image).filter(Boolean));
+          }
+        } else {
+          // Fallback: try getting businessId from user profile (set by /auth/me)
+          const profileBizId = (user as any)?.businessId;
+          if (profileBizId) {
+            setResolvedBusinessId(profileBizId);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch business data:', err);
+        // Fallback: try profile data
+        const profileBizId = (user as any)?.businessId;
+        if (profileBizId) {
+          setResolvedBusinessId(profileBizId);
+        }
+      } finally {
+        if (!cancelled) setIsFetchingBusiness(false);
       }
-    }).catch(err => {
-      console.error('Failed to fetch business data:', err);
-    }).finally(() => {
-      if (!cancelled) setIsFetchingBusiness(false);
-    });
+    };
+
+    fetchBusiness();
     return () => { cancelled = true; };
   }, [user?.id]);
 
