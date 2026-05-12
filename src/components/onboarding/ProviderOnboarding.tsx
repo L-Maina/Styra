@@ -536,6 +536,17 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
     }
   };
 
+  // Auto-redirect to dashboard when approved (fixes the registration loop)
+  useEffect(() => {
+    if (hasSubmitted && isVerified && !isRefreshing && onComplete) {
+      // Small delay so the user sees the approval screen briefly
+      const timer = setTimeout(() => {
+        onComplete?.(user as UserType);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [hasSubmitted, isVerified, isRefreshing, onComplete]);
+
   // Show status if already submitted (either from server or local state)
   // This prevents the registration loop where user sees onboarding form
   // even though they already have a business registered.

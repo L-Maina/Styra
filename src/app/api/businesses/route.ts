@@ -24,16 +24,15 @@ export async function GET(request: NextRequest) {
     const radius = searchParams.get('radius');
     const ownerId = searchParams.get('ownerId');
 
-    const where: Record<string, unknown> = {
-      isActive: true,
-    };
+    const where: Record<string, unknown> = {};
 
     // Filter by owner to allow users to fetch their own businesses
-    // When filtering by owner, show all their businesses (including unapproved)
-    // Otherwise, only show verified/approved businesses to the public
+    // When filtering by owner, show ALL their businesses (including pending/unapproved)
+    // Otherwise, only show active + verified/approved businesses to the public
     if (ownerId) {
       where.ownerId = ownerId;
     } else {
+      where.isActive = true;
       where.verificationStatus = { in: ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'] };
     }
 

@@ -298,6 +298,15 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
         boothPhotoUrl,
       });
 
+      // Handle case where business already exists (prevents loop)
+      const existingBiz = (result.data as any)?.alreadyExists;
+      if (existingBiz) {
+        toast.info('You already have a business registered');
+        const existingStatus = (result.data as any)?.verificationStatus || 'PENDING';
+        onComplete?.({ ...user, businessVerificationStatus: existingStatus, activeMode: 'PROVIDER', role: 'BUSINESS_OWNER', roles: [...(user.roles || []), 'BUSINESS_OWNER'] } as User);
+        return;
+      }
+
       // Check if the business was auto-verified
       const autoVerify = (result.data as any)?._autoVerify;
       const wasAutoVerified = autoVerify?.autoVerified === true;

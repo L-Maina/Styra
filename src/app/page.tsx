@@ -225,6 +225,22 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [currentPage, isAuthenticated, user, updateUser]);
 
+  // ─── Auto-redirect: onboarding → business-dashboard when approved ──
+  // After the session validation updates businessVerificationStatus from the server,
+  // if the user is on onboarding but their status is now APPROVED/VERIFIED, auto-navigate.
+  // This fixes the registration loop where stale localStorage routes to onboarding.
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    if (currentPage !== 'onboarding') return;
+
+    const status = user.businessVerificationStatus;
+    if (['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'].includes(status || '')) {
+      // User has been approved — redirect to dashboard immediately
+      activateProviderMode();
+      setCurrentPage('business-dashboard');
+    }
+  }, [isAuthenticated, user?.businessVerificationStatus, currentPage]);
+
   // ─── RBAC: Check if user can perform client-side actions (booking, payment, review, favorites) ──
   const canPerformAction = useCallback((action: 'book' | 'favorite' | 'message' | 'review' | 'block' | 'report' | 'support' | 'dashboard'): { allowed: boolean; reason?: string } => {
     // Guest check
