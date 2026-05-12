@@ -3867,145 +3867,206 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : businessDetail ? (
-          <div className="max-h-[75vh] overflow-y-auto pr-1 space-y-5">
-            {/* ── Status Banner ── */}
-            <div className={cn(
-              'flex items-center justify-between rounded-xl px-5 py-3.5',
-              businessDetail.verificationStatus === 'APPROVED' || businessDetail.verificationStatus === 'VERIFIED'
-                ? 'bg-emerald-500/10 border border-emerald-500/20'
-                : businessDetail.verificationStatus === 'REJECTED'
-                  ? 'bg-red-500/10 border border-red-500/20'
-                  : 'bg-amber-500/10 border border-amber-500/20'
-            )}>
-              <div className="flex items-center gap-3">
-                {businessDetail.verificationStatus === 'APPROVED' || businessDetail.verificationStatus === 'VERIFIED' ? (
-                  <CheckCircle className="h-5 w-5 text-emerald-600" />
-                ) : businessDetail.verificationStatus === 'REJECTED' ? (
-                  <XCircle className="h-5 w-5 text-red-500" />
-                ) : (
-                  <Clock className="h-5 w-5 text-amber-600" />
-                )}
-                <div>
-                  <h2 className="text-base font-semibold">{businessDetail.name}</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Submitted {relativeTime(businessDetail.createdAt)}
-                    {' · '}
-                    {fmtDate(businessDetail.createdAt)}
-                  </p>
+          <div className="max-h-[75vh] overflow-y-auto pr-1 space-y-4">
+            {/* ── Hero Header with Cover, Logo & Actions ── */}
+            <div className="relative rounded-2xl overflow-hidden">
+              {/* Cover Image */}
+              {businessDetail.coverImage ? (
+                <img
+                  src={businessDetail.coverImage}
+                  alt="Business cover"
+                  className="w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => { setImagePreviewUrl(businessDetail.coverImage); setImagePreviewTitle('Cover Image'); }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              ) : (
+                <div className="w-full h-32 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent" />
+              )}
+
+              {/* Gradient overlay for status + actions */}
+              <div className={cn(
+                'absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent px-5 pb-5 pt-16',
+              )}>
+                <div className="flex items-end justify-between">
+                  <div className="flex items-end gap-4 min-w-0">
+                    {/* Logo */}
+                    {businessDetail.logo ? (
+                      <div
+                        className="shrink-0 cursor-pointer group"
+                        onClick={() => { setImagePreviewUrl(businessDetail.logo); setImagePreviewTitle('Business Logo'); }}
+                      >
+                        <img
+                          src={businessDetail.logo}
+                          alt="Business logo"
+                          className="h-20 w-20 rounded-2xl border-3 border-white shadow-xl object-cover group-hover:ring-2 group-hover:ring-white/50 transition-all"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-20 w-20 rounded-2xl bg-white/20 backdrop-blur border-2 border-white/40 flex items-center justify-center shadow-xl">
+                        <Building2 className="h-8 w-8 text-white/80" />
+                      </div>
+                    )}
+                    {/* Name + Status */}
+                    <div className="min-w-0 pb-1">
+                      <h2 className="text-lg font-bold text-white truncate">{businessDetail.name}</h2>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-white/70 text-xs">{businessDetail.category || 'Uncategorized'}</span>
+                        <span className="text-white/40">·</span>
+                        <span className="text-white/70 text-xs">{businessDetail.city || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Status badge */}
+                  <div className="shrink-0">
+                    <GlassBadge variant={statusColor(businessDetail.verificationStatus)} className="text-xs px-3 py-1.5 shadow-lg">
+                      {businessDetail.verificationStatus === 'PENDING' ? '⏳ Pending Review' : businessDetail.verificationStatus === 'APPROVED' || businessDetail.verificationStatus === 'VERIFIED' ? '✓ Approved' : businessDetail.verificationStatus === 'REJECTED' ? '✗ Rejected' : businessDetail.verificationStatus}
+                    </GlassBadge>
+                  </div>
                 </div>
               </div>
-              <GlassBadge variant={statusColor(businessDetail.verificationStatus)} className="text-sm px-3 py-1">
-                {businessDetail.verificationStatus === 'PENDING' ? 'Pending Review' : businessDetail.verificationStatus}
-              </GlassBadge>
             </div>
 
-            {/* ── Cover Image / Logo Header ── */}
-            {(businessDetail.coverImage || businessDetail.logo) && (
-              <div className="relative rounded-xl overflow-hidden bg-muted/30 border border-border">
-                {businessDetail.coverImage ? (
-                  <img
-                    src={businessDetail.coverImage}
-                    alt="Business cover"
-                    className="w-full h-36 object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => { setImagePreviewUrl(businessDetail.coverImage); setImagePreviewTitle('Cover Image'); }}
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                ) : (
-                  <div className="w-full h-20 bg-gradient-to-r from-primary/20 to-primary/5" />
-                )}
-                {businessDetail.logo && (
-                  <div
-                    className="absolute bottom-0 left-4 translate-y-1/2 cursor-pointer group"
-                    onClick={() => { setImagePreviewUrl(businessDetail.logo); setImagePreviewTitle('Business Logo'); }}
-                  >
-                    <img
-                      src={businessDetail.logo}
-                      alt="Business logo"
-                      className="h-16 w-16 rounded-xl border-2 border-background shadow-lg object-cover group-hover:ring-2 group-hover:ring-primary/40 transition-all"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── Action Buttons (sticky feel) ── */}
+            {/* ── Action Bar (for pending businesses) ── */}
             {(businessDetail.verificationStatus === 'PENDING' || businessDetail.verificationStatus === 'AUTO_VERIFIED') && (
-              <div className="flex items-center justify-end gap-3 py-3 px-4 rounded-xl bg-muted/30 border border-border sticky top-0 z-10 backdrop-blur-sm">
-                <span className="text-sm text-muted-foreground mr-auto">Review and decide</span>
-                <button
-                  onClick={() => openRejectModal(businessDetail.id, 'business')}
-                  disabled={isProcessing}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 font-medium text-sm transition-colors disabled:opacity-50"
-                >
-                  <X className="h-4 w-4" />
-                  Reject
-                </button>
-                {businessDetail.verificationStatus === 'PENDING' && (
+              <div className="flex items-center justify-between gap-3 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="text-sm font-medium text-amber-700 dark:text-amber-400">Awaiting your review</span>
+                </div>
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleApproveBusiness(businessDetail.id)}
+                    onClick={() => openRejectModal(businessDetail.id, 'business')}
                     disabled={isProcessing}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-medium text-sm transition-colors disabled:opacity-50 shadow-sm"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 font-medium text-sm transition-all disabled:opacity-50 hover:shadow-sm"
                   >
-                    <Check className="h-4 w-4" />
-                    Approve
+                    <X className="h-3.5 w-3.5" />
+                    Reject
                   </button>
-                )}
+                  {businessDetail.verificationStatus === 'PENDING' && (
+                    <button
+                      onClick={() => handleApproveBusiness(businessDetail.id)}
+                      disabled={isProcessing}
+                      className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-medium text-sm transition-all disabled:opacity-50 shadow-sm hover:shadow-md"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      Approve
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* ── Business Info ── */}
-            <GlassCard className="p-5" hover={false}>
-              <h3 className="font-semibold text-sm flex items-center gap-2 mb-4 text-muted-foreground uppercase tracking-wider">
-                <Building2 className="h-4 w-4 text-primary" />
-                Business Information
-              </h3>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Name</p>
-                  <p className="font-medium">{businessDetail.name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Category</p>
-                  <p>{businessDetail.category || 'N/A'}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground mb-0.5">Description</p>
-                  <p className="text-muted-foreground leading-relaxed">{businessDetail.description || 'N/A'}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground mb-0.5">Address</p>
-                  <p className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />{businessDetail.address || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">City</p>
-                  <p>{businessDetail.city || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Country</p>
-                  <p>{businessDetail.country || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Phone</p>
-                  <p className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />{businessDetail.phone || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Email</p>
-                  <p className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />{businessDetail.email || 'N/A'}</p>
-                </div>
-                {businessDetail.website && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-muted-foreground mb-0.5">Website</p>
-                    <a href={businessDetail.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5">
-                      <Globe className="h-3.5 w-3.5 shrink-0" />
-                      {businessDetail.website}
-                    </a>
-                  </div>
-                )}
+            {/* ── Quick Info Strip ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm">
+                <MapPin className="h-4 w-4 text-primary shrink-0" />
+                <span className="truncate">{businessDetail.city || 'N/A'}{businessDetail.country ? `, ${businessDetail.country}` : ''}</span>
               </div>
-            </GlassCard>
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm">
+                <Phone className="h-4 w-4 text-primary shrink-0" />
+                <span className="truncate">{businessDetail.phone || 'N/A'}</span>
+              </div>
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm">
+                <Mail className="h-4 w-4 text-primary shrink-0" />
+                <span className="truncate">{businessDetail.email || 'N/A'}</span>
+              </div>
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm">
+                <Calendar className="h-4 w-4 text-primary shrink-0" />
+                <span className="truncate">{fmtDate(businessDetail.createdAt)}</span>
+              </div>
+            </div>
 
-            {/* ── ID Verification ── */}
+            {/* ── Two Column Layout: Business Info + Owner Info ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Business Info Card */}
+              <GlassCard className="p-5" hover={false}>
+                <h3 className="font-semibold text-sm flex items-center gap-2 mb-4 text-muted-foreground uppercase tracking-wider">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Business Details
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Name</p>
+                    <p className="font-medium">{businessDetail.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Category</p>
+                    <GlassBadge variant="default" className="text-xs">{businessDetail.category || 'N/A'}</GlassBadge>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Description</p>
+                    <p className="text-muted-foreground leading-relaxed text-xs">{businessDetail.description || 'No description provided'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Full Address</p>
+                    <p className="flex items-start gap-1.5"><MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />{businessDetail.address || 'N/A'}</p>
+                  </div>
+                  {businessDetail.website && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Website</p>
+                      <a href={businessDetail.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5 text-xs">
+                        <Globe className="h-3.5 w-3.5 shrink-0" />
+                        {businessDetail.website}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </GlassCard>
+
+              {/* Owner Info Card */}
+              <GlassCard className="p-5" hover={false}>
+                <h3 className="font-semibold text-sm flex items-center gap-2 mb-4 text-muted-foreground uppercase tracking-wider">
+                  <User className="h-4 w-4 text-primary" />
+                  Owner
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-bold text-primary">{(businessDetail.owner?.name || 'U')[0].toUpperCase()}</span>
+                    </div>
+                    <div>
+                      <p className="font-medium">{businessDetail.owner?.name || 'N/A'}</p>
+                      <p className="text-xs text-muted-foreground">Business Owner</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Email</p>
+                    <p className="flex items-center gap-1.5 text-xs"><Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />{businessDetail.owner?.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Phone</p>
+                    <p className="flex items-center gap-1.5 text-xs"><Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />{businessDetail.owner?.phone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Member Since</p>
+                    <p className="text-xs">{fmtDate(businessDetail.owner?.createdAt)} <span className="text-muted-foreground">({relativeTime(businessDetail.owner?.createdAt)})</span></p>
+                  </div>
+                </div>
+              </GlassCard>
+            </div>
+
+            {/* ── Stats Row ── */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 text-center border border-primary/10">
+                <p className="text-2xl font-bold">{businessDetail._count?.services ?? businessDetail.services?.length ?? 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">Services</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 text-center border border-emerald-500/10">
+                <p className="text-2xl font-bold">{businessDetail._count?.staff ?? 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">Staff</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 text-center border border-amber-500/10">
+                <p className="text-2xl font-bold">{businessDetail._count?.bookings ?? 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">Bookings</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 text-center border border-purple-500/10">
+                <p className="text-2xl font-bold">{businessDetail._count?.reviews ?? businessDetail.reviewCount ?? 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">Reviews</p>
+              </div>
+            </div>
+
+            {/* ── ID Verification Section ── */}
             <GlassCard className="p-5" hover={false}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-sm flex items-center gap-2 text-muted-foreground uppercase tracking-wider">
@@ -4050,182 +4111,150 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                   </GlassButton>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm mb-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">ID Type</p>
-                  <p>{businessDetail.idType || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">ID Number</p>
-                  <p className="font-mono">{businessDetail.idNumber || 'N/A'}</p>
-                </div>
-              </div>
 
-              {/* Image Previews */}
-              <div className="grid grid-cols-2 gap-4">
-                {businessDetail.idDocumentUrl && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1.5">ID Document</p>
-                    <div
-                      className="relative group cursor-pointer rounded-xl overflow-hidden border border-border hover:border-primary/40 transition-colors"
-                      onClick={() => { setImagePreviewUrl(businessDetail.idDocumentUrl); setImagePreviewTitle('ID Document'); }}
-                    >
-                      <img
-                        src={businessDetail.idDocumentUrl}
-                        alt="ID Document"
-                        className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <Eye className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
+              {/* ID Details + Images side by side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                      <p className="text-xs text-muted-foreground mb-0.5">ID Type</p>
+                      <p className="font-medium">{businessDetail.idType || 'N/A'}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                      <p className="text-xs text-muted-foreground mb-0.5">ID Number</p>
+                      <p className="font-mono font-medium text-xs">{businessDetail.idNumber || 'N/A'}</p>
                     </div>
                   </div>
-                )}
-                {businessDetail.boothPhotoUrl && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1.5">Booth / Shop Photo</p>
-                    <div
-                      className="relative group cursor-pointer rounded-xl overflow-hidden border border-border hover:border-primary/40 transition-colors"
-                      onClick={() => { setImagePreviewUrl(businessDetail.boothPhotoUrl); setImagePreviewTitle('Booth Photo'); }}
-                    >
-                      <img
-                        src={businessDetail.boothPhotoUrl}
-                        alt="Booth Photo"
-                        className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <Eye className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Web Search Verification Evidence */}
-              {businessDetail.verificationResult?.webSearchEvidence && (
-                <div className="mt-4 p-3.5 rounded-xl bg-muted/30 border border-border">
-                  <p className="text-sm font-medium mb-2 flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> Government Record Search</p>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className={businessDetail.verificationResult.webSearchEvidence.governmentRecordMatch ? 'text-emerald-600' : 'text-amber-600'}>
-                        {businessDetail.verificationResult.webSearchEvidence.governmentRecordMatch ? '✓ Government record match found' : '⚠ No direct government record match'}
-                      </span>
-                    </div>
-                    <div><span className="text-muted-foreground">Sources checked:</span> {businessDetail.verificationResult.webSearchEvidence.resultsFound || 0}</div>
-                    {businessDetail.verificationResult.webSearchEvidence.relevantResults?.length > 0 && (
-                      <div className="space-y-1">
-                        <span className="text-muted-foreground">Relevant sources:</span>
-                        {businessDetail.verificationResult.webSearchEvidence.relevantResults.slice(0, 3).map((r: any, i: number) => (
-                          <div key={i} className="pl-2 text-muted-foreground">
-                            • {r.snippet?.substring(0, 100) || r.url}
+                  {/* AI Verification Summary */}
+                  {businessDetail.verificationResult && (
+                    <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
+                      <p className="text-sm font-medium mb-2.5 flex items-center gap-1.5"><ClipboardCheck className="h-3.5 w-3.5" /> AI Verification</p>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Confidence</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={cn('h-full rounded-full', (businessDetail.verificationResult.confidence || 0) >= 0.7 ? 'bg-emerald-500' : (businessDetail.verificationResult.confidence || 0) >= 0.4 ? 'bg-amber-500' : 'bg-red-500')}
+                                style={{ width: `${Math.round((businessDetail.verificationResult.confidence || 0) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="font-medium">{Math.round((businessDetail.verificationResult.confidence || 0) * 100)}%</span>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                    {businessDetail.verificationResult.webSearchEvidence.details && (
-                      <div className="text-muted-foreground">{businessDetail.verificationResult.webSearchEvidence.details}</div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* AI Verification Summary */}
-              {businessDetail.verificationResult && (
-                <div className="mt-4 p-3.5 rounded-xl bg-muted/30 border border-border">
-                  <p className="text-sm font-medium mb-2 flex items-center gap-1.5"><ClipboardCheck className="h-3.5 w-3.5" /> AI Verification Summary</p>
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Confidence</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={cn('h-full rounded-full', (businessDetail.verificationResult.confidence || 0) >= 0.7 ? 'bg-emerald-500' : (businessDetail.verificationResult.confidence || 0) >= 0.4 ? 'bg-amber-500' : 'bg-red-500')}
-                            style={{ width: `${Math.round((businessDetail.verificationResult.confidence || 0) * 100)}%` }}
-                          />
                         </div>
-                        <span className="font-medium">{Math.round((businessDetail.verificationResult.confidence || 0) * 100)}%</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className={businessDetail.verificationResult.appearsAuthentic ? 'text-emerald-600' : 'text-red-500'}>{businessDetail.verificationResult.appearsAuthentic ? '✓' : '✗'}</span>
+                            <span className="text-muted-foreground">Authentic</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className={businessDetail.verificationResult.documentTypeMatch ? 'text-emerald-600' : 'text-red-500'}>{businessDetail.verificationResult.documentTypeMatch ? '✓' : '✗'}</span>
+                            <span className="text-muted-foreground">Type Match</span>
+                          </div>
+                        </div>
+                        {businessDetail.verificationResult.extractedName && (
+                          <div className="text-muted-foreground"><span className="font-medium">Extracted Name:</span> {businessDetail.verificationResult.extractedName}</div>
+                        )}
+                        {businessDetail.verificationResult.extractedIdNumber && (
+                          <div className="text-muted-foreground"><span className="font-medium">Extracted ID:</span> <span className="font-mono">{businessDetail.verificationResult.extractedIdNumber}</span></div>
+                        )}
+                        {businessDetail.verificationResult.notes && (
+                          <div className="text-muted-foreground mt-1 p-2 rounded-lg bg-muted/50 text-xs">{businessDetail.verificationResult.notes}</div>
+                        )}
                       </div>
                     </div>
-                    <div><span className="text-muted-foreground">Document Authentic:</span> {businessDetail.verificationResult.appearsAuthentic ? '✓ Yes' : '✗ No'}</div>
-                    <div><span className="text-muted-foreground">Type Match:</span> {businessDetail.verificationResult.documentTypeMatch ? '✓ Yes' : '✗ No'}</div>
-                    {businessDetail.verificationResult.extractedName && (
-                      <div><span className="text-muted-foreground">Extracted Name:</span> {businessDetail.verificationResult.extractedName}</div>
-                    )}
-                    {businessDetail.verificationResult.extractedIdNumber && (
-                      <div><span className="text-muted-foreground">Extracted ID:</span> <span className="font-mono">{businessDetail.verificationResult.extractedIdNumber}</span></div>
-                    )}
-                    {businessDetail.verificationResult.notes && (
-                      <div className="text-muted-foreground mt-1.5 p-2 rounded-lg bg-muted/50">{businessDetail.verificationResult.notes}</div>
-                    )}
-                  </div>
-                </div>
-              )}
+                  )}
 
-              {/* Rejection Reason (if any) */}
-              {businessDetail.rejectionReason && (
-                <div className="mt-4 p-3.5 rounded-xl bg-red-500/5 border border-red-500/20">
-                  <p className="text-sm font-medium text-red-600 mb-1 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> Rejection Reason</p>
-                  <p className="text-sm text-red-600/80">{businessDetail.rejectionReason}</p>
-                </div>
-              )}
-            </GlassCard>
+                  {/* Web Search Evidence */}
+                  {businessDetail.verificationResult?.webSearchEvidence && (
+                    <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
+                      <p className="text-sm font-medium mb-2 flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> Web Search</p>
+                      <div className="space-y-2 text-xs">
+                        <div className={cn('flex items-center gap-1.5', businessDetail.verificationResult.webSearchEvidence.governmentRecordMatch ? 'text-emerald-600' : 'text-amber-600')}>
+                          {businessDetail.verificationResult.webSearchEvidence.governmentRecordMatch ? '✓ Government record found' : '⚠ No government record match'}
+                        </div>
+                        <div className="text-muted-foreground">Sources checked: {businessDetail.verificationResult.webSearchEvidence.resultsFound || 0}</div>
+                        {businessDetail.verificationResult.webSearchEvidence.relevantResults?.length > 0 && (
+                          <div className="space-y-1">
+                            {businessDetail.verificationResult.webSearchEvidence.relevantResults.slice(0, 3).map((r: any, i: number) => (
+                              <div key={i} className="pl-2 text-muted-foreground">
+                                • {r.snippet?.substring(0, 100) || r.url}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-            {/* ── Owner Info ── */}
-            <GlassCard className="p-5" hover={false}>
-              <h3 className="font-semibold text-sm flex items-center gap-2 mb-4 text-muted-foreground uppercase tracking-wider">
-                <User className="h-4 w-4 text-primary" />
-                Owner Information
-              </h3>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Name</p>
-                  <p className="font-medium">{businessDetail.owner?.name || 'N/A'}</p>
+                  {/* Rejection Reason */}
+                  {businessDetail.rejectionReason && (
+                    <div className="p-3.5 rounded-xl bg-red-500/5 border border-red-500/20">
+                      <p className="text-sm font-medium text-red-600 mb-1 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> Rejection Reason</p>
+                      <p className="text-sm text-red-600/80">{businessDetail.rejectionReason}</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Email</p>
-                  <p className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />{businessDetail.owner?.email || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Phone</p>
-                  <p className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />{businessDetail.owner?.phone || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Joined</p>
-                  <p>{fmtDate(businessDetail.owner?.createdAt)} <span className="text-muted-foreground">({relativeTime(businessDetail.owner?.createdAt)})</span></p>
+
+                {/* Document Images */}
+                <div className="grid grid-cols-1 gap-3">
+                  {businessDetail.idDocumentUrl && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1.5 font-medium">ID Document</p>
+                      <div
+                        className="relative group cursor-pointer rounded-xl overflow-hidden border border-border hover:border-primary/40 transition-all hover:shadow-md"
+                        onClick={() => { setImagePreviewUrl(businessDetail.idDocumentUrl); setImagePreviewTitle('ID Document'); }}
+                      >
+                        <img
+                          src={businessDetail.idDocumentUrl}
+                          alt="ID Document"
+                          className="w-full h-48 object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <div className="flex items-center gap-1.5 text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                            <Eye className="h-4 w-4" />
+                            <span className="text-xs font-medium">View</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {businessDetail.boothPhotoUrl && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1.5 font-medium">Booth / Shop Photo</p>
+                      <div
+                        className="relative group cursor-pointer rounded-xl overflow-hidden border border-border hover:border-primary/40 transition-all hover:shadow-md"
+                        onClick={() => { setImagePreviewUrl(businessDetail.boothPhotoUrl); setImagePreviewTitle('Booth Photo'); }}
+                      >
+                        <img
+                          src={businessDetail.boothPhotoUrl}
+                          alt="Booth Photo"
+                          className="w-full h-48 object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <div className="flex items-center gap-1.5 text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                            <Eye className="h-4 w-4" />
+                            <span className="text-xs font-medium">View</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {!businessDetail.idDocumentUrl && !businessDetail.boothPhotoUrl && (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground border border-dashed border-border rounded-xl">
+                      <ImageIcon className="h-8 w-8 mb-2 opacity-40" />
+                      <p className="text-xs">No documents uploaded</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </GlassCard>
 
-            {/* ── Stats ── */}
-            <GlassCard className="p-5" hover={false}>
-              <h3 className="font-semibold text-sm flex items-center gap-2 mb-4 text-muted-foreground uppercase tracking-wider">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                Stats
-              </h3>
-              <div className="grid grid-cols-4 gap-3">
-                <div className="p-4 rounded-xl bg-muted/40 text-center border border-border/50">
-                  <p className="text-2xl font-bold">{businessDetail._count?.services ?? businessDetail.services?.length ?? 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Services</p>
-                </div>
-                <div className="p-4 rounded-xl bg-muted/40 text-center border border-border/50">
-                  <p className="text-2xl font-bold">{businessDetail._count?.staff ?? 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Staff</p>
-                </div>
-                <div className="p-4 rounded-xl bg-muted/40 text-center border border-border/50">
-                  <p className="text-2xl font-bold">{businessDetail._count?.bookings ?? 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Bookings</p>
-                </div>
-                <div className="p-4 rounded-xl bg-muted/40 text-center border border-border/50">
-                  <p className="text-2xl font-bold">{businessDetail._count?.reviews ?? businessDetail.reviewCount ?? 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Reviews</p>
-                </div>
-              </div>
-            </GlassCard>
-
-            {/* ── Verification Timeline ── */}
-            <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
+            {/* ── Footer Timeline ── */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 pb-1">
               <span>Created: {fmtDateTime(businessDetail.createdAt)}</span>
               {businessDetail.verifiedAt && (
                 <span>Verified: {fmtDateTime(businessDetail.verifiedAt)}</span>

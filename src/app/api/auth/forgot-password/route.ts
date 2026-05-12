@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
     logPasswordResetRequested(validated.email, info.ipAddress, info.userAgent);
 
     // Build the frontend reset URL (NOT the API route)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
+    // Priority: NEXT_PUBLIC_APP_URL > VERCEL_URL (auto-set by Vercel) > APP_URL > localhost
+    const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || vercelUrl || process.env.APP_URL || 'http://localhost:3000';
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
     const template = emailTemplates.resetPassword({ name: user.name || user.email || '', resetUrl });
     const emailSent = await sendEmail({ to: user.email, ...template });
