@@ -63,6 +63,7 @@ export interface User {
   idDocumentUrl?: string;
   idVerifiedAt?: Date;
   // Business details (for onboarding)
+  businessId?: string;
   businessName?: string;
   businessDescription?: string;
   businessAddress?: string;
