@@ -577,7 +577,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
               )}
 
               {/* Become a Provider Button */}
-              {isAuthenticated && isOnlyCustomer && !isAdmin && (
+              {isAuthenticated && isOnlyCustomer && !isAdmin && !user?.businessVerificationStatus && (
                 <GlassButton
                   variant="primary"
                   size="sm"
@@ -929,7 +929,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                                     onClick={() => handleNavigate('disputes')}
                                   />
                                   <div className="border-t border-border/50 my-1" />
-                                  {!(user?.roles || []).some((r: string) => r.toUpperCase() === 'BUSINESS_OWNER') && (
+                                  {!(user?.roles || []).some((r: string) => r.toUpperCase() === 'BUSINESS_OWNER') && !user?.businessVerificationStatus && (
                                     <MenuItem
                                       icon={Briefcase}
                                       label="Become a Provider"
@@ -1437,7 +1437,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                             handleNavigate('customer-dashboard', 'overview');
                           }}
                         />
-                        {!(user?.roles || []).some((r: string) => r.toUpperCase() === 'BUSINESS_OWNER') && (
+                        {!(user?.roles || []).some((r: string) => r.toUpperCase() === 'BUSINESS_OWNER') && !user?.businessVerificationStatus && (
                           <MobileMenuItem
                             icon={Briefcase}
                             label="Become a Provider"

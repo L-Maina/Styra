@@ -865,7 +865,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             </GlassCard>
 
             {/* Become a Provider Section */}
-            {!hasProviderRole && !isAdmin && (
+            {!hasProviderRole && !isAdmin && !user?.businessVerificationStatus && (
               <GlassCard variant="elevated" className="p-6 border-primary/30">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-lg gradient-bg flex items-center justify-center shrink-0">

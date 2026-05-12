@@ -329,8 +329,12 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
       let cleanPhone = profileData.phone?.trim() || undefined;
       if (cleanPhone) {
         const digitsOnly = cleanPhone.replace(/[^\d]/g, '');
-        if (digitsOnly.length > 0) {
+        if (digitsOnly.length >= 7) {
           cleanPhone = cleanPhone.startsWith('+') ? cleanPhone : `+${digitsOnly}`;
+          // Safety check: if the cleaned phone doesn't match E.164, set to undefined
+          if (!/^\+?[1-9]\d{6,14}$/.test(cleanPhone)) {
+            cleanPhone = undefined;
+          }
         } else {
           cleanPhone = undefined; // Empty or invalid phone
         }
@@ -1379,7 +1383,9 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                     <p className="text-sm">
                       By submitting, you confirm that all information is accurate and agree to our{' '}
                       <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a>
-                      {' '}and{' '}
+                      {', '}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</a>
+                      {', and '}
                       <a href="/provider-policies" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Provider Policies</a>.
                     </p>
                   </div>

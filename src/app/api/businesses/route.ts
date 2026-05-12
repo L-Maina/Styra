@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
 
     // Map _count.reviews to reviewCount for frontend compatibility
     const mappedBusinesses = businesses.map((b) => {
+      const isPublicListing = !ownerId;
       return {
         ...b,
         reviewCount: b._count.reviews,
@@ -91,6 +92,16 @@ export async function GET(request: NextRequest) {
         reviews: [],
         // Use coverImage first, fall back to boothPhotoUrl for display
         coverImage: b.coverImage || b.boothPhotoUrl || null,
+        // For public listings, strip large base64 data URLs to keep responses small.
+        // Keep the boolean flags so the frontend knows images exist and can show placeholders.
+        // The full images are loaded when viewing the individual business profile.
+        ...(isPublicListing ? {
+          coverImage: null,
+          logo: null,
+          boothPhotoUrl: null,
+          hasCoverImage: !!(b.coverImage || b.boothPhotoUrl),
+          hasLogo: !!b.logo,
+        } : {}),
       };
     });
 
@@ -170,6 +181,13 @@ export async function POST(request: NextRequest) {
       include: {
         services: true,
       },
+    }).catch((prismaError: unknown) => {
+      // Catch Prisma validation errors and provide user-friendly messages
+      const msg = prismaError instanceof Error ? prismaError.message : String(prismaError);
+      if (msg.includes('did not match the expected pattern') || msg.includes('Validation error')) {
+        throw new Error(`Invalid data provided. Please check your input and try again. Details: ${msg.substring(0, 200)}`);
+      }
+      throw prismaError;
     });
 
     // Notify the business owner that their application was received

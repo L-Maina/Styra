@@ -440,10 +440,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     } catch (err) {
       let message = err instanceof Error ? err.message : 'Failed to create account. Please try again.';
       // If email already exists, suggest login instead
-      if (message.includes('already') || message.includes('different email')) {
-        setError('An account with this email already exists. Please sign in instead.');
-        // Auto-switch to login mode
-        setTimeout(() => setCurrentMode('login'), 2000);
+      if (message.includes('already') || message.includes('different email') || message.includes('409')) {
+        toast.error('An account with this email already exists. Please sign in instead.');
+        setError('');
+        // Immediately switch to login mode
+        setCurrentMode('login');
       } else {
         setError(message);
       }

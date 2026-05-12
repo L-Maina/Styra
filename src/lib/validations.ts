@@ -47,9 +47,9 @@ export const updateProfileSchema = z.object({
 export const createBusinessSchema = z.object({
   name: z.string().min(2, 'Business name must be at least 2 characters').max(100, 'Name must be less than 100 characters'),
   description: z.string().max(5000, 'Description must be less than 5000 characters').optional(),
-  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number').max(20, 'Phone must be less than 20 characters').optional(),
-  email: z.string().email('Invalid email address').max(254, 'Email must be less than 254 characters').optional(),
-  website: z.string().url('Invalid website URL').optional(),
+  phone: z.string().regex(/^\+?[1-9]\d{6,14}$/, 'Invalid phone number').max(20, 'Phone must be less than 20 characters').optional().or(z.literal('')),
+  email: z.string().email('Invalid email address').max(254, 'Email must be less than 254 characters').optional().or(z.literal('')),
+  website: z.string().url('Invalid website URL').optional().or(z.literal('')),
   address: z.string().min(5, 'Address must be at least 5 characters'),
   city: z.string().min(2, 'City must be at least 2 characters'),
   country: z.string().min(2, 'Country must be at least 2 characters'),
