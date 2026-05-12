@@ -42,14 +42,24 @@ export async function POST(request: NextRequest) {
 
     logPasswordResetRequested(validated.email, info.ipAddress, info.userAgent);
 
-    // Send password reset email
+    // Build the frontend reset URL (NOT the API route)
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
-    const resetUrl = `${baseUrl}/api/auth/reset-password?token=${token}`;
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
     const template = emailTemplates.resetPassword({ name: user.name || user.email || '', resetUrl });
-    await sendEmail({ to: user.email, ...template });
+    const emailSent = await sendEmail({ to: user.email, ...template });
+
+    if (!emailSent) {
+      // Email not configured (no RESEND_API_KEY) — return reset link directly
+      return successResponse({
+        message: 'Email not configured. Use the link below to reset your password.',
+        resetUrl,
+        emailSent: false,
+      });
+    }
 
     return successResponse({
       message: 'If an account exists, you will receive a reset email',
+      emailSent: true,
     });
   } catch (error) {
     return handleApiError(error);

@@ -24,6 +24,7 @@ const AdminDashboard = dynamic(
 import { AuthPage } from '@/components/auth/AuthPage';
 import { AuthPromptModal } from '@/components/auth/AuthPromptModal';
 import { ForgotPasswordPage } from '@/components/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/components/auth/ResetPasswordPage';
 import { ProviderOnboarding } from '@/components/onboarding/ProviderOnboarding';
 import { ChatPage } from '@/components/chat/ChatPage';
 import { PaymentCheckout } from '@/components/payment/PaymentSystem';
@@ -68,6 +69,19 @@ export default function HomePage() {
   const { user, logout, updateUser, switchMode, activateProviderMode, isAuthenticated } = useAuthStore();
   
   const [currentPage, setCurrentPage] = useState<string>(() => {
+    // Check for password reset token in URL (direct link from email/dev mode)
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const resetToken = params.get('token');
+        if (resetToken) {
+          // Store token for the ResetPasswordPage to pick up
+          sessionStorage.setItem('styra-reset-token', resetToken);
+          return 'reset-password';
+        }
+      }
+    } catch { /* ignore */ }
+
     // Lazy init: check persisted auth on mount
     try {
       const stored = typeof window !== 'undefined' ? localStorage.getItem('styra-auth') : null;
@@ -1072,6 +1086,24 @@ export default function HomePage() {
         return (
           <ForgotPasswordPage key="forgot-password" onBack={() => navigate('login')} />
         );
+
+      case 'reset-password': {
+        const resetToken = typeof window !== 'undefined' ? sessionStorage.getItem('styra-reset-token') : null;
+        if (!resetToken) {
+          navigate('login');
+          return null;
+        }
+        return (
+          <ResetPasswordPage
+            key="reset-password"
+            token={resetToken}
+            onBack={() => {
+              sessionStorage.removeItem('styra-reset-token');
+              navigate('login');
+            }}
+          />
+        );
+      }
 
       default:
         return null;
