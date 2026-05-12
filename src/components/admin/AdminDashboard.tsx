@@ -9,7 +9,7 @@ import {
   Lock, Percent, Download, RefreshCw, MessageSquare, AlertCircle, Star,
   CreditCard, Crown, Zap, ArrowUpRight, PieChart, Ban, UserCheck, FileText,
   Send, Globe, Newspaper, Flag, UserX, LifeBuoy, ClipboardCheck, Edit,
-  Trash2, Filter, ShieldCheck, Unlock, Inbox, FileWarning, User, Tag,
+  Trash2, Filter, ShieldCheck, Unlock, Inbox, FileWarning, User, Tag, Store,
   Menu, ChevronLeft, LayoutDashboard, Briefcase, Ticket, BookOpen, Gavel,
   Megaphone, MessageCircle, Plus, ChevronRight, Save, Palette,
   Webhook as WebhookIcon, Image as ImageIcon, ExternalLink,
@@ -1642,10 +1642,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
           onChange={(e) => setUserRoleFilter(e.target.value)}
           className="h-11 px-4 rounded-xl border border-border bg-background/50 text-sm text-foreground"
         >
-          <option value="">All Roles</option>
-          <option value="CUSTOMER">Customer</option>
-          <option value="BUSINESS_OWNER">Business Owner</option>
-          <option value="ADMIN">Admin</option>
+          <option value="">All Users</option>
+          <option value="ADMIN">Admins</option>
+          <option value="BUSINESS_OWNER">Providers</option>
+          <option value="CUSTOMER">Clients</option>
         </select>
       </div>
 
@@ -1674,7 +1674,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                         <p className="text-xs text-muted-foreground">{u.email}</p>
                       </div>
                     </td>
-                    <td className="py-3 pr-4"><GlassBadge variant="default">{u.role}</GlassBadge></td>
+                    <td className="py-3 pr-4">
+                      {u.role === 'ADMIN' ? (
+                        <GlassBadge variant="warning" className="gap-1"><Shield className="h-3 w-3" />Admin</GlassBadge>
+                      ) : u.business ? (
+                        <GlassBadge variant="success" className="gap-1"><Store className="h-3 w-3" />Provider</GlassBadge>
+                      ) : (
+                        <GlassBadge variant="default" className="gap-1"><User className="h-3 w-3" />Client</GlassBadge>
+                      )}
+                    </td>
                     <td className="py-3 pr-4"><GlassBadge variant={statusColor(u.status)}>{u.status}</GlassBadge></td>
                     <td className="py-3 pr-4">
                       {u.isVerified ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}
@@ -3534,7 +3542,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                 <div><span className="text-muted-foreground">Name:</span> <span className="font-medium ml-1">{u.name || 'N/A'}</span></div>
                 <div><span className="text-muted-foreground">Email:</span> <span className="font-medium ml-1">{u.email || 'N/A'}</span></div>
                 <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium ml-1">{u.phone || 'N/A'}</span></div>
-                <div><span className="text-muted-foreground">Role:</span> <span className="font-medium ml-1">{u.role || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Role:</span> <span className="font-medium ml-1">{u.role === 'ADMIN' ? 'Admin' : u.business ? 'Provider' : 'Client'}</span></div>
                 <div><span className="text-muted-foreground">Status:</span> <GlassBadge variant={statusColor(u.status)} className="ml-1">{u.status}</GlassBadge></div>
                 <div><span className="text-muted-foreground">Verified:</span> {u.isVerified ? <CheckCircle className="inline h-4 w-4 text-green-500 ml-1" /> : <XCircle className="inline h-4 w-4 text-muted-foreground ml-1" />}</div>
                 <div><span className="text-muted-foreground">Joined:</span> <span className="font-medium ml-1">{fmtDate(u.createdAt)}</span></div>
@@ -3861,13 +3869,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
       </GlassModal>
 
       {/* Business Detail Modal */}
-      <GlassModal isOpen={showBusinessDetailModal} onClose={() => { setShowBusinessDetailModal(false); setBusinessDetail(null); setSelectedBusinessId(null); }} title="" size="lg">
+      <GlassModal isOpen={showBusinessDetailModal} onClose={() => { setShowBusinessDetailModal(false); setBusinessDetail(null); setSelectedBusinessId(null); }} title="" size="2xl">
         {isLoadingDetail ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : businessDetail ? (
-          <div className="max-h-[75vh] overflow-y-auto pr-1 space-y-4">
+          <div className="max-h-[80vh] overflow-y-auto pr-1 space-y-4">
             {/* ── Hero Header with Cover, Logo & Actions ── */}
             <div className="relative rounded-2xl overflow-hidden">
               {/* Cover Image */}

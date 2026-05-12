@@ -88,12 +88,15 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   // ─── Fetch user's actual business from API ─────────────────────────
   const [resolvedBusinessId, setResolvedBusinessId] = useState<string | null>(null);
   const [isFetchingBusiness, setIsFetchingBusiness] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchRetryCount, setFetchRetryCount] = useState(0);
 
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
 
     const fetchBusiness = async () => {
+      setFetchError(null);
       try {
         const res = await api.getBusinesses({ ownerId: user.id, limit: 1 });
         if (cancelled) return;
@@ -141,14 +144,19 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
           const profileBizId = (user as any)?.businessId;
           if (profileBizId) {
             setResolvedBusinessId(profileBizId);
+          } else {
+            setFetchError('no_business');
           }
         }
       } catch (err) {
         console.error('Failed to fetch business data:', err);
+        if (cancelled) return;
         // Fallback: try profile data
         const profileBizId = (user as any)?.businessId;
         if (profileBizId) {
           setResolvedBusinessId(profileBizId);
+        } else {
+          setFetchError('fetch_failed');
         }
       } finally {
         if (!cancelled) setIsFetchingBusiness(false);
@@ -157,7 +165,11 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
 
     fetchBusiness();
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, fetchRetryCount]);
+
+  const retryFetchBusiness = useCallback(() => {
+    setFetchRetryCount(prev => prev + 1);
+  }, []);
 
   const businessId = resolvedBusinessId;
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
@@ -691,19 +703,44 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
     );
   }
 
-  // No business found for this user
+  // No business found for this user — show retry instead of immediate redirect to avoid loop
   if (!businessId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <GlassCard className="p-8 text-center max-w-md">
-          <AlertCircle className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">No Business Found</h2>
-          <p className="text-muted-foreground mb-4">
-            You don't have a registered business yet. Complete the onboarding process to get started.
-          </p>
-          <GlassButton variant="primary" onClick={() => onNavigate?.('onboarding')}>
-            Register Your Business
-          </GlassButton>
+          {fetchError === 'fetch_failed' ? (
+            <>
+              <RefreshCw className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Could Not Load Business</h2>
+              <p className="text-muted-foreground mb-4">
+                We couldn't load your business data right now. This might be a temporary connection issue.
+              </p>
+              <div className="flex gap-2 justify-center">
+                <GlassButton variant="primary" onClick={retryFetchBusiness}>
+                  <RefreshCw className="h-4 w-4" /> Try Again
+                </GlassButton>
+                <GlassButton variant="ghost" onClick={() => onNavigate?.('home')}>
+                  Back to Home
+                </GlassButton>
+              </div>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">No Business Found</h2>
+              <p className="text-muted-foreground mb-4">
+                You don't have a registered business yet. Complete the onboarding process to get started.
+              </p>
+              <div className="flex gap-2 justify-center">
+                <GlassButton variant="primary" onClick={() => onNavigate?.('onboarding')}>
+                  Register Your Business
+                </GlassButton>
+                <GlassButton variant="ghost" onClick={retryFetchBusiness}>
+                  <RefreshCw className="h-3 w-3" /> Retry
+                </GlassButton>
+              </div>
+            </>
+          )}
         </GlassCard>
       </div>
     );

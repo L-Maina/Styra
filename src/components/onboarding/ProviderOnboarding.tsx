@@ -539,11 +539,9 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
   // Auto-redirect to dashboard when approved (fixes the registration loop)
   useEffect(() => {
     if (hasSubmitted && isVerified && !isRefreshing && onComplete) {
-      // Small delay so the user sees the approval screen briefly
-      const timer = setTimeout(() => {
-        onComplete?.(user as UserType);
-      }, 1500);
-      return () => clearTimeout(timer);
+      // Redirect immediately — the approval status screen is shown in the guard above
+      // so this just navigates to the dashboard without delay
+      onComplete?.(user as UserType);
     }
   }, [hasSubmitted, isVerified, isRefreshing, onComplete]);
 

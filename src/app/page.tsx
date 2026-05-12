@@ -180,6 +180,7 @@ export default function HomePage() {
           updateUser({
             businessVerificationStatus: serverData.businessVerificationStatus,
             businessName: (serverData.businessName as string) || user.businessName,
+            businessId: (serverData.businessId as string) || user.businessId,
             role: (serverData.role as string) || user.role,
             roles: (serverData.roles as string[]) || user.roles,
             activeMode: (serverData.activeMode as string) || user.activeMode,

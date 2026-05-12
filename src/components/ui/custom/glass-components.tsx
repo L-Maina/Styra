@@ -210,7 +210,7 @@ interface GlassModalProps {
   title?: string;
   description?: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
 }
 
 export const GlassModal: React.FC<GlassModalProps> = ({
@@ -226,6 +226,7 @@ export const GlassModal: React.FC<GlassModalProps> = ({
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-xl',
+    '2xl': 'max-w-5xl',
     full: 'max-w-4xl',
   };
 
@@ -263,7 +264,7 @@ export const GlassModal: React.FC<GlassModalProps> = ({
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-xl p-1.5 hover:bg-white/10 transition-colors duration-200 text-muted-foreground hover:text-foreground"
+          className="absolute right-4 top-4 z-20 rounded-xl p-1.5 hover:bg-white/10 transition-colors duration-200 text-muted-foreground hover:text-foreground"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
