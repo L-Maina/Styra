@@ -149,13 +149,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   ];
 
   return (
-    <section className="relative min-h-[90vh] flex items-center hero-pattern overflow-hidden">
+    <section className="relative min-h-[80vh] sm:min-h-[90vh] flex items-center hero-pattern overflow-hidden">
       {/* Background Gradient Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse" />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20">
+        <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
           {/* Left Content */}
           <div className="text-center lg:text-left">
             <FadeIn delay={0.1}>
@@ -181,7 +181,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             </FadeIn>
 
             <FadeIn delay={0.3}>
-              <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0">
+              <p className="text-base sm:text-lg text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0">
                 Discover grooming services across Kenya. Book haircuts, beard trims, 
                 nail services, and more with verified professionals near you.
               </p>
@@ -189,7 +189,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
             {/* Search Box */}
             <FadeIn delay={0.4}>
-              <div className="glass-card p-3 mb-8 max-w-xl mx-auto lg:mx-0">
+              <div className="glass-card p-3 sm:p-4 mb-8 max-w-xl mx-auto lg:mx-0">
                 <div className="flex flex-col gap-3">
                   {/* Search Input */}
                   <SearchAutocomplete
@@ -251,19 +251,19 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           <div className="space-y-6">
             {/* Stats Grid */}
             <FadeIn delay={0.3}>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {stats.map((stat, index) => (
                   <motion.div
                     key={stat.label}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 + index * 0.1 }}
-                    className="glass-card p-4 text-center"
+                    className="glass-card p-3 sm:p-4 text-center"
                   >
-                    <div className="text-2xl md:text-3xl font-bold gradient-text">
+                    <div className="text-xl sm:text-2xl md:text-3xl font-bold gradient-text">
                       {stat.value}
                     </div>
-                    <div className="text-sm text-muted-foreground">{stat.label}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">{stat.label}</div>
                   </motion.div>
                 ))}
               </div>
@@ -273,13 +273,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <div className="space-y-3">
               {features.map((feature, index) => (
                 <FadeIn key={feature.title} delay={0.5 + index * 0.1}>
-                  <GlassCard variant="default" className="flex items-start gap-4 p-4">
-                    <div className="h-12 w-12 rounded-xl gradient-bg flex items-center justify-center flex-shrink-0">
-                      <feature.icon className="h-6 w-6 text-white" />
+                  <GlassCard variant="default" className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl gradient-bg flex items-center justify-center flex-shrink-0">
+                      <feature.icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold mb-1">{feature.title}</h3>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-sm sm:text-base mb-1">{feature.title}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                         {feature.description}
                       </p>
                     </div>

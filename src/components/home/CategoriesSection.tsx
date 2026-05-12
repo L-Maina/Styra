@@ -87,36 +87,36 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({
   };
 
   return (
-    <section className="py-16 bg-muted/30">
+    <section className="py-10 sm:py-12 lg:py-16 bg-muted/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeIn>
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3">
               Explore by <span className="gradient-text">Category</span>
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
               Find the perfect grooming service for your style. From haircuts to spa treatments,
               we've got you covered.
             </p>
           </div>
         </FadeIn>
 
-        <StaggerChildren className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StaggerChildren className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {categories.map((category) => (
             <StaggerItem key={category.id}>
               <GlassCard
                 hover
                 onClick={() => handleCategoryClick(category.id)}
-                className="p-6 text-left group cursor-pointer"
+                className="p-4 sm:p-5 lg:p-6 text-left group cursor-pointer"
               >
                 <div
-                  className={`h-14 w-14 rounded-xl bg-gradient-to-br ${category.color} 
-                    flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}
+                  className={`h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-xl bg-gradient-to-br ${category.color} 
+                    flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}
                 >
-                  <category.icon className="h-7 w-7 text-white" />
+                  <category.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                 </div>
-                <h3 className="font-semibold mb-1">{category.name}</h3>
-                <p className="text-sm text-muted-foreground">{category.count} providers</p>
+                <h3 className="font-semibold text-sm sm:text-base mb-1 line-clamp-1">{category.name}</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">{category.count} providers</p>
               </GlassCard>
             </StaggerItem>
           ))}

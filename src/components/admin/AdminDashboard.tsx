@@ -3966,20 +3966,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             )}
 
             {/* ── Quick Info Strip ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm min-w-0">
                 <MapPin className="h-4 w-4 text-primary shrink-0" />
                 <span className="truncate">{businessDetail.city || 'N/A'}{businessDetail.country ? `, ${businessDetail.country}` : ''}</span>
               </div>
-              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm">
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm min-w-0">
                 <Phone className="h-4 w-4 text-primary shrink-0" />
                 <span className="truncate">{businessDetail.phone || 'N/A'}</span>
               </div>
-              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm">
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm min-w-0">
                 <Mail className="h-4 w-4 text-primary shrink-0" />
                 <span className="truncate">{businessDetail.email || 'N/A'}</span>
               </div>
-              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm">
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm min-w-0">
                 <Calendar className="h-4 w-4 text-primary shrink-0" />
                 <span className="truncate">{fmtDate(businessDetail.createdAt)}</span>
               </div>
@@ -4055,24 +4055,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             </div>
 
             {/* ── Stats Row ── */}
-            <div className="grid grid-cols-4 gap-3">
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 text-center border border-primary/10">
-                <p className="text-2xl font-bold">{businessDetail._count?.services ?? businessDetail.services?.length ?? 0}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 text-center border border-primary/10">
+                <p className="text-xl sm:text-2xl font-bold">{businessDetail._count?.services ?? businessDetail.services?.length ?? 0}</p>
                 <p className="text-xs text-muted-foreground mt-1">Services</p>
               </div>
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 text-center border border-emerald-500/10">
-                <p className="text-2xl font-bold">{businessDetail._count?.staff ?? 0}</p>
+              <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 text-center border border-emerald-500/10">
+                <p className="text-xl sm:text-2xl font-bold">{businessDetail._count?.staff ?? 0}</p>
                 <p className="text-xs text-muted-foreground mt-1">Staff</p>
               </div>
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 text-center border border-amber-500/10">
-                <p className="text-2xl font-bold">{businessDetail._count?.bookings ?? 0}</p>
+              <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 text-center border border-amber-500/10">
+                <p className="text-xl sm:text-2xl font-bold">{businessDetail._count?.bookings ?? 0}</p>
                 <p className="text-xs text-muted-foreground mt-1">Bookings</p>
               </div>
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 text-center border border-purple-500/10">
-                <p className="text-2xl font-bold">{businessDetail._count?.reviews ?? businessDetail.reviewCount ?? 0}</p>
+              <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 text-center border border-purple-500/10">
+                <p className="text-xl sm:text-2xl font-bold">{businessDetail._count?.reviews ?? businessDetail.reviewCount ?? 0}</p>
                 <p className="text-xs text-muted-foreground mt-1">Reviews</p>
               </div>
             </div>
+
+            {/* ── Portfolio Section ── */}
+            {businessDetail.portfolio && businessDetail.portfolio.length > 0 && (
+              <GlassCard className="p-5" hover={false}>
+                <h3 className="font-semibold text-sm flex items-center gap-2 mb-4 text-muted-foreground uppercase tracking-wider">
+                  <ImageIcon className="h-4 w-4 text-primary" />
+                  Portfolio ({businessDetail.portfolio.length})
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {businessDetail.portfolio.map((item: any, idx: number) => (
+                    <div
+                      key={item.id || idx}
+                      className="relative group cursor-pointer rounded-xl overflow-hidden border border-border hover:border-primary/40 transition-all hover:shadow-md aspect-square"
+                      onClick={() => { setImagePreviewUrl(item.image); setImagePreviewTitle(item.title || `Portfolio Photo ${idx + 1}`); }}
+                    >
+                      <img
+                        src={item.image}
+                        alt={item.title || `Portfolio ${idx + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-300"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        <div className="flex items-center gap-1.5 text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                          <Eye className="h-4 w-4" />
+                          <span className="text-xs font-medium">View</span>
+                        </div>
+                      </div>
+                      {item.title && (
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-2.5 pb-2 pt-6">
+                          <p className="text-white text-xs font-medium truncate">{item.title}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </GlassCard>
+            )}
 
             {/* ── ID Verification Section ── */}
             <GlassCard className="p-5" hover={false}>

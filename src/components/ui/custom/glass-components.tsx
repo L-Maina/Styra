@@ -238,7 +238,7 @@ export const GlassModal: React.FC<GlassModalProps> = ({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25, ease: 'easeInOut' }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       {/* Backdrop */}
@@ -246,7 +246,7 @@ export const GlassModal: React.FC<GlassModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
       />
       
       {/* Modal Content */}
@@ -256,7 +256,7 @@ export const GlassModal: React.FC<GlassModalProps> = ({
         exit={{ opacity: 0, scale: 0.94, y: 16 }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         className={cn(
-          'relative w-full glass-modal rounded-2xl p-6 text-foreground',
+          'relative w-full glass-modal rounded-2xl p-4 sm:p-6 text-foreground my-4 sm:my-8',
           sizes[size]
         )}
         onClick={(e) => e.stopPropagation()}
@@ -264,7 +264,8 @@ export const GlassModal: React.FC<GlassModalProps> = ({
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 z-20 rounded-xl p-1.5 hover:bg-white/10 transition-colors duration-200 text-muted-foreground hover:text-foreground"
+          className="absolute right-3 top-3 sm:right-4 sm:top-4 z-20 rounded-xl p-1.5 hover:bg-white/10 transition-colors duration-200 text-muted-foreground hover:text-foreground"
+          aria-label="Close"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

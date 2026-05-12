@@ -607,19 +607,19 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
         {/* Progress Steps */}
         <FadeIn>
           <div className="mb-8">
-            <div className="flex items-center justify-between overflow-x-auto pb-4">
+            <div className="flex items-center lg:justify-between overflow-x-auto scrollbar-hide pb-4 -mx-4 px-4 lg:mx-0 lg:px-0">
               {steps.map((step, index) => (
                 <React.Fragment key={step.id}>
                   <button
                     onClick={() => index <= currentStepIndex && setCurrentStep(step.id)}
                     className={cn(
-                      'flex flex-col items-center min-w-[80px]',
+                      'flex flex-col items-center min-w-[72px] sm:min-w-[80px] shrink-0',
                       index > currentStepIndex && 'opacity-50 cursor-not-allowed'
                     )}
                   >
                     <div
                       className={cn(
-                        'w-12 h-12 rounded-full flex items-center justify-center transition-all',
+                        'w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all',
                         index < currentStepIndex
                           ? 'bg-green-500 text-white'
                           : index === currentStepIndex
@@ -628,13 +628,13 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                       )}
                     >
                       {index < currentStepIndex ? (
-                        <Check className="h-5 w-5" />
+                        <Check className="h-4 w-4 sm:h-5 sm:w-5" />
                       ) : (
-                        <step.icon className="h-5 w-5" />
+                        <step.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                       )}
                     </div>
                     <span className={cn(
-                      'text-xs mt-2 font-medium',
+                      'text-[11px] sm:text-xs mt-1.5 sm:mt-2 font-medium whitespace-nowrap',
                       index === currentStepIndex ? 'text-foreground' : 'text-muted-foreground'
                     )}>
                       {step.label}
@@ -642,7 +642,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                   </button>
                   {index < steps.length - 1 && (
                     <div className={cn(
-                      'flex-1 h-0.5 mx-2',
+                      'hidden lg:block flex-1 h-0.5 mx-2',
                       index < currentStepIndex ? 'bg-green-500' : 'bg-muted'
                     )} />
                   )}
@@ -661,7 +661,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <GlassCard variant="elevated" className="p-6 sm:p-8">
+            <GlassCard variant="elevated" className="p-4 sm:p-6 lg:p-8">
               {/* Error Alert */}
               {error && (
                 <motion.div
@@ -676,11 +676,11 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
 
               {/* Welcome Step */}
               {currentStep === 'welcome' && (
-                <div className="text-center py-8">
-                  <div className="w-24 h-24 rounded-full gradient-bg flex items-center justify-center mx-auto mb-6">
-                    <Building2 className="h-12 w-12 text-white" />
+                <div className="text-center py-4 sm:py-8">
+                  <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full gradient-bg flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                    <Building2 className="h-8 w-8 sm:h-12 sm:w-12 text-white" />
                   </div>
-                  <h2 className="text-3xl font-bold mb-4">Become a Service Provider</h2>
+                  <h2 className="text-2xl sm:text-3xl font-bold mb-4">Become a Service Provider</h2>
                   <p className="text-muted-foreground max-w-md mx-auto mb-8">
                     Join thousands of grooming professionals on Styra. 
                     List your services, connect with clients, and grow your business.

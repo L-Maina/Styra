@@ -81,7 +81,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
       className="min-h-screen pb-24"
     >
       {/* Cover Image */}
-      <div className="relative h-64 md:h-80 bg-gradient-to-br from-primary/20 to-secondary/20">
+      <div className="relative h-48 sm:h-64 md:h-80 bg-gradient-to-br from-primary/20 to-secondary/20">
         {business.coverImage && (
           <img
             src={business.coverImage}
@@ -94,7 +94,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
         {/* Back Button - Hidden on mobile since Navbar handles back navigation */}
         <button
           onClick={onBack}
-          className="hidden md:flex absolute top-4 left-4 z-10 backdrop-blur-xl bg-white/15 hover:bg-white/25 border border-white/20 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_0_12px_rgba(108,78,255,0.14),0_0_24px_rgba(58,190,255,0.08)] hover:shadow-[0_0_20px_rgba(108,78,255,0.25),0_0_40px_rgba(58,190,255,0.15)]"
+          className="hidden md:flex absolute top-4 left-4 z-10 backdrop-blur-xl bg-white/15 hover:bg-white/25 border border-white/20 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_0_12px_rgba(108,78,255,0.14),0_0_24px_rgba(58,190,255,0.08)] hover:shadow-[0_0_20px_rgba(108,78,255,0.25),0_0_40px_rgba(58,190,255,0.15)] min-h-[44px] min-w-[44px] items-center justify-center"
           aria-label="Go back"
         >
           <ChevronLeft className="h-5 w-5 text-white" />
@@ -111,7 +111,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                   setIsFavorite(!isFavorite);
                 }
               }}
-              className="backdrop-blur-xl bg-white/15 hover:bg-white/25 border border-white/20 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_0_12px_rgba(108,78,255,0.14),0_0_24px_rgba(58,190,255,0.08)] hover:shadow-[0_0_20px_rgba(108,78,255,0.25),0_0_40px_rgba(58,190,255,0.15)]"
+              className="backdrop-blur-xl bg-white/15 hover:bg-white/25 border border-white/20 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_0_12px_rgba(108,78,255,0.14),0_0_24px_rgba(58,190,255,0.08)] hover:shadow-[0_0_20px_rgba(108,78,255,0.25),0_0_40px_rgba(58,190,255,0.15)] min-h-[44px] min-w-[44px] items-center justify-center"
               aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
               <Heart
@@ -151,7 +151,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                 toast.error('Sharing not supported in this browser');
               }
             }}
-            className="backdrop-blur-xl bg-white/15 hover:bg-white/25 border border-white/20 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_0_12px_rgba(108,78,255,0.14),0_0_24px_rgba(58,190,255,0.08)] hover:shadow-[0_0_20px_rgba(108,78,255,0.25),0_0_40px_rgba(58,190,255,0.15)]"
+            className="backdrop-blur-xl bg-white/15 hover:bg-white/25 border border-white/20 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_0_12px_rgba(108,78,255,0.14),0_0_24px_rgba(58,190,255,0.08)] hover:shadow-[0_0_20px_rgba(108,78,255,0.25),0_0_40px_rgba(58,190,255,0.15)] min-h-[44px] min-w-[44px] items-center justify-center"
             aria-label="Share business"
           >
             <Share2 className="h-5 w-5 text-white" />
@@ -175,10 +175,10 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
         {/* Business Header */}
         <FadeIn>
-          <GlassCard variant="elevated" className="p-6 mb-6">
+          <GlassCard variant="elevated" className="p-4 sm:p-6 mb-6">
             <div className="flex flex-col md:flex-row gap-6">
               {/* Logo */}
-              <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-3xl overflow-hidden flex-shrink-0">
+              <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl sm:text-3xl overflow-hidden flex-shrink-0">
                 {business.logo ? (
                   <img src={business.logo} alt={business.name} className="w-full h-full object-cover" />
                 ) : (
@@ -187,11 +187,11 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
               </div>
 
               {/* Info */}
-              <div className="flex-1">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  <div>
-                    <h1 className="text-2xl font-bold mb-2">{business.name}</h1>
-                    <div className="flex items-center gap-4 text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 sm:gap-4">
+                  <div className="min-w-0">
+                    <h1 className="text-xl sm:text-2xl font-bold mb-2 truncate">{business.name}</h1>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:text-base text-muted-foreground">
                       {business.city && (
                         <div className="flex items-center gap-1">
                           <MapPin className="h-4 w-4" />
@@ -206,7 +206,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-2 sm:gap-3">
                     {/* Client actions - Show for all users who can perform client actions (including guests) */}
                     {canPerformClientActions ? (
                       <>
@@ -214,6 +214,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                           variant="default"
                           leftIcon={<MessageSquare className="h-4 w-4" />}
                           onClick={onMessage}
+                          className="min-h-[44px]"
                         >
                           Message
                         </GlassButton>
@@ -221,6 +222,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                           variant="primary"
                           leftIcon={<Calendar className="h-4 w-4" />}
                           onClick={() => onBook?.(selectedService || undefined)}
+                          className="min-h-[44px]"
                         >
                           Book Now
                         </GlassButton>
@@ -236,22 +238,22 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
 
                 {/* Quick Info */}
                 <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
-                  {business.phone && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{business.phone}</span>
-                    </div>
-                  )}
-                  {business.email && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span>{business.email}</span>
-                    </div>
-                  )}
-                  {business.website && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      <a href={business.website} className="text-primary hover:underline">
+                      {business.phone && (
+                        <div className="flex items-center gap-2 text-sm min-w-0">
+                          <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="truncate">{business.phone}</span>
+                        </div>
+                      )}
+                      {business.email && (
+                        <div className="flex items-center gap-2 text-sm min-w-0">
+                          <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="truncate">{business.email}</span>
+                        </div>
+                      )}
+                      {business.website && (
+                        <div className="flex items-center gap-2 text-sm min-w-0">
+                          <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <a href={business.website} className="text-primary hover:underline truncate">
                         {business.website}
                       </a>
                     </div>
@@ -269,7 +271,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setSelectedTab(tab.id as typeof selectedTab)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`px-3 sm:px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedTab === tab.id
                     ? 'gradient-bg text-white'
                     : 'bg-muted/50 hover:bg-muted text-muted-foreground'
@@ -297,7 +299,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
         >
           {/* Services Tab */}
           {selectedTab === 'services' && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {business.services?.map((service) => (
                 <GlassCard
                   key={service.id}
@@ -306,7 +308,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                   className={`cursor-pointer ${selectedService?.id === service.id ? 'ring-2 ring-primary' : ''}`}
                   onClick={() => setSelectedService(service)}
                 >
-                  <div className="flex gap-4">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                     <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center flex-shrink-0">
                       {service.image ? (
                         <img src={service.image} alt={service.name} className="w-full h-full object-cover rounded-lg" />
@@ -365,10 +367,10 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
           {selectedTab === 'reviews' && (
             <div className="space-y-4">
               {/* Rating Summary */}
-              <GlassCard variant="default" className="p-6">
-                <div className="flex items-center gap-8">
-                  <div className="text-center">
-                    <div className="text-5xl font-bold gradient-text">{business.rating.toFixed(1)}</div>
+              <GlassCard variant="default" className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
+                  <div className="text-center shrink-0">
+                    <div className="text-4xl sm:text-5xl font-bold gradient-text">{business.rating.toFixed(1)}</div>
                     <div className="flex items-center justify-center gap-1 mt-2">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
@@ -407,16 +409,16 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
               )}
               {reviews.map((review) => (
                 <GlassCard key={review.id} variant="default" className="p-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-medium">
+                  <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                    <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-medium shrink-0">
                       {review.customer?.name?.[0] || review.customerId?.[0] || 'U'}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-medium">{review.customer?.name || 'User'}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+                        <div className="min-w-0">
+                          <span className="font-medium truncate block">{review.customer?.name || 'User'}</span>
                           {review.isVerified && (
-                            <GlassBadge variant="success" className="ml-2">Verified</GlassBadge>
+                            <GlassBadge variant="success" className="ml-1 sm:ml-2">Verified</GlassBadge>
                           )}
                         </div>
                         <span className="text-sm text-muted-foreground">
@@ -435,7 +437,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                           />
                         ))}
                       </div>
-                      <p className="text-muted-foreground">{review.comment}</p>
+                      <p className="text-muted-foreground line-clamp-3">{review.comment}</p>
                     </div>
                   </div>
                 </GlassCard>

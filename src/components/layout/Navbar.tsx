@@ -472,7 +472,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
         className="fixed top-0 left-0 right-0 z-40 hidden md:block glass-nav"
       >
         <div className="relative w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between min-h-[44px] sm:min-h-[56px] lg:min-h-[64px]">
             {/* Logo / Back Button Area */}
             <div className="flex items-center gap-3">
               {showBackButton(currentPage) && (
@@ -510,7 +510,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
             </div>
 
             {/* Desktop Navigation */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 overflow-x-auto">
               {navItems.map((item) => (
                 <button
                   key={item.id}
@@ -531,7 +531,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
             </div>
 
             {/* Right Side */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <ThemeToggleDropdown />
 
               {/* Role Mode Toggle */}
@@ -631,10 +631,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className="absolute right-0 mt-2 w-80 sm:w-96 bg-background/95 border border-border/50 rounded-xl shadow-xl z-50 overflow-hidden"
+                            className="absolute right-0 mt-2 w-80 sm:w-96 bg-background/95 border border-border/50 rounded-xl shadow-xl z-50 overflow-hidden max-h-[85vh]"
                           >
                             <div className="flex items-center justify-between p-4 border-b border-border/50">
-                              <h3 className="font-semibold">Notifications</h3>
+                              <h3 className="font-semibold truncate">Notifications</h3>
                               {hasUnreadNotifications && (
                                 <button 
                                   onClick={markAllNotificationsAsRead}
@@ -732,10 +732,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                               initial={{ opacity: 0, y: 10, scale: 0.95 }}
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                              className="absolute right-0 mt-2 w-80 sm:w-96 bg-background/95 border border-border/50 rounded-xl shadow-xl z-50 overflow-hidden"
+                              className="absolute right-0 mt-2 w-80 sm:w-96 bg-background/95 border border-border/50 rounded-xl shadow-xl z-50 overflow-hidden max-h-[85vh]"
                             >
                               <div className="flex items-center justify-between p-4 border-b border-border/50">
-                                <h3 className="font-semibold">Messages</h3>
+                                <h3 className="font-semibold truncate">Messages</h3>
                               </div>
 
                               <div className="max-h-80 overflow-y-auto">
@@ -809,10 +809,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                         isProfileOpen ? 'bg-muted/70' : 'hover:bg-muted/50'
                       )}
                     >
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-medium">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-medium shrink-0">
                         {user?.name?.[0] || 'U'}
                       </div>
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-medium truncate hidden sm:inline max-w-[120px]">
                         {user?.name || 'User'}
                       </span>
                     </button>
@@ -823,7 +823,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className="absolute right-0 mt-2 w-72 bg-background/95 border border-border/50 rounded-xl p-2 shadow-xl z-50"
+                            className="absolute right-0 mt-2 w-64 sm:w-72 bg-background/95 border border-border/50 rounded-xl p-2 shadow-xl z-50 max-h-[85vh] overflow-y-auto"
                           >
                             <div className="px-3 py-2 border-b border-border/50 mb-2">
                               <div className="flex items-center gap-3">
@@ -1063,7 +1063,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
         transition={{ duration: 0.4, ease: 'easeInOut' }}
         className="fixed top-0 left-0 right-0 z-40 md:hidden safe-area-top glass-nav"
       >
-        <div className="relative flex items-center justify-between h-14 px-3">
+        <div className="relative flex items-center justify-between min-h-[44px] sm:min-h-[56px] px-3 sm:px-4">
           {/* Left Side - Back Button for sub-pages only */}
           <div className="flex items-center w-10">
             {showBackButton(currentPage) && (
@@ -1102,7 +1102,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
           </div>
 
           {/* Right Side - Actions */}
-          <div className="flex items-center justify-end gap-0.5 w-10">
+          <div className="flex items-center justify-end gap-1 min-w-[44px] sm:min-w-[48px]">
             {isAuthenticated ? (
               <button 
                 onClick={() => {
@@ -1233,7 +1233,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
       >
         {/* Dark mode overlay */}
         <div className="absolute inset-0 dark:bg-slate-900/90 pointer-events-none" />
-        <div className="relative flex items-center justify-around h-14 px-2">
+        <div className="relative flex items-center justify-around min-h-[44px] sm:min-h-[56px] px-2">
           {bottomNavItems.map((item) => {
             const isActive = currentPage === item.id || 
               (item.id === 'bookings' && currentPage === 'customer-dashboard') ||
@@ -1245,7 +1245,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                 onClick={() => handleBottomNavClick(item.id)}
                 className={cn(
                   'relative flex flex-col items-center justify-center',
-                  'w-16 h-12',
+                  'flex-1 min-w-0 min-h-[44px]',
                   'transition-all duration-200',
                   'active:scale-90',
                   isActive 
@@ -1300,7 +1300,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                 'rounded-t-3xl',
                 'bg-background/95 border border-border/50 border-b-0',
                 'safe-area-bottom',
-                'max-h-[80vh] overflow-y-auto'
+                'max-h-[85vh] overflow-y-auto'
               )}
             >
               {/* Handle */}

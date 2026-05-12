@@ -240,16 +240,7 @@
     0 0 0 1px rgba(255, 255, 255, 0.05) inset,
     0 0 60px rgba(108, 78, 255, 0.2);
   position: relative;
-  overflow: hidden;
-}
-
-.light .glass-modal {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  box-shadow:
-    0 25px 50px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(255, 255, 255, 0.3) inset,
-    0 0 40px rgba(108, 78, 255, 0.1);
+  overflow: visible;
 }
 
 .glass-modal::before {
@@ -264,6 +255,17 @@
   );
   pointer-events: none;
   border-radius: inherit;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.light .glass-modal {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset,
+    0 0 40px rgba(108, 78, 255, 0.1);
 }
 
 /* ============================================

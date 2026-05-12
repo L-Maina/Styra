@@ -758,7 +758,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
           <div className="flex items-start gap-3 mb-8">
             <BrandLogo variant="icon" size={40} className="hidden sm:block shrink-0 mt-1" />
             <div>
-              <h1 className="text-3xl font-bold mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">
                 Business <span className="gradient-text">Dashboard</span>
               </h1>
               <p className="text-muted-foreground">
@@ -788,17 +788,43 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
           )}
         </AnimatePresence>
 
+        {/* Mobile Tab Bar */}
+        <div className="lg:hidden mb-6 -mx-4 px-4">
+          <div className="overflow-x-auto scrollbar-hide">
+            <nav className="flex gap-1 min-w-max">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as DashboardTab)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-h-[44px]',
+                    activeTab === tab.id
+                      ? 'gradient-bg text-white'
+                      : 'hover:bg-muted/50 text-muted-foreground'
+                  )}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                  {tab.id === 'bookings' && pendingBookings > 0 && (
+                    <GlassBadge variant="warning" className="ml-1">{pendingBookings}</GlassBadge>
+                  )}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+
         <div className="grid lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
+          {/* Sidebar - hidden on mobile */}
           <FadeIn delay={0.1}>
-            <GlassCard variant="default" className="p-4 h-fit lg:sticky lg:top-24">
+            <GlassCard variant="default" className="hidden lg:block p-4 h-fit lg:sticky lg:top-24">
               <nav className="space-y-1">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as DashboardTab)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors',
+                      'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors min-h-[44px]',
                       activeTab === tab.id
                         ? 'gradient-bg text-white'
                         : 'hover:bg-muted/50'
@@ -821,18 +847,18 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
             {activeTab === 'overview' && (
               <div className="space-y-6">
                 {/* Stats Grid */}
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   {stats.map((stat, index) => (
                     <FadeIn key={stat.label} delay={0.1 * (index + 1)}>
-                      <GlassCard variant="default" className="p-4">
+                      <GlassCard variant="default" className="p-3 sm:p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
                             <stat.icon className="h-5 w-5 text-white" />
                           </div>
                           <span className="text-xs text-green-600 font-medium">{stat.change}</span>
                         </div>
-                        <div className="text-2xl font-bold">{stat.value}</div>
-                        <div className="text-sm text-muted-foreground">{stat.label}</div>
+                        <div className="text-xl sm:text-2xl font-bold">{stat.value}</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground truncate">{stat.label}</div>
                       </GlassCard>
                     </FadeIn>
                   ))}
@@ -840,9 +866,9 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
 
                 {/* Today's Bookings */}
                 <FadeIn delay={0.3}>
-                  <GlassCard variant="default" className="p-6">
+                  <GlassCard variant="default" className="p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-semibold">Today&apos;s Appointments</h3>
+                      <h3 className="text-sm sm:text-base font-semibold">Today&apos;s Appointments</h3>
                       <GlassButton variant="ghost" size="sm" onClick={() => setActiveTab('bookings')}>
                         View All
                       </GlassButton>
@@ -863,20 +889,20 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                       ) : bookings.slice(0, 4).map((booking) => (
                         <div 
                           key={booking.id} 
-                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer"
+                          className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer"
                           onClick={() => handleViewBooking(booking)}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-medium">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-medium shrink-0">
                               {getCustomerInitial(booking.customerId, booking)}
                             </div>
-                            <div>
-                              <div className="font-medium">{getCustomerName(booking.customerId, booking)}</div>
-                              <div className="text-sm text-muted-foreground">{getServiceName(booking.serviceId, booking)}</div>
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{getCustomerName(booking.customerId, booking)}</div>
+                              <div className="text-sm text-muted-foreground truncate">{getServiceName(booking.serviceId, booking)}</div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="font-medium">{booking.startTime}</div>
+                          <div className="text-right shrink-0">
+                            <div className="font-medium text-sm">{booking.startTime}</div>
                             <GlassBadge variant={
                               booking.status === 'CONFIRMED' ? 'success' :
                               booking.status === 'PENDING' ? 'warning' :
@@ -893,7 +919,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
 
                 {/* Quick Actions */}
                 <FadeIn delay={0.4}>
-                  <div className="grid sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <GlassCard variant="default" className="p-4 cursor-pointer hover:shadow-lg" onClick={handleAddService}>
                       <div className="flex items-center gap-3">
                         <Plus className="h-5 w-5 text-primary" />
@@ -917,9 +943,9 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
 
                 {/* Active Staff */}
                 <FadeIn delay={0.5}>
-                  <GlassCard variant="default" className="p-6">
+                  <GlassCard variant="default" className="p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-semibold">Active Staff</h3>
+                      <h3 className="text-sm sm:text-base font-semibold">Active Staff</h3>
                       <GlassButton variant="ghost" size="sm" onClick={() => setActiveTab('staff')}>
                         Manage
                       </GlassButton>
@@ -946,8 +972,8 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
             {activeTab === 'services' && (
               <div className="space-y-4">
                 <FadeIn>
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold">Services ({services.length})</h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                    <h2 className="text-lg sm:text-xl font-semibold">Services ({services.length})</h2>
                     <GlassButton variant="primary" onClick={handleAddService}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Service
@@ -962,55 +988,57 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                         'p-4 transition-all',
                         !service.isActive && 'opacity-60'
                       )}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center overflow-hidden">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center overflow-hidden shrink-0">
                               {(service as any).image ? (
                                 <img src={(service as any).image} alt={service.name} className="w-full h-full object-cover" />
                               ) : (
-                                <Scissors className="h-6 w-6 text-primary" />
+                                <Scissors className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                               )}
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <h3 className="font-semibold">{service.name}</h3>
+                                <h3 className="font-semibold truncate">{service.name}</h3>
                                 {!service.isActive && (
                                   <GlassBadge variant="destructive">Inactive</GlassBadge>
                                 )}
                               </div>
-                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                <span>{service.category}</span>
+                              <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
+                                <span className="truncate">{service.category}</span>
                                 <span>•</span>
-                                <span>{service.duration} min</span>
+                                <span>{service.duration}m</span>
                                 <span>•</span>
-                                <span>{service.description?.slice(0, 40)}...</span>
+                                <span className="hidden sm:inline truncate">{service.description?.slice(0, 40)}...</span>
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xl font-bold text-primary">${service.price}</span>
-                            <GlassButton 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleToggleService(service.id)}
-                            >
-                              {service.isActive ? <Ban className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                            </GlassButton>
-                            <GlassButton 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleEditService(service)}
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </GlassButton>
-                            <GlassButton 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleDeleteService(service.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </GlassButton>
+                          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                            <span className="text-lg sm:text-xl font-bold text-primary">${service.price}</span>
+                            <div className="flex items-center gap-1">
+                              <GlassButton 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleToggleService(service.id)}
+                              >
+                                {service.isActive ? <Ban className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                              </GlassButton>
+                              <GlassButton 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditService(service)}
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </GlassButton>
+                              <GlassButton 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteService(service.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </GlassButton>
+                            </div>
                           </div>
                         </div>
                       </GlassCard>
@@ -1024,8 +1052,8 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
             {activeTab === 'staff' && (
               <div className="space-y-4">
                 <FadeIn>
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold">Staff Members ({staff.length})</h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                    <h2 className="text-lg sm:text-xl font-semibold">Staff Members ({staff.length})</h2>
                     <GlassButton variant="primary" onClick={handleAddStaff}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Staff
@@ -1046,7 +1074,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">{member.name}</h3>
+                              <h3 className="font-semibold truncate">{member.name}</h3>
                               {!member.isActive && (
                                 <GlassBadge variant="destructive">Inactive</GlassBadge>
                               )}
@@ -1155,22 +1183,22 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                           className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
                           onClick={() => handleViewBooking(booking)}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-white font-medium">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full gradient-bg flex items-center justify-center text-white font-medium shrink-0">
                                 {getCustomerInitial(booking.customerId, booking)}
                               </div>
-                              <div>
-                                <h3 className="font-semibold">{getCustomerName(booking.customerId, booking)}</h3>
-                                <p className="text-sm text-muted-foreground">
+                              <div className="min-w-0">
+                                <h3 className="font-medium sm:font-semibold truncate">{getCustomerName(booking.customerId, booking)}</h3>
+                                <p className="text-sm text-muted-foreground truncate">
                                   {getServiceName(booking.serviceId, booking)} • {getStaffName(booking.staffId, booking)}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3 sm:gap-4 shrink-0">
                               <div className="text-right">
-                                <div className="font-medium">${booking.totalAmount}</div>
-                                <div className="text-sm text-muted-foreground">
+                                <div className="font-medium text-sm sm:text-base">${booking.totalAmount}</div>
+                                <div className="text-xs sm:text-sm text-muted-foreground">
                                   {booking.date} • {booking.startTime}
                                 </div>
                               </div>
@@ -1196,18 +1224,18 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
             {activeTab === 'earnings' && (
               <div className="space-y-6">
                 <FadeIn>
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    <GlassCard variant="default" className="p-6 text-center">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <GlassCard variant="default" className="p-4 sm:p-6 text-center">
                       <p className="text-muted-foreground mb-2">Today</p>
                       <div className="text-2xl font-bold">$285</div>
                       <p className="text-sm text-green-600 mt-1">+15% from yesterday</p>
                     </GlassCard>
-                    <GlassCard variant="default" className="p-6 text-center">
+                    <GlassCard variant="default" className="p-4 sm:p-6 text-center">
                       <p className="text-muted-foreground mb-2">This Week</p>
                       <div className="text-2xl font-bold">$1,450</div>
                       <p className="text-sm text-green-600 mt-1">+23% from last week</p>
                     </GlassCard>
-                    <GlassCard variant="default" className="p-6 text-center">
+                    <GlassCard variant="default" className="p-4 sm:p-6 text-center">
                       <p className="text-muted-foreground mb-2">This Month</p>
                       <div className="text-2xl font-bold gradient-text">$5,250</div>
                       <p className="text-sm text-green-600 mt-1">+18% from last month</p>

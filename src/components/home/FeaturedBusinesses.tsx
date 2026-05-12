@@ -34,13 +34,13 @@ export const FeaturedBusinesses: React.FC<FeaturedBusinessesProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <section className="py-16">
+      <section className="py-10 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6 sm:mb-8">
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-6 w-24" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {[...Array(6)].map((_, i) => (
               <Skeleton key={i} className="h-64 w-full" />
             ))}
@@ -51,13 +51,13 @@ export const FeaturedBusinesses: React.FC<FeaturedBusinessesProps> = ({
   }
 
   return (
-    <section className="pt-6 pb-16">
+    <section className="pt-6 pb-10 sm:pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <FadeIn>
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6 sm:mb-8">
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold mb-2">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">
                 Featured <span className="gradient-text">Businesses</span>
               </h2>
               <p className="text-muted-foreground">
@@ -96,7 +96,7 @@ export const FeaturedBusinesses: React.FC<FeaturedBusinessesProps> = ({
           </FadeIn>
         ) : (
           <>
-            <StaggerChildren className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <StaggerChildren className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {businesses.map((business) => (
                 <StaggerItem key={business.id}>
                   <BusinessCard
@@ -176,7 +176,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       onClick={onClick}
     >
       {/* Image */}
-      <div className="relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20">
+      <div className="relative h-40 sm:h-48 bg-gradient-to-br from-primary/20 to-secondary/20">
         {business.coverImage ? (
           <img
             src={business.coverImage}
@@ -214,7 +214,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
         {canShowFavorite && (
           <button
             onClick={handleFavoriteClick}
-            className="absolute top-3 right-3 h-9 w-9 rounded-xl backdrop-blur-xl bg-white/15 hover:bg-white/25 border border-white/20 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 shadow-[0_0_12px_rgba(108,78,255,0.14),0_0_24px_rgba(58,190,255,0.08)] hover:shadow-[0_0_20px_rgba(108,78,255,0.25),0_0_40px_rgba(58,190,255,0.15)]"
+            className="absolute top-3 right-3 h-11 w-11 rounded-xl backdrop-blur-xl bg-white/15 hover:bg-white/25 border border-white/20 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 shadow-[0_0_12px_rgba(108,78,255,0.14),0_0_24px_rgba(58,190,255,0.08)] hover:shadow-[0_0_20px_rgba(108,78,255,0.25),0_0_40px_rgba(58,190,255,0.15)]"
             aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
             <Heart
@@ -239,28 +239,28 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       </div>
 
       {/* Content */}
-      <div className="p-4">
-        <h3 className="font-semibold text-lg mb-1 line-clamp-1">
+      <div className="p-3 sm:p-4">
+        <h3 className="font-semibold text-base sm:text-lg mb-1 line-clamp-1">
           {business.name}
         </h3>
 
         {business.description && (
-          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+          <p className="text-sm text-muted-foreground mb-2 sm:mb-3 line-clamp-2">
             {business.description}
           </p>
         )}
 
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
           {business.city && (
-            <div className="flex items-center gap-1">
-              <MapPin className="h-4 w-4" />
+            <div className="flex items-center gap-1 min-w-0">
+              <MapPin className="h-4 w-4 flex-shrink-0" />
               <span className="truncate">{business.city}</span>
             </div>
           )}
           {business.services?.length && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <Clock className="h-4 w-4" />
-              <span>{business.services.length} services</span>
+              <span className="whitespace-nowrap">{business.services.length} services</span>
             </div>
           )}
         </div>

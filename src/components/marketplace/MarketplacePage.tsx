@@ -517,16 +517,16 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen py-6"
+      className="min-h-screen py-4 sm:py-6"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <FadeIn>
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
               Discover <span className="gradient-text">Businesses</span>
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Find the perfect grooming service for your style
             </p>
           </div>
@@ -534,7 +534,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
         {/* Main Search Bar - Airbnb Style */}
         <FadeIn delay={0.1}>
-          <div className="glass-card p-4 mb-6">
+          <div className="glass-card p-3 sm:p-4 mb-4 sm:mb-6">
             {/* Primary Search Row */}
             <div className="flex flex-col lg:flex-row gap-3">
               {/* Text Search */}
@@ -587,7 +587,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       key={category.id}
                       onClick={() => handleCategoryToggle(category.id)}
                       className={cn(
-                        'flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap',
+                        'flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap min-h-[44px]',
                         'border transition-all duration-200',
                         isSelected
                           ? 'bg-primary text-primary-foreground border-primary/50 shadow-sm'
@@ -609,9 +609,9 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
         {/* Filter Bar */}
         <FadeIn delay={0.15}>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-wrap">
             {/* Left: Filter Buttons */}
-            <div className="flex items-center gap-2 flex-1 flex-nowrap">
+            <div className="flex items-center gap-2 flex-1 flex-nowrap overflow-x-auto">
               {/* Mobile Filter Button */}
               <GlassButton
                 variant="default"
@@ -882,7 +882,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               <div className="relative" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => setShowSortDropdown(!showSortDropdown)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-background/50 border border-border hover:border-primary/50 transition-colors"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium bg-background/50 border border-border hover:border-primary/50 transition-colors min-h-[44px]"
                 >
                   <ArrowUpDown className="h-4 w-4" />
                   <span className="hidden sm:inline">
@@ -928,7 +928,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 <button
                   onClick={() => setViewMode('grid')}
                   className={cn(
-                    'p-1.5 rounded transition-colors',
+                    'p-2 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center',
                     viewMode === 'grid' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
                   )}
                 >
@@ -937,7 +937,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 <button
                   onClick={() => setViewMode('list')}
                   className={cn(
-                    'p-1.5 rounded transition-colors',
+                    'p-2 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center',
                     viewMode === 'list' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
                   )}
                 >
@@ -961,7 +961,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   <span>{tag.label}</span>
                   <button
                     onClick={() => removeFilter(tag.type)}
-                    className="p-0.5 rounded-full hover:bg-primary/20"
+                    className="p-1.5 rounded-full hover:bg-primary/20 min-w-[44px] min-h-[44px] flex items-center justify-center"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -979,8 +979,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
         {/* Results Count */}
         <FadeIn delay={0.2}>
-          <div className="mb-4">
-            <p className="text-muted-foreground">
+          <div className="mb-3 sm:mb-4">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Showing{' '}
               <span className="font-semibold text-foreground">{filteredBusinesses.length}</span>
               {' '}businesses
@@ -999,7 +999,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           <StaggerChildren
             className={
               viewMode === 'grid'
-                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6'
                 : 'space-y-4'
             }
           >
@@ -1017,7 +1017,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           </StaggerChildren>
         ) : (
           <FadeIn>
-            <div className="text-center py-16">
+            <div className="text-center py-10 sm:py-16">
               <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
                 <Search className="h-8 w-8 text-muted-foreground" />
               </div>

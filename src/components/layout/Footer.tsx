@@ -263,9 +263,9 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Main Footer Content */}
         <div className="w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 sm:gap-8">
               {/* Brand Column */}
-              <div className="lg:col-span-2">
+              <div className="col-span-2 sm:col-span-3 md:col-span-2">
                 <Link href="/" className="inline-block cursor-pointer">
                   <div className="mb-3">
                     <BrandLogo variant="wordmark" size="footer" />
@@ -358,10 +358,10 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Payment Methods Bar - Liquid Glass */}
         <div className="border-t border-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <span className="text-muted-foreground text-sm">Payment Methods:</span>
-                <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                <span className="text-muted-foreground text-sm shrink-0">Payment Methods:</span>
+                <div className="flex flex-wrap items-center gap-2 overflow-x-auto">
                   {['VISA', 'Mastercard', 'PayPal', 'M-Pesa'].map((method) => (
                     <div
                       key={method}
@@ -413,7 +413,7 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Copyright Bar */}
         <div className="border-t border-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
               <p className="text-muted-foreground text-sm">
                 © {currentYear} {settings.company_name}. All rights reserved.
               </p>

@@ -256,16 +256,16 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <FadeIn>
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center gap-4 mb-6 sm:mb-8">
             <button
               onClick={handleBack}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              className="p-2 rounded-lg hover:bg-muted transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <div>
-              <h1 className="text-2xl font-bold">Book Appointment</h1>
-              <p className="text-muted-foreground">{business.name}</p>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold truncate">Book Appointment</h1>
+              <p className="text-sm sm:text-base text-muted-foreground truncate">{business.name}</p>
             </div>
           </div>
         </FadeIn>
@@ -277,7 +277,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
               {steps.map((s, index) => (
                 <div key={s.id} className="flex items-center">
                   <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                    className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px] rounded-full text-sm font-medium transition-colors ${
                       index <= currentStepIndex
                         ? 'gradient-bg text-white'
                         : 'bg-muted text-muted-foreground'
@@ -294,7 +294,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                   </span>
                   {index < steps.length - 1 && (
                     <div
-                      className={`w-8 sm:w-16 h-0.5 mx-2 ${
+                      className={`w-6 sm:w-16 h-0.5 mx-1 sm:mx-2 ${
                         index < currentStepIndex ? 'bg-primary' : 'bg-muted'
                       }`}
                     />
@@ -308,15 +308,15 @@ export const BookingPage: React.FC<BookingPageProps> = ({
         {/* Error Banner */}
         {bookingError && (
           <FadeIn>
-            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
+            <div className="mb-6 p-3 sm:p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3 min-w-0">
               <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <div>
+                <div className="min-w-0">
                 <div className="text-sm font-medium text-red-800">Booking Error</div>
-                <div className="text-sm text-red-600 mt-0.5">{bookingError}</div>
+                <div className="text-sm text-red-600 mt-0.5 break-words">{bookingError}</div>
               </div>
               <button
                 onClick={() => setBookingError('')}
-                className="ml-auto text-red-400 hover:text-red-600 transition-colors"
+                className="ml-auto text-red-400 hover:text-red-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
               >
                 &times;
               </button>
@@ -333,23 +333,23 @@ export const BookingPage: React.FC<BookingPageProps> = ({
         >
           {/* Service Selection */}
           {step === 'service' && (
-            <GlassCard variant="default" className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Select a Service</h2>
+            <GlassCard variant="default" className="p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4">Select a Service</h2>
               <div className="space-y-3">
                 {business.services?.map((service) => (
                   <button
                     key={service.id}
                     onClick={() => setSelectedService(service)}
-                    className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+                    className={`w-full p-3 sm:p-4 rounded-xl border-2 text-left transition-all min-h-[44px] ${
                       selectedService?.id === service.id
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-primary/50'
                     }`}
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
+                    <div className="flex justify-between items-start gap-3 min-w-0">
+                      <div className="min-w-0">
                         <div className="font-medium">{service.name}</div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-muted-foreground line-clamp-2">
                           {service.description}
                         </div>
                         <div className="flex items-center gap-3 mt-2 text-sm">
@@ -359,7 +359,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                           </span>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <div className="font-bold text-lg text-primary">
                           ${service.discountPrice || service.price}
                         </div>
@@ -378,14 +378,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
           {/* Staff Selection */}
           {step === 'staff' && (
-            <GlassCard variant="default" className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Choose a Professional</h2>
-              <div className="grid grid-cols-2 gap-4">
+            <GlassCard variant="default" className="p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4">Choose a Professional</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-4">
                 {business.staff?.map((staff) => (
                   <button
                     key={staff.id}
                     onClick={() => setSelectedStaff(staff)}
-                    className={`p-4 rounded-xl border-2 text-center transition-all ${
+                    className={`p-3 sm:p-4 rounded-xl border-2 text-center transition-all min-h-[44px] ${
                       selectedStaff?.id === staff.id
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-primary/50'
@@ -398,14 +398,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                         <User className="h-6 w-6 text-muted-foreground" />
                       )}
                     </div>
-                    <div className="font-medium">{staff.name}</div>
-                    <div className="text-sm text-muted-foreground">{staff.role}</div>
+                    <div className="font-medium text-sm sm:text-base">{staff.name}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">{staff.role}</div>
                   </button>
                 ))}
                 {/* Any Available Option */}
                 <button
                   onClick={() => setSelectedStaff({ id: 'any', businessId: business.id, name: 'Any Available', role: 'First Available', isActive: true, createdAt: new Date(), updatedAt: new Date() })}
-                  className={`p-4 rounded-xl border-2 text-center transition-all ${
+                  className={`p-3 sm:p-4 rounded-xl border-2 text-center transition-all min-h-[44px] ${
                     selectedStaff?.id === 'any'
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50'
@@ -414,8 +414,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                   <div className="w-16 h-16 rounded-full mx-auto bg-muted flex items-center justify-center mb-3">
                     <User className="h-6 w-6 text-muted-foreground" />
                   </div>
-                  <div className="font-medium">Any Available</div>
-                  <div className="text-sm text-muted-foreground">First available</div>
+                  <div className="font-medium text-sm sm:text-base">Any Available</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">First available</div>
                 </button>
               </div>
             </GlassCard>
@@ -424,14 +424,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({
           {/* Date & Time Selection */}
           {step === 'datetime' && (
             <div className="space-y-6">
-              <GlassCard variant="default" className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Select Date</h2>
-                <div className="flex gap-2 overflow-x-auto pb-2">
+              <GlassCard variant="default" className="p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold mb-4">Select Date</h2>
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
                   {availableDates.map((date) => (
                     <button
                       key={date}
                       onClick={() => setSelectedDate(date)}
-                      className={`flex-shrink-0 p-3 rounded-xl text-center transition-all ${
+                      className={`flex-shrink-0 p-2.5 sm:p-3 min-h-[44px] min-w-[44px] rounded-xl text-center transition-all ${
                         selectedDate === date
                           ? 'gradient-bg text-white'
                           : 'bg-muted/50 hover:bg-muted'
@@ -448,14 +448,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                 </div>
               </GlassCard>
 
-              <GlassCard variant="default" className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Select Time</h2>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              <GlassCard variant="default" className="p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold mb-4">Select Time</h2>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {timeSlots.map((time) => (
                     <button
                       key={time}
                       onClick={() => setSelectedTime(time)}
-                      className={`p-2 rounded-lg text-sm transition-all ${
+                      className={`p-2 min-h-[44px] rounded-lg text-sm transition-all ${
                         selectedTime === time
                           ? 'gradient-bg text-white'
                           : 'bg-muted/50 hover:bg-muted'
@@ -467,8 +467,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                 </div>
               </GlassCard>
 
-              <GlassCard variant="default" className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Add Notes (Optional)</h2>
+              <GlassCard variant="default" className="p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold mb-4">Add Notes (Optional)</h2>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -481,31 +481,31 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
           {/* Confirmation */}
           {step === 'confirm' && (
-            <GlassCard variant="default" className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Confirm Your Booking</h2>
+            <GlassCard variant="default" className="p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4">Confirm Your Booking</h2>
               
-              <div className="space-y-4">
-                <div className="flex justify-between py-3 border-b border-border">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex flex-wrap justify-between py-3 border-b border-border gap-2">
                   <span className="text-muted-foreground">Service</span>
-                  <span className="font-medium">{selectedService?.name}</span>
+                  <span className="font-medium text-right">{selectedService?.name}</span>
                 </div>
-                <div className="flex justify-between py-3 border-b border-border">
+                <div className="flex flex-wrap justify-between py-3 border-b border-border gap-2">
                   <span className="text-muted-foreground">Professional</span>
                   <span className="font-medium">{selectedStaff?.name}</span>
                 </div>
-                <div className="flex justify-between py-3 border-b border-border">
+                <div className="flex flex-wrap justify-between py-3 border-b border-border gap-2">
                   <span className="text-muted-foreground">Date</span>
                   <span className="font-medium">{formatDate(selectedDate)}</span>
                 </div>
-                <div className="flex justify-between py-3 border-b border-border">
+                <div className="flex flex-wrap justify-between py-3 border-b border-border gap-2">
                   <span className="text-muted-foreground">Time</span>
                   <span className="font-medium">{selectedTime}</span>
                 </div>
-                <div className="flex justify-between py-3 border-b border-border">
+                <div className="flex flex-wrap justify-between py-3 border-b border-border gap-2">
                   <span className="text-muted-foreground">Duration</span>
                   <span className="font-medium">{selectedService?.duration} minutes</span>
                 </div>
-                <div className="flex justify-between py-3">
+                <div className="flex flex-wrap justify-between py-3 gap-2">
                   <span className="font-semibold">Total</span>
                   <span className="font-bold text-xl gradient-text">${totalPrice}</span>
                 </div>
@@ -522,13 +522,13 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
           {/* Payment */}
           {step === 'payment' && (
-            <GlassCard variant="default" className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Payment Method</h2>
+            <GlassCard variant="default" className="p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4">Payment Method</h2>
               
               <div className="space-y-3">
                 <button
                   onClick={() => setPaymentMethod('card')}
-                  className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+                  className={`w-full p-3 sm:p-4 rounded-xl border-2 flex items-center gap-3 sm:gap-4 transition-all min-h-[44px] ${
                     paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-border'
                   }`}
                 >
@@ -543,7 +543,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
                 <button
                   onClick={() => setPaymentMethod('paypal')}
-                  className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+                  className={`w-full p-3 sm:p-4 rounded-xl border-2 flex items-center gap-3 sm:gap-4 transition-all min-h-[44px] ${
                     paymentMethod === 'paypal' ? 'border-primary bg-primary/5' : 'border-border'
                   }`}
                 >
@@ -558,7 +558,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
                 <button
                   onClick={() => setPaymentMethod('mpesa')}
-                  className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+                  className={`w-full p-3 sm:p-4 rounded-xl border-2 flex items-center gap-3 sm:gap-4 transition-all min-h-[44px] ${
                     paymentMethod === 'mpesa' ? 'border-primary bg-primary/5' : 'border-border'
                   }`}
                 >
@@ -572,7 +572,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                 </button>
               </div>
 
-              <div className="mt-6 p-4 bg-muted/50 rounded-lg flex items-start gap-3">
+              <div className="mt-6 p-3 sm:p-4 bg-muted/50 rounded-lg flex items-start gap-3 min-w-0">
                 <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
                   Your payment is secured with industry-standard encryption. 
@@ -592,21 +592,21 @@ export const BookingPage: React.FC<BookingPageProps> = ({
               <div className="w-20 h-20 rounded-full gradient-bg flex items-center justify-center mx-auto mb-6">
                 <Check className="h-10 w-10 text-white" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Booking Confirmed!</h2>
-              <p className="text-muted-foreground mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold mb-2">Booking Confirmed!</h2>
+              <p className="text-sm sm:text-base text-muted-foreground mb-6">
                 Your appointment has been scheduled successfully.
               </p>
-              <GlassCard variant="default" className="p-6 text-left max-w-sm mx-auto">
+              <GlassCard variant="default" className="p-4 sm:p-6 text-left max-w-sm mx-auto">
                 <div className="space-y-3">
-                  <div className="flex justify-between">
+                  <div className="flex flex-wrap justify-between gap-2">
                     <span className="text-muted-foreground">Confirmation #</span>
                     <span className="font-mono font-medium">{displayBookingId}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-wrap justify-between gap-2">
                     <span className="text-muted-foreground">Service</span>
                     <span className="font-medium">{selectedService?.name}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-wrap justify-between gap-2">
                     <span className="text-muted-foreground">Date & Time</span>
                     <span className="font-medium">{formatDate(selectedDate)} at {selectedTime}</span>
                   </div>
@@ -618,7 +618,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
         {/* Navigation Buttons */}
         {step !== 'success' && (
-          <div className="flex gap-4 mt-8">
+          <div className="flex gap-3 sm:gap-4 mt-6 sm:mt-8">
             <GlassButton
               variant="default"
               size="lg"

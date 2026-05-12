@@ -603,32 +603,32 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen flex items-center justify-center py-12 px-4 hero-pattern"
+      className="min-h-screen flex items-center justify-center py-6 sm:py-12 px-4 hero-pattern"
     >
       {/* Background Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-float" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 sm:w-96 sm:h-96 bg-primary/20 rounded-full blur-3xl animate-float" />
+      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 sm:w-96 sm:h-96 bg-secondary/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
 
       <div className="w-full max-w-md relative">
         {/* Back Button */}
         <FadeIn>
           <button
             onClick={() => step === 2 ? setStep(1) : onNavigate?.('home')}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors min-h-[44px]"
           >
             <ChevronLeft className="h-4 w-4" />
-            {step === 2 ? 'Back to registration' : 'Back to Home'}
+            <span className="truncate text-sm sm:text-base">{step === 2 ? 'Back to registration' : 'Back to Home'}</span>
           </button>
         </FadeIn>
 
         <FadeIn delay={0.1}>
-          <GlassCard variant="elevated" className="p-8">
+          <GlassCard variant="elevated" className="p-4 sm:p-6 lg:p-8">
             {/* Logo */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-6 sm:mb-8">
               <div className="flex justify-center mb-2">
                 <BrandLogo variant="full" size="authPage" />
               </div>
-              <p className="text-muted-foreground">
+              <p className="text-sm sm:text-base text-muted-foreground">
                 {currentMode === 'login' 
                   ? 'Welcome back! Please sign in to continue.'
                   : step === 2 
@@ -643,7 +643,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 <button
                   onClick={() => setCurrentMode('login')}
                   className={cn(
-                    'flex-1 py-2 rounded-md text-sm font-medium transition-colors',
+                    'flex-1 py-2.5 sm:py-2 min-h-[44px] rounded-md text-sm font-medium transition-colors',
                     currentMode === 'login'
                       ? 'bg-background shadow-sm text-foreground'
                       : 'text-muted-foreground hover:text-foreground'
@@ -654,7 +654,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 <button
                   onClick={() => setCurrentMode('register')}
                   className={cn(
-                    'flex-1 py-2 rounded-md text-sm font-medium transition-colors',
+                    'flex-1 py-2.5 sm:py-2 min-h-[44px] rounded-md text-sm font-medium transition-colors',
                     currentMode === 'register'
                       ? 'bg-background shadow-sm text-foreground'
                       : 'text-muted-foreground hover:text-foreground'
@@ -670,10 +670,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive"
+                className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive min-w-0"
               >
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                {error}
+                <span className="truncate min-w-0">{error}</span>
               </motion.div>
             )}
 
@@ -735,7 +735,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-0 h-11 flex items-center text-foreground/50 hover:text-foreground/80 transition-colors z-10"
+                      className="absolute right-3 top-0 h-11 min-w-[44px] flex items-center text-foreground/50 hover:text-foreground/80 transition-colors z-10"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
@@ -746,8 +746,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   )}
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <label htmlFor="remember-me" className="flex items-center gap-2 cursor-pointer">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <label htmlFor="remember-me" className="flex items-center gap-2 cursor-pointer min-h-[44px]">
                     <input 
                       id="remember-me"
                       type="checkbox" 
@@ -793,7 +793,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   <GlassButton 
                     type="button"
                     variant="default" 
-                    className="w-full"
+                    className="w-full min-h-[44px]"
                     onClick={() => handleSocialSignIn('google')}
                     disabled={isLoading}
                     aria-label="Sign in with Google"
@@ -803,7 +803,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   <GlassButton 
                     type="button"
                     variant="default" 
-                    className="w-full"
+                    className="w-full min-h-[44px]"
                     onClick={() => handleSocialSignIn('apple')}
                     disabled={isLoading}
                     aria-label="Sign in with Apple"
@@ -813,7 +813,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   <GlassButton 
                     type="button"
                     variant="default" 
-                    className="w-full"
+                    className="w-full min-h-[44px]"
                     onClick={() => handleSocialSignIn('phone')}
                     disabled={isLoading}
                     aria-label="Sign in with phone"
@@ -920,7 +920,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-0 h-11 flex items-center text-foreground/50 hover:text-foreground/80 transition-colors z-10"
+                      className="absolute right-3 top-0 h-11 min-w-[44px] flex items-center text-foreground/50 hover:text-foreground/80 transition-colors z-10"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
@@ -947,12 +947,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   <ArrowRight className="h-4 w-4 ml-2" aria-hidden="true" />
                 </GlassButton>
 
-                <p className="text-center text-sm text-muted-foreground">
+                <p className="text-center text-xs sm:text-sm text-muted-foreground leading-relaxed">
                   By creating an account, you agree to our{' '}
                   <button 
                     type="button" 
                     onClick={() => onNavigate?.('terms')} 
-                    className="text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                    className="text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded min-h-[44px] inline-flex items-center"
                   >
                     Terms of Service
                   </button>
@@ -960,7 +960,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   <button 
                     type="button" 
                     onClick={() => onNavigate?.('privacy')} 
-                    className="text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                    className="text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded min-h-[44px] inline-flex items-center"
                   >
                     Privacy Policy
                   </button>
@@ -1006,7 +1006,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     <button
                       type="button"
                       onClick={() => { navigator.clipboard.writeText(otp.join('')); toast.success('Code copied!'); }}
-                      className="text-muted-foreground hover:text-primary transition-colors"
+                      className="text-muted-foreground hover:text-primary transition-colors min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
                       aria-label="Copy verification code"
                     >
                       <Copy className="h-4 w-4" />
@@ -1016,7 +1016,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
                 {/* OTP Input */}
                 <div 
-                  className="flex justify-center gap-2 mb-6" 
+                  className="flex justify-center gap-1.5 sm:gap-2 mb-6" 
                   role="group" 
                   aria-label="Enter 6-digit verification code"
                 >
@@ -1034,7 +1034,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                       className={cn(
-                        'w-12 h-14 text-center text-xl font-bold rounded-xl',
+                        'w-10 sm:w-12 h-12 sm:h-14 text-center text-lg sm:text-xl font-bold rounded-xl min-w-[44px] min-h-[44px]',
                         'border-2 transition-all duration-200',
                         'bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm',
                         'focus:outline-none focus:ring-2 focus:ring-primary/50',
