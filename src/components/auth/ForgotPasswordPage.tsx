@@ -243,8 +243,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBack }
                     <div className="flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                       <div className="text-xs text-muted-foreground space-y-1">
-                        <p>Didn&apos;t receive it? Check your spam or junk folder.</p>
-                        <p>The email comes from <span className="font-medium">noreply@styra.app</span></p>
+                        <p>Didn&apos;t receive it? Check your spam or junk folder, and look for emails from <span className="font-medium">onboarding@resend.dev</span></p>
                       </div>
                     </div>
                   </div>

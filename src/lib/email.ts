@@ -216,7 +216,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || 'Styra <noreply@styra.app>',
+        from: process.env.EMAIL_FROM || 'Styra <onboarding@resend.dev>',
         to: [options.to],
         subject: options.subject,
         html: options.html,

@@ -348,7 +348,7 @@ function buildConfig(): AppConfig {
 
     email: {
       apiKey: resendApiKey,
-      from: process.env.EMAIL_FROM || 'Styra <noreply@styra.app>',
+      from: process.env.EMAIL_FROM || 'Styra <onboarding@resend.dev>',
       isConfigured: emailConfigured,
     },
 
