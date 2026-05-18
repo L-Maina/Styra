@@ -314,10 +314,22 @@ export default function HomePage() {
     }, 150);
   }, [isAdmin]);
 
-  // Handle business selection
-  const handleSelectBusiness = useCallback((business: Business) => {
+  // Handle business selection — fetch full business details (with images)
+  // from the individual endpoint, since the list API strips coverImage/logo
+  const handleSelectBusiness = useCallback(async (business: Business) => {
+    // Set the basic data immediately so the page renders fast
     setSelectedBusiness(business);
     navigate('business');
+
+    // Then fetch full details (including images, portfolio, reviews, staff)
+    try {
+      const res = await api.getBusiness(business.id);
+      if (res.data) {
+        setSelectedBusiness(res.data as Business);
+      }
+    } catch {
+      // If fetch fails, the basic data is already set — images will just be missing
+    }
   }, [navigate]);
 
   // Handle search
