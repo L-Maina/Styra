@@ -139,3 +139,34 @@ Stage Summary:
 - Profile dropdown now works correctly for admin users
 - Eliminated race condition between mousedown and click handlers
 - All Navbar dropdowns now use z-[60] for backdrops and z-[70] for content, above admin dashboard's z-30 elements
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Fix photos/images not appearing on business cards and business profile pages
+
+Work Log:
+- Investigated the image loading issue - discovered root cause: images are stored as base64 data URLs in the database
+- The upload API (`/api/upload/route.ts`) converts files to base64 data URLs and stores them directly in DB fields (coverImage, logo, boothPhotoUrl)
+- A single business cover image can be 5MB+ of base64 text, making the listing API response enormous (50MB+)
+- This caused the listing API to time out or be extremely slow, resulting in no images showing
+- Previously, the listing API stripped `logo` and `boothPhotoUrl` but kept `coverImage`, which was still massive
+- Fixed by stripping `coverImage` from public listing API responses (like logo and boothPhotoUrl)
+- Added `hasCoverImage` flag so frontend knows images exist for lazy loading
+- Created lightweight `/api/businesses/[id]/cover` endpoint that returns just the cover image data for one business
+- Updated BusinessCard component with IntersectionObserver-based lazy loading:
+  - Cards show a gradient placeholder with business initial initially
+  - When card scrolls within 200px of viewport, fetches cover image from dedicated endpoint
+  - Shows shimmer animation while image loads
+  - Falls back to placeholder if fetch fails
+- Updated BusinessProfilePage to show shimmer loading state for cover image while detail fetch loads
+- Added `animate-shimmer` CSS utility class for loading animations
+- Pushed all changes to GitHub
+
+Stage Summary:
+- Root cause: base64 data URLs in DB made listing responses 50MB+, causing timeouts
+- Fix: Strip coverImage from listing, lazy-load via dedicated endpoint
+- New API: `/api/businesses/[id]/cover` returns just cover image data
+- BusinessCard now lazy-loads images with IntersectionObserver + shimmer loading
+- Listing API responses now fast (no embedded images)
+- Images appear progressively as cards scroll into view
