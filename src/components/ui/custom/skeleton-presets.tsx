@@ -363,3 +363,170 @@ export const HeroSectionSkeleton: React.FC = () => {
     </section>
   );
 };
+
+// ============================================
+// CATEGORIES SECTION SKELETON
+// Matches the CategoriesSection layout:
+// - Section header with title and description
+// - Grid of category cards (icon, name, count)
+// ============================================
+
+export const CategoriesSectionSkeleton: React.FC = () => {
+  return (
+    <section className="py-10 sm:py-12 lg:py-16 bg-muted/30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center mb-8 sm:mb-12">
+          <Skeleton className="h-8 w-48 mb-3 mx-auto" variant="text" />
+          <Skeleton className="h-5 w-72 mx-auto" variant="text" />
+        </div>
+
+        {/* Category Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <div key={i} className="glass-card p-4 sm:p-5 lg:p-6">
+              <Skeleton className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-xl mb-3 sm:mb-4" variant="rectangular" />
+              <Skeleton className="h-5 w-24 sm:w-28 mb-1" variant="text" />
+              <Skeleton className="h-4 w-16 sm:w-20" variant="text" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ============================================
+// CTA SECTION SKELETON
+// Matches the CTASection layout:
+// - Full-width gradient card
+// - Heading, description, buttons
+// ============================================
+
+export const CTASectionSkeleton: React.FC = () => {
+  return (
+    <section className="py-10 sm:py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="glass-card gradient-border p-8 sm:p-12 text-center">
+          <Skeleton className="h-8 w-64 sm:h-10 sm:w-80 mb-4 mx-auto" variant="text" />
+          <Skeleton className="h-5 w-48 sm:w-64 mb-2 mx-auto" variant="text" />
+          <Skeleton className="h-5 w-72 sm:w-96 mb-8 mx-auto" variant="text" />
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Skeleton className="h-12 w-40 rounded-xl" variant="rectangular" />
+            <Skeleton className="h-12 w-40 rounded-xl" variant="rectangular" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ============================================
+// DASHBOARD SKELETON
+// Matches the dashboard layout:
+// - Header with greeting and actions
+// - Stats cards
+// - Recent bookings / activity list
+// ============================================
+
+export const DashboardSkeleton: React.FC = () => {
+  return (
+    <div className="min-h-screen py-6 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-6 sm:mb-8">
+          <Skeleton className="h-8 w-64 mb-2" variant="text" />
+          <Skeleton className="h-5 w-48" variant="text" />
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="glass-card p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-3">
+                <Skeleton className="h-10 w-10 rounded-xl" variant="rectangular" />
+                <Skeleton className="h-4 w-12" variant="text" />
+              </div>
+              <Skeleton className="h-7 w-20 mb-1" variant="text" />
+              <Skeleton className="h-4 w-24" variant="text" />
+            </div>
+          ))}
+        </div>
+
+        {/* Content Cards */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {[1, 2].map((i) => (
+            <div key={i} className="glass-card p-4 sm:p-6">
+              <Skeleton className="h-6 w-32 mb-4" variant="text" />
+              {[1, 2, 3].map((j) => (
+                <div key={j} className="flex items-center gap-3 mb-3 pb-3 border-b border-border last:border-0 last:mb-0 last:pb-0">
+                  <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" variant="circular" />
+                  <div className="flex-1 min-w-0">
+                    <Skeleton className="h-4 w-32 mb-1" variant="text" />
+                    <Skeleton className="h-3 w-24" variant="text" />
+                  </div>
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// BOOKING SKELETON
+// Matches the booking page layout
+// ============================================
+
+export const BookingSkeleton: React.FC = () => {
+  return (
+    <div className="min-h-screen py-6 sm:py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-6">
+          <Skeleton className="h-8 w-48 mb-2" variant="text" />
+          <Skeleton className="h-5 w-64" variant="text" />
+        </div>
+
+        {/* Business info card */}
+        <div className="glass-card p-4 sm:p-6 mb-6">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-16 w-16 rounded-xl flex-shrink-0" variant="rectangular" />
+            <div className="flex-1">
+              <Skeleton className="h-5 w-40 mb-2" variant="text" />
+              <Skeleton className="h-4 w-24" variant="text" />
+            </div>
+          </div>
+        </div>
+
+        {/* Service selection */}
+        <div className="glass-card p-4 sm:p-6 mb-6">
+          <Skeleton className="h-6 w-36 mb-4" variant="text" />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 mb-3 pb-3 border-b border-border last:border-0">
+              <Skeleton className="h-12 w-12 rounded-lg flex-shrink-0" variant="rectangular" />
+              <div className="flex-1">
+                <Skeleton className="h-4 w-28 mb-1" variant="text" />
+                <Skeleton className="h-3 w-20" variant="text" />
+              </div>
+              <Skeleton className="h-5 w-16" variant="text" />
+            </div>
+          ))}
+        </div>
+
+        {/* Date/Time */}
+        <div className="glass-card p-4 sm:p-6">
+          <Skeleton className="h-6 w-32 mb-4" variant="text" />
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-10 rounded-lg" variant="rectangular" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

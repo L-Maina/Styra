@@ -43,10 +43,11 @@ import { CareersPage } from '@/components/pages/CareersPage';
 
 import { ApiDocumentation } from '@/components/docs/ApiDocumentation';
 import { GlassButton, GlassCard } from '@/components/ui/custom/glass-components';
-import { HeroSectionSkeleton, BusinessCardSkeleton } from '@/components/ui/custom/skeleton-presets';
+import { HeroSectionSkeleton, BusinessCardSkeleton, CategoriesSectionSkeleton, CTASectionSkeleton, DashboardSkeleton, BookingSkeleton, BusinessProfileSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { useAuthStore, useAdminStore } from '@/store';
 import { api } from '@/lib/api-client';
 import { useBusinesses, useBookings, useApiNotifications, useConversations } from '@/hooks/use-business-data';
+import { useMinimumLoading } from '@/hooks/use-minimum-loading';
 import type { Business, Service } from '@/types';
 
 // Phase D accessibility & i18n components
@@ -140,6 +141,12 @@ export default function HomePage() {
 
   // Fetch conversations for authenticated users
   const { data: conversations, refetch: refetchConversations } = useConversations(isAuthenticated);
+
+  // ─── Minimum loading time for skeletons ──────────────────────────────
+  // Ensures skeleton UI shows for at least 1.2s so users can perceive it
+  const showBusinessesSkeleton = useMinimumLoading(businessesLoading, 1200);
+  const showBusinessDetailSkeleton = useMinimumLoading(businessDetailLoading, 1000);
+  const showBookingsSkeleton = useMinimumLoading(bookingsLoading, 800);
 
   // Guest mode - if not authenticated, treat as CLIENT guest
   const isGuest = !isAuthenticated && !user;
@@ -424,8 +431,8 @@ export default function HomePage() {
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
-        // Show skeleton while businesses are loading
-        if (businessesLoading) {
+        // Show skeleton while businesses are loading (with minimum display time)
+        if (showBusinessesSkeleton) {
           return (
             <motion.div
               key="home-loading"
@@ -449,6 +456,8 @@ export default function HomePage() {
                   </div>
                 </div>
               </section>
+              <CategoriesSectionSkeleton />
+              <CTASectionSkeleton />
             </motion.div>
           );
         }
@@ -503,7 +512,7 @@ export default function HomePage() {
             searchQuery={searchQuery}
             selectedCategory={selectedCategory}
             useMyLocation={useMyLocation}
-            isLoading={businessesLoading}
+            isLoading={showBusinessesSkeleton}
             onSelectBusiness={handleSelectBusiness}
             onSearch={handleSearch}
             onFavorite={() => requireAuth('favorite')}
@@ -516,7 +525,7 @@ export default function HomePage() {
           <BusinessProfilePage
             key="business"
             business={selectedBusiness}
-            isLoading={businessDetailLoading}
+            isLoading={showBusinessDetailSkeleton}
             onBack={() => navigate('home')}
             onBook={(service) => {
               // Require auth for booking
@@ -731,7 +740,7 @@ export default function HomePage() {
             user={user}
             onNavigate={navigate}
             initialTab={dashboardTab as any}
-            bookings={bookingsLoading ? undefined : bookings}
+            bookings={showBookingsSkeleton ? undefined : bookings}
           />
         );
 
@@ -825,7 +834,7 @@ export default function HomePage() {
             key="business-dashboard"
             user={user}
             onNavigate={navigate}
-            bookings={bookingsLoading ? undefined : bookings}
+            bookings={showBookingsSkeleton ? undefined : bookings}
           />
         );
 
