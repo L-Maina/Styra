@@ -42,12 +42,21 @@ export const FeaturedBusinesses: React.FC<FeaturedBusinessesProps> = ({
               <Skeleton className="h-8 w-48 mb-2" variant="text" />
               <Skeleton className="h-4 w-64" variant="text" />
             </div>
-            <Skeleton className="h-5 w-20 hidden sm:block" variant="text" />
+            <div className="hidden sm:flex items-center gap-1 text-primary font-medium">
+              <Skeleton className="h-5 w-16" variant="text" />
+              <Skeleton className="h-4 w-4 rounded-sm" variant="rectangular" />
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <StaggerChildren className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <BusinessCardSkeleton key={i} />
+              <StaggerItem key={i}>
+                <BusinessCardSkeleton />
+              </StaggerItem>
             ))}
+          </StaggerChildren>
+          {/* Mobile View All */}
+          <div className="mt-8 text-center sm:hidden">
+            <Skeleton className="h-5 w-40 mx-auto" variant="text" />
           </div>
         </div>
       </section>

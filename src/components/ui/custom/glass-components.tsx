@@ -360,15 +360,16 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   variant = 'rectangular',
   ...props
 }) => {
-  const variants: Record<string, string> = {
-    text: 'h-4 w-full',
-    circular: 'rounded-full',
-    rectangular: 'rounded-xl',
+  // Only apply variant-specific rounding; sizing is fully controlled by className
+  const variantStyles: Record<string, string> = {
+    text: 'rounded-md',        // text lines: subtle rounding, no default size
+    circular: 'rounded-full',  // avatars: fully round, no default size
+    rectangular: 'rounded-xl', // blocks: medium rounding, no default size
   };
 
   return (
     <div
-      className={cn('skeleton', variants[variant], className)}
+      className={cn('skeleton', variantStyles[variant], className)}
       {...props}
     />
   );

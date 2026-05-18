@@ -43,8 +43,7 @@ import { CareersPage } from '@/components/pages/CareersPage';
 
 import { ApiDocumentation } from '@/components/docs/ApiDocumentation';
 import { GlassButton, GlassCard } from '@/components/ui/custom/glass-components';
-import { HeroSectionSkeleton, BusinessCardSkeleton, CategoriesSectionSkeleton, CTASectionSkeleton, DashboardSkeleton, BookingSkeleton, BusinessProfileSkeleton } from '@/components/ui/custom/skeleton-presets';
-import { Skeleton } from '@/components/ui/custom/glass-components';
+import { HeroSectionSkeleton, CategoriesSectionSkeleton, CTASectionSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { useAuthStore, useAdminStore } from '@/store';
 import { api } from '@/lib/api-client';
 import { useBusinesses, useBookings, useApiNotifications, useConversations } from '@/hooks/use-business-data';
@@ -442,22 +441,14 @@ export default function HomePage() {
               transition={{ duration: 0.3 }}
             >
               <HeroSectionSkeleton />
-              <section className="pt-6 pb-10 sm:pb-16">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                  <div className="flex items-center justify-between mb-6 sm:mb-8">
-                    <div>
-                      <Skeleton className="h-8 w-48 mb-2" variant="text" />
-                      <Skeleton className="h-4 w-64" variant="text" />
-                    </div>
-                    <Skeleton className="h-5 w-20 hidden sm:block" variant="text" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {[1, 2, 3, 4, 5, 6].map((i) => (
-                      <BusinessCardSkeleton key={i} />
-                    ))}
-                  </div>
-                </div>
-              </section>
+              <FeaturedBusinesses
+                businesses={[]}
+                isLoading={true}
+                onSelectBusiness={() => {}}
+                onNavigate={() => {}}
+                onFavorite={() => {}}
+                isGuest={isGuest}
+              />
               <CategoriesSectionSkeleton />
               <CTASectionSkeleton />
             </motion.div>

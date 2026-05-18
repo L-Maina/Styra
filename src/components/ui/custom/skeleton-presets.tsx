@@ -1,16 +1,19 @@
 'use client';
 
 import React from 'react';
-import { Skeleton } from '@/components/ui/custom/glass-components';
+import { Skeleton, GlassCard, GlassBadge } from '@/components/ui/custom/glass-components';
 
 // ============================================
 // BUSINESS CARD SKELETON
-// Matches the BusinessCard component exactly:
-// - Image area h-40 sm:h-48 with gradient bg
-// - Badges top-left (Featured, Verified)
-// - Favorite button top-right
-// - Rating badge bottom-left
-// - Title, description (2 lines), location + services, service tags
+// Exact same structure as BusinessCard:
+// <GlassCard variant="default" hover className="cursor-pointer overflow-hidden p-0">
+//   <div className="relative h-40 sm:h-48 bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden">
+//     <img> + gradient overlay + badges + favorite + rating
+//   </div>
+//   <div className="p-3 sm:p-4">
+//     h3 + description + location/services row + service tags
+//   </div>
+// </GlassCard>
 // ============================================
 
 interface BusinessCardSkeletonProps {
@@ -19,36 +22,47 @@ interface BusinessCardSkeletonProps {
 
 export const BusinessCardSkeleton: React.FC<BusinessCardSkeletonProps> = ({ compact = false }) => {
   return (
-    <div className="glass-card overflow-hidden p-0">
-      {/* Image Area — matches h-40 sm:h-48 with gradient */}
-      <div className="relative h-40 sm:h-48 bg-gradient-to-br from-primary/10 to-secondary/10">
+    <GlassCard variant="default" hover={false} className="overflow-hidden p-0">
+      {/* Image — exact same as BusinessCard */}
+      <div className="relative h-40 sm:h-48 bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden">
         <Skeleton className="absolute inset-0 rounded-none" variant="rectangular" />
-        {/* Badge placeholders — top-left */}
-        <div className="absolute top-3 left-3 flex gap-2">
-          <Skeleton className="h-6 w-16 rounded-full" />
-          <Skeleton className="h-6 w-14 rounded-full" />
+        {/* Gradient overlay — same as real */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        {/* Badges — same position as GlassBadge */}
+        <div className="absolute top-3 left-3 flex items-center gap-2">
+          <Skeleton className="h-6 w-[72px] rounded-full" />
+          <Skeleton className="h-6 w-[62px] rounded-full" />
         </div>
-        {/* Favorite button placeholder — top-right */}
+        {/* Favorite button — same position/size as real */}
         <Skeleton className="absolute top-3 right-3 h-11 w-11 rounded-xl" variant="rectangular" />
-        {/* Rating badge placeholder — bottom-left */}
-        <Skeleton className="absolute bottom-3 left-3 h-7 w-20 rounded-lg" />
+        {/* Rating badge — same position as real with glass style */}
+        <div className="absolute bottom-3 left-3 flex items-center gap-1 px-2 py-1 rounded-lg glass">
+          <Skeleton className="h-4 w-5 rounded-sm" variant="rectangular" />
+          <Skeleton className="h-4 w-8 rounded-sm" variant="rectangular" />
+        </div>
       </div>
 
-      {/* Content — matches p-3 sm:p-4 layout */}
+      {/* Content — exact same padding as BusinessCard */}
       <div className="p-3 sm:p-4">
-        {/* Title */}
-        <Skeleton className="h-5 w-3/4 mb-1" variant="text" />
-        {/* Description — 2 lines */}
+        {/* Title — matches h3 font-semibold text-base sm:text-lg mb-1 line-clamp-1 */}
+        <Skeleton className="h-6 w-3/4 mb-1" variant="text" />
+        {/* Description — matches text-sm mb-2 sm:mb-3 line-clamp-2 */}
         {!compact && <Skeleton className="h-4 w-full mb-1" variant="text" />}
         {!compact && <Skeleton className="h-4 w-2/3 mb-3" variant="text" />}
 
-        {/* Location & services — flex row */}
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-4 w-20" variant="text" />
-          <Skeleton className="h-4 w-24" variant="text" />
+        {/* Location & services — matches flex items-center gap-2 sm:gap-4 text-sm */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 min-w-0">
+            <Skeleton className="h-4 w-4 rounded-sm flex-shrink-0" variant="rectangular" />
+            <Skeleton className="h-4 w-16" variant="text" />
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Skeleton className="h-4 w-4 rounded-sm flex-shrink-0" variant="rectangular" />
+            <Skeleton className="h-4 w-20" variant="text" />
+          </div>
         </div>
 
-        {/* Service tags */}
+        {/* Service tags — matches mt-3 flex flex-wrap gap-1 */}
         {!compact && (
           <div className="mt-3 flex flex-wrap gap-1">
             <Skeleton className="h-6 w-16 rounded-full" />
@@ -57,88 +71,100 @@ export const BusinessCardSkeleton: React.FC<BusinessCardSkeletonProps> = ({ comp
           </div>
         )}
       </div>
-    </div>
+    </GlassCard>
   );
 };
 
 // ============================================
 // BUSINESS PROFILE SKELETON
-// Matches the BusinessProfilePage layout exactly:
-// - Cover image h-48/h-64/h-80 with gradient overlay
-// - Back button (desktop), favorite + share buttons
-// - Badges (Featured, Verified, Open Now)
-// - Header card (-mt-16, logo, name, category+location+rating, buttons, quick info)
-// - Tabs (Services, Portfolio, Reviews, About)
-// - Services grid (3 columns)
+// Exact same structure as BusinessProfilePage
 // ============================================
 
 export const BusinessProfileSkeleton: React.FC = () => {
   return (
     <div className="min-h-screen pb-24">
-      {/* Cover Image — matches h-48 sm:h-64 md:h-80 */}
-      <div className="relative h-48 sm:h-64 md:h-80">
+      {/* Cover Image — exact same as BusinessProfilePage */}
+      <div className="relative h-48 sm:h-64 md:h-80 bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden">
         <Skeleton className="absolute inset-0 rounded-none" variant="rectangular" />
-        {/* Back button — desktop only */}
-        <Skeleton className="absolute top-4 left-4 h-11 w-11 rounded-xl hidden md:block" variant="rectangular" />
-        {/* Action buttons — top-right */}
-        <div className="absolute top-4 right-4 flex gap-2">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        {/* Back button — desktop only, exact same style */}
+        <Skeleton className="hidden md:flex absolute top-4 left-4 z-10 h-11 w-11 rounded-xl" variant="rectangular" />
+        {/* Action buttons — same position/right */}
+        <div className="absolute top-4 right-4 z-10 flex gap-2">
           <Skeleton className="h-11 w-11 rounded-xl" variant="rectangular" />
           <Skeleton className="h-11 w-11 rounded-xl" variant="rectangular" />
         </div>
-        {/* Badges — bottom-left */}
+        {/* Badges — same position */}
         <div className="absolute bottom-4 left-4 flex gap-2">
-          <Skeleton className="h-6 w-16 rounded-full" />
-          <Skeleton className="h-6 w-20 rounded-full" />
-          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-[72px] rounded-full" />
+          <Skeleton className="h-6 w-[80px] rounded-full" />
+          <Skeleton className="h-6 w-[80px] rounded-full" />
         </div>
       </div>
 
-      {/* Business Header Card — matches -mt-16 relative z-10 */}
+      {/* Header Card — exact same wrapper */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
-        <div className="glass-card p-4 sm:p-6 mb-6">
+        <GlassCard variant="elevated" hover={false} className="p-4 sm:p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-6">
             {/* Logo — matches w-16 h-16 sm:w-24 sm:h-24 rounded-xl */}
             <Skeleton className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl flex-shrink-0" variant="rectangular" />
 
-            {/* Info */}
+            {/* Info — same flex-1 min-w-0 structure */}
             <div className="flex-1 min-w-0">
-              {/* Name + actions row */}
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 sm:gap-4">
                 <div className="min-w-0">
-                  {/* Business name */}
+                  {/* Name — matches text-xl sm:text-2xl font-bold mb-2 */}
                   <Skeleton className="h-7 w-48 mb-2" variant="text" />
-                  {/* Category + location + rating row */}
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <Skeleton className="h-5 w-24" variant="text" />
-                    <Skeleton className="h-5 w-32" variant="text" />
-                    <Skeleton className="h-5 w-28" variant="text" />
+                  {/* Category + Location + Rating — matches flex-wrap gap-x-4 gap-y-1 */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:text-base">
+                    <div className="flex items-center gap-1">
+                      <Skeleton className="h-4 w-4 rounded-sm" variant="rectangular" />
+                      <Skeleton className="h-5 w-24" variant="text" />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Skeleton className="h-4 w-4 rounded-sm" variant="rectangular" />
+                      <Skeleton className="h-5 w-32" variant="text" />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Skeleton className="h-4 w-4 rounded-sm" variant="rectangular" />
+                      <Skeleton className="h-5 w-28" variant="text" />
+                    </div>
                   </div>
                 </div>
-                {/* Message + Book Now buttons */}
-                <div className="flex gap-3">
+                {/* Buttons — matches flex-wrap gap-2 sm:gap-3 */}
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   <Skeleton className="h-11 w-28 rounded-xl" variant="rectangular" />
                   <Skeleton className="h-11 w-28 rounded-xl" variant="rectangular" />
                 </div>
               </div>
-              {/* Quick info row — matches border-t border-border */}
+              {/* Quick info — matches flex-wrap gap-x-6 gap-y-2 mt-4 pt-4 border-t */}
               <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 pt-4 border-t border-border">
-                <Skeleton className="h-4 w-28" variant="text" />
-                <Skeleton className="h-4 w-32" variant="text" />
-                <Skeleton className="h-4 w-24" variant="text" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-4 rounded-sm" variant="rectangular" />
+                  <Skeleton className="h-4 w-24" variant="text" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-4 rounded-sm" variant="rectangular" />
+                  <Skeleton className="h-4 w-28" variant="text" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-4 rounded-sm" variant="rectangular" />
+                  <Skeleton className="h-4 w-20" variant="text" />
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </GlassCard>
 
-        {/* Tabs — matches flex gap-2 mb-6 */}
+        {/* Tabs — matches flex gap-2 mb-6 overflow-x-auto pb-2 */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           <Skeleton className="h-10 w-28 rounded-lg flex-shrink-0" variant="rectangular" />
-          <Skeleton className="h-10 w-26 rounded-lg flex-shrink-0" variant="rectangular" />
-          <Skeleton className="h-10 w-26 rounded-lg flex-shrink-0" variant="rectangular" />
+          <Skeleton className="h-10 w-24 rounded-lg flex-shrink-0" variant="rectangular" />
+          <Skeleton className="h-10 w-24 rounded-lg flex-shrink-0" variant="rectangular" />
           <Skeleton className="h-10 w-20 rounded-lg flex-shrink-0" variant="rectangular" />
         </div>
 
-        {/* Content Grid — Services style (3 columns) */}
+        {/* Services Grid — matches grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <ServiceCardSkeleton key={i} />
@@ -151,79 +177,79 @@ export const BusinessProfileSkeleton: React.FC = () => {
 
 // ============================================
 // SERVICE CARD SKELETON
-// Matches the service card in business profile exactly:
-// - Icon/image area w-16 h-16 rounded-lg
-// - Name, description (1 line), price/discount/duration row
+// Exact same structure as service cards in BusinessProfilePage
+// <GlassCard variant="default" hover className="cursor-pointer p-0...no wait">
+// Actually: <GlassCard variant="default" hover className="cursor-pointer ...">
+// Inside: flex flex-col sm:flex-row gap-3 sm:gap-4
+//   - w-16 h-16 rounded-lg icon
+//   - flex-1: name, description, price/discount/duration
 // ============================================
 
 export const ServiceCardSkeleton: React.FC = () => {
   return (
-    <div className="glass-card p-6">
+    <GlassCard variant="default" hover={false} className="p-6">
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         {/* Icon — matches w-16 h-16 rounded-lg */}
         <Skeleton className="w-16 h-16 rounded-lg flex-shrink-0" variant="rectangular" />
         {/* Content */}
         <div className="flex-1 min-w-0">
-          {/* Service name */}
+          {/* Name — matches font-semibold line-clamp-1 */}
           <Skeleton className="h-5 w-3/4 mb-1" variant="text" />
-          {/* Description */}
+          {/* Description — matches text-sm line-clamp-1 */}
           <Skeleton className="h-4 w-full mb-2" variant="text" />
-          {/* Price / discount / duration row */}
-          <div className="flex items-center gap-3">
+          {/* Price/discount/duration — matches flex items-center gap-3 mt-2 */}
+          <div className="flex items-center gap-3 mt-2">
             <Skeleton className="h-5 w-12" variant="text" />
             <Skeleton className="h-4 w-10" variant="text" />
             <Skeleton className="h-4 w-14" variant="text" />
           </div>
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 };
 
 // ============================================
 // REVIEW SKELETON
-// Matches the review card in business profile exactly:
-// - Avatar circle w-10 h-10
-// - Name + date, verified badge
-// - 5 stars
-// - Comment (2 lines)
+// Exact same structure as review cards
+// <GlassCard variant="default" className="p-4">
+//   flex items-start gap-3 sm:gap-4 min-w-0
+//     - w-10 h-10 rounded-full gradient-bg avatar
+//     - flex-1: name+date, stars, comment
 // ============================================
 
 export const ReviewSkeleton: React.FC = () => {
   return (
-    <div className="glass-card p-4">
+    <GlassCard variant="default" hover={false} className="p-4">
       <div className="flex items-start gap-3 sm:gap-4 min-w-0">
         {/* Avatar — matches w-10 h-10 rounded-full gradient-bg */}
         <Skeleton className="w-10 h-10 rounded-full flex-shrink-0" variant="circular" />
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 mb-1">
-            <Skeleton className="h-4 w-24" variant="text" />
+            <div className="min-w-0">
+              <Skeleton className="h-4 w-24" variant="text" />
+            </div>
             <Skeleton className="h-4 w-16" variant="text" />
           </div>
-          {/* Stars — 5 small squares */}
+          {/* Stars — matches flex items-center gap-1 my-1 */}
           <div className="flex items-center gap-1 my-1">
             {[1, 2, 3, 4, 5].map((i) => (
               <Skeleton key={i} className="h-4 w-4 rounded-sm" variant="rectangular" />
             ))}
           </div>
-          {/* Comment */}
+          {/* Comment — matches text-muted-foreground line-clamp-3 */}
           <Skeleton className="h-4 w-full mb-1" variant="text" />
           <Skeleton className="h-4 w-5/6" variant="text" />
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 };
 
 // ============================================
 // MARKETPLACE SKELETON
-// Matches the MarketplacePage layout exactly:
-// - Header with "Discover Businesses" + subtitle
-// - Search bar card (2 inputs + button + category chips)
-// - Filter bar (mobile filter button + desktop filter dropdowns + sort + view toggle)
-// - Results count
-// - Business grid (6 cards)
+// Exact same structure as MarketplacePage
 // ============================================
 
 export const MarketplaceSkeleton: React.FC = () => {
@@ -236,35 +262,36 @@ export const MarketplaceSkeleton: React.FC = () => {
           <Skeleton className="h-5 w-72" variant="text" />
         </div>
 
-        {/* Search Bar Card — matches glass-card p-3 sm:p-4 */}
-        <div className="glass-card p-3 sm:p-4 mb-4 sm:mb-6">
+        {/* Search Bar Card — matches glass-card p-3 sm:p-4 mb-4 sm:mb-6 */}
+        <GlassCard hover={false} className="p-3 sm:p-4 mb-4 sm:mb-6">
+          {/* Primary Search Row — matches flex flex-col lg:flex-row gap-3 */}
           <div className="flex flex-col lg:flex-row gap-3">
-            {/* Text Search — matches flex-1 with label + input */}
+            {/* Text Search */}
             <div className="flex-1">
               <Skeleton className="h-3 w-36 mb-1" variant="text" />
               <Skeleton className="h-11 w-full rounded-xl" variant="rectangular" />
             </div>
-            {/* Location Search — matches flex-1 with label + input */}
+            {/* Location Search */}
             <div className="flex-1">
               <Skeleton className="h-3 w-16 mb-1" variant="text" />
               <Skeleton className="h-11 w-full rounded-xl" variant="rectangular" />
             </div>
-            {/* Search Button — matches h-12 w-32 */}
+            {/* Search Button */}
             <div className="flex items-end">
               <Skeleton className="h-12 w-full lg:w-32 rounded-xl" variant="rectangular" />
             </div>
           </div>
-          {/* Category Chips — matches 11 items */}
-          <div className="mt-4 -mb-2 overflow-x-auto">
+          {/* Category Chips — matches mt-4 -mb-2 overflow-x-auto */}
+          <div className="mt-4 -mb-2 overflow-x-auto scrollbar-hide">
             <div className="flex gap-2 pb-2">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => (
                 <Skeleton key={i} className="h-9 w-24 rounded-full flex-shrink-0" />
               ))}
             </div>
           </div>
-        </div>
+        </GlassCard>
 
-        {/* Filter Bar — matches flex items-center gap-2 sm:gap-3 */}
+        {/* Filter Bar — matches flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-wrap */}
         <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-wrap">
           {/* Mobile Filter Button */}
           <Skeleton className="h-11 w-20 rounded-xl lg:hidden" variant="rectangular" />
@@ -277,15 +304,18 @@ export const MarketplaceSkeleton: React.FC = () => {
           {/* Sort Dropdown */}
           <Skeleton className="h-11 w-32 rounded-full ml-auto" variant="rectangular" />
           {/* View Toggle */}
-          <Skeleton className="h-11 w-20 rounded-lg hidden sm:block" variant="rectangular" />
+          <div className="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-muted/50">
+            <Skeleton className="h-9 w-9 rounded" variant="rectangular" />
+            <Skeleton className="h-9 w-9 rounded" variant="rectangular" />
+          </div>
         </div>
 
         {/* Results Count */}
         <div className="mb-3 sm:mb-4">
-          <Skeleton className="h-5 w-40" variant="text" />
+          <Skeleton className="h-5 w-48" variant="text" />
         </div>
 
-        {/* Business Grid — matches grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 */}
+        {/* Business Grid — matches grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <BusinessCardSkeleton key={i} />
@@ -298,11 +328,17 @@ export const MarketplaceSkeleton: React.FC = () => {
 
 // ============================================
 // HERO SECTION SKELETON
-// Matches the HeroSection layout exactly:
-// - Background gradient orbs
-// - Left: badge (pill), heading (2 lines), description (1 line), search box (3 inputs), quick actions (2 buttons)
-// - Right: stats grid (2x2), feature cards (3)
-// - Wave divider
+// Exact same structure as HeroSection
+// <section className="relative min-h-[80vh] sm:min-h-[90vh] flex items-center hero-pattern overflow-hidden">
+//   orbs
+//   <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20">
+//     <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
+//       Left: badge, heading (2 lines), desc, search card, buttons
+//       Right: stats grid (2x2), feature cards (3)
+//     </div>
+//   </div>
+//   wave divider
+// </section>
 // ============================================
 
 export const HeroSectionSkeleton: React.FC = () => {
@@ -314,58 +350,63 @@ export const HeroSectionSkeleton: React.FC = () => {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20">
         <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
-          {/* Left Content — text-center lg:text-left */}
+          {/* Left Content — same text-center lg:text-left */}
           <div className="text-center lg:text-left">
-            {/* Badge — matches inline-flex items-center gap-2 px-4 py-2 rounded-full */}
+            {/* Badge — matches inline-flex px-4 py-2 rounded-full bg-primary/10 */}
             <Skeleton className="h-9 w-44 rounded-full mb-6 mx-auto lg:mx-0" variant="rectangular" />
 
-            {/* Heading — matches text-4xl/5xl/6xl two lines */}
+            {/* Heading — matches text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 */}
             <Skeleton className="h-12 w-64 mb-2 mx-auto lg:mx-0" variant="text" />
             <Skeleton className="h-14 w-48 mb-6 mx-auto lg:mx-0" variant="text" />
 
-            {/* Description — matches text-base/1g max-w-xl */}
+            {/* Description — matches text-base sm:text-lg mb-8 max-w-xl */}
             <Skeleton className="h-5 w-full max-w-xl mb-3 mx-auto lg:mx-0" variant="text" />
             <Skeleton className="h-5 w-3/4 max-w-xl mb-8 mx-auto lg:mx-0" variant="text" />
 
-            {/* Search Box — matches glass-card p-3 sm:p-4 max-w-xl */}
-            <div className="glass-card p-3 sm:p-4 mb-8 max-w-xl mx-auto lg:mx-0">
+            {/* Search Box — matches glass-card p-3 sm:p-4 mb-8 max-w-xl */}
+            <GlassCard hover={false} className="p-3 sm:p-4 mb-8 max-w-xl mx-auto lg:mx-0">
               <div className="flex flex-col gap-3">
                 <Skeleton className="h-11 w-full rounded-xl" variant="rectangular" />
                 <Skeleton className="h-11 w-full rounded-xl" variant="rectangular" />
                 <Skeleton className="h-11 w-full rounded-xl" variant="rectangular" />
               </div>
-            </div>
+            </GlassCard>
 
-            {/* Quick Actions — matches flex gap-3 */}
+            {/* Quick Actions — matches flex-wrap justify-center lg:justify-start gap-3 */}
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
               <Skeleton className="h-11 w-28 rounded-xl" variant="rectangular" />
               <Skeleton className="h-11 w-32 rounded-xl" variant="rectangular" />
             </div>
           </div>
 
-          {/* Right Content — Stats & Features */}
+          {/* Right Content — same space-y-6 */}
           <div className="space-y-6">
             {/* Stats Grid — matches grid grid-cols-2 gap-3 sm:gap-4 */}
             <div className="grid grid-cols-2 gap-3 sm:gap-4">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="glass-card p-3 sm:p-4 text-center">
+                <GlassCard key={i} hover={false} className="p-3 sm:p-4 text-center">
+                  {/* Value — matches text-xl sm:text-2xl md:text-3xl font-bold gradient-text */}
                   <Skeleton className="h-8 w-16 mx-auto mb-2" variant="text" />
+                  {/* Label — matches text-xs sm:text-sm */}
                   <Skeleton className="h-4 w-24 mx-auto" variant="text" />
-                </div>
+                </GlassCard>
               ))}
             </div>
 
-            {/* Feature Cards — matches 3 cards with icon + title + desc */}
+            {/* Feature Cards — matches 3× GlassCard flex items-start gap-3 sm:gap-4 p-3 sm:p-4 */}
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="glass-card flex items-start gap-3 sm:gap-4 p-3 sm:p-4">
+                <GlassCard key={i} variant="default" hover={false} className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4">
+                  {/* Icon — matches h-10 w-10 sm:h-12 sm:w-12 rounded-xl gradient-bg */}
                   <Skeleton className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex-shrink-0" variant="rectangular" />
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
+                    {/* Title — matches font-semibold text-sm sm:text-base mb-1 */}
                     <Skeleton className="h-5 w-28 mb-1" variant="text" />
+                    {/* Description — matches text-xs sm:text-sm line-clamp-2 */}
                     <Skeleton className="h-4 w-full" variant="text" />
                     <Skeleton className="h-4 w-3/4 mt-1" variant="text" />
                   </div>
-                </div>
+                </GlassCard>
               ))}
             </div>
           </div>
@@ -393,9 +434,13 @@ export const HeroSectionSkeleton: React.FC = () => {
 
 // ============================================
 // CATEGORIES SECTION SKELETON
-// Matches the CategoriesSection layout exactly:
-// - Section header with "Explore by Category" + description
-// - Grid of 8 category cards (icon, name, count)
+// Exact same structure as CategoriesSection
+// <section className="py-10 sm:py-12 lg:py-16 bg-muted/30">
+//   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+//     header (text-center mb-8 sm:mb-12)
+//     grid (2/3/4 cols) with GlassCard items
+//   </div>
+// </section>
 // ============================================
 
 export const CategoriesSectionSkeleton: React.FC = () => {
@@ -408,17 +453,17 @@ export const CategoriesSectionSkeleton: React.FC = () => {
           <Skeleton className="h-5 w-72 mx-auto" variant="text" />
         </div>
 
-        {/* Category Grid — matches grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 */}
+        {/* Category Grid — matches grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div key={i} className="glass-card p-4 sm:p-5 lg:p-6 text-left">
-              {/* Icon — matches h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-xl */}
+            <GlassCard key={i} hover={false} className="p-4 sm:p-5 lg:p-6 text-left">
+              {/* Icon — matches h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-xl bg-gradient-to-br */}
               <Skeleton className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-xl mb-3 sm:mb-4" variant="rectangular" />
-              {/* Name */}
+              {/* Name — matches font-semibold text-sm sm:text-base mb-1 */}
               <Skeleton className="h-5 w-24 sm:w-28 mb-1" variant="text" />
-              {/* Count */}
+              {/* Count — matches text-xs sm:text-sm */}
               <Skeleton className="h-4 w-16 sm:w-20" variant="text" />
-            </div>
+            </GlassCard>
           ))}
         </div>
       </div>
@@ -428,10 +473,16 @@ export const CategoriesSectionSkeleton: React.FC = () => {
 
 // ============================================
 // CTA SECTION SKELETON
-// Matches the CTASection layout exactly:
-// - 2-column grid layout
-// - Left: badge pill, heading, description, benefits grid (2x2), CTA buttons
-// - Right: stats card with 2x2 stats + promo box
+// Exact same structure as CTASection
+// <section className="py-12 sm:py-16 lg:py-20 relative overflow-hidden">
+//   bg orbs
+//   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+//     <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
+//       Left: badge, heading, description, benefits (2x2), buttons
+//       Right: glass-card p-5 sm:p-6 lg:p-8 glow with stats + promo
+//     </div>
+//   </div>
+// </section>
 // ============================================
 
 export const CTASectionSkeleton: React.FC = () => {
@@ -446,43 +497,45 @@ export const CTASectionSkeleton: React.FC = () => {
         <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
           {/* Left Content */}
           <div>
-            {/* Badge — matches inline-flex px-4 py-2 rounded-full */}
+            {/* Badge — matches inline-flex px-4 py-2 rounded-full bg-primary/10 */}
             <Skeleton className="h-9 w-40 rounded-full mb-6" variant="rectangular" />
-            {/* Heading — matches text-2xl/3xl/4xl */}
+            {/* Heading — matches text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 */}
             <Skeleton className="h-10 w-72 mb-4 sm:mb-6" variant="text" />
-            {/* Description */}
+            {/* Description — matches text-base sm:text-lg mb-6 sm:mb-8 */}
             <Skeleton className="h-5 w-full max-w-lg mb-3" variant="text" />
             <Skeleton className="h-5 w-3/4 max-w-lg mb-6 sm:mb-8" variant="text" />
 
-            {/* Benefits Grid — matches grid-cols-1 sm:grid-cols-2 */}
+            {/* Benefits — matches grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-6 sm:mb-8 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-6 sm:mb-8">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={i} className="flex items-center gap-2 min-w-0">
+                  {/* Check circle — matches h-5 w-5 rounded-full gradient-bg */}
                   <Skeleton className="h-5 w-5 rounded-full flex-shrink-0" variant="circular" />
+                  {/* Text */}
                   <Skeleton className="h-4 w-32" variant="text" />
                 </div>
               ))}
             </div>
 
-            {/* CTA Buttons */}
+            {/* Buttons — matches flex flex-wrap gap-4 */}
             <div className="flex flex-wrap gap-4">
               <Skeleton className="h-12 w-44 rounded-xl" variant="rectangular" />
               <Skeleton className="h-12 w-36 rounded-xl" variant="rectangular" />
             </div>
           </div>
 
-          {/* Right Content — Stats Card */}
-          <div className="glass-card p-5 sm:p-6 lg:p-8 glow">
-            {/* Header */}
+          {/* Right Content — Stats Card — matches glass-card p-5 sm:p-6 lg:p-8 glow */}
+          <GlassCard hover={false} glow className="p-5 sm:p-6 lg:p-8">
+            {/* Header — matches text-center mb-6 sm:mb-8 */}
             <div className="text-center mb-6 sm:mb-8">
               <Skeleton className="h-6 w-48 mx-auto mb-2" variant="text" />
               <Skeleton className="h-4 w-56 mx-auto" variant="text" />
             </div>
 
-            {/* Stats Grid — matches grid-cols-2 gap-4 sm:gap-6 */}
+            {/* Stats — matches grid grid-cols-2 gap-4 sm:gap-6 */}
             <div className="grid grid-cols-2 gap-4 sm:gap-6">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="text-center">
+                <div key={i} className="text-center min-w-0">
                   <Skeleton className="h-7 w-12 mx-auto mb-1" variant="text" />
                   <Skeleton className="h-4 w-24 mx-auto mb-1" variant="text" />
                   <Skeleton className="h-3 w-12 mx-auto" variant="text" />
@@ -490,11 +543,11 @@ export const CTASectionSkeleton: React.FC = () => {
               ))}
             </div>
 
-            {/* Promo Box — matches p-4 rounded-xl bg-primary/5 */}
+            {/* Promo — matches mt-8 p-4 rounded-xl bg-primary/5 border border-primary/10 */}
             <div className="mt-8 p-4 rounded-xl bg-primary/5 border border-primary/10">
               <Skeleton className="h-4 w-80 mx-auto" variant="text" />
             </div>
-          </div>
+          </GlassCard>
         </div>
       </div>
     </section>
@@ -503,10 +556,6 @@ export const CTASectionSkeleton: React.FC = () => {
 
 // ============================================
 // DASHBOARD SKELETON
-// Matches the dashboard layout:
-// - Header with greeting and actions
-// - Stats cards (2x2 on mobile, 4-col on desktop)
-// - Recent bookings / activity list (2 columns)
 // ============================================
 
 export const DashboardSkeleton: React.FC = () => {
@@ -519,24 +568,24 @@ export const DashboardSkeleton: React.FC = () => {
           <Skeleton className="h-5 w-48" variant="text" />
         </div>
 
-        {/* Stats Grid — matches grid-cols-2 lg:grid-cols-4 */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="glass-card p-4 sm:p-6">
+            <GlassCard key={i} hover={false} className="p-4 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <Skeleton className="h-10 w-10 rounded-xl" variant="rectangular" />
                 <Skeleton className="h-4 w-12" variant="text" />
               </div>
               <Skeleton className="h-7 w-20 mb-1" variant="text" />
               <Skeleton className="h-4 w-24" variant="text" />
-            </div>
+            </GlassCard>
           ))}
         </div>
 
-        {/* Content Cards — matches grid lg:grid-cols-2 */}
+        {/* Content Cards */}
         <div className="grid lg:grid-cols-2 gap-6">
           {[1, 2].map((i) => (
-            <div key={i} className="glass-card p-4 sm:p-6">
+            <GlassCard key={i} hover={false} className="p-4 sm:p-6">
               <Skeleton className="h-6 w-32 mb-4" variant="text" />
               {[1, 2, 3].map((j) => (
                 <div key={j} className="flex items-center gap-3 mb-3 pb-3 border-b border-border last:border-0 last:mb-0 last:pb-0">
@@ -548,7 +597,7 @@ export const DashboardSkeleton: React.FC = () => {
                   <Skeleton className="h-6 w-16 rounded-full" />
                 </div>
               ))}
-            </div>
+            </GlassCard>
           ))}
         </div>
       </div>
@@ -558,11 +607,6 @@ export const DashboardSkeleton: React.FC = () => {
 
 // ============================================
 // BOOKING SKELETON
-// Matches the booking page layout:
-// - Header with title + subtitle
-// - Business info card
-// - Service selection list
-// - Date/time grid
 // ============================================
 
 export const BookingSkeleton: React.FC = () => {
@@ -576,7 +620,7 @@ export const BookingSkeleton: React.FC = () => {
         </div>
 
         {/* Business info card */}
-        <div className="glass-card p-4 sm:p-6 mb-6">
+        <GlassCard hover={false} className="p-4 sm:p-6 mb-6">
           <div className="flex items-center gap-4">
             <Skeleton className="h-16 w-16 rounded-xl flex-shrink-0" variant="rectangular" />
             <div className="flex-1">
@@ -584,10 +628,10 @@ export const BookingSkeleton: React.FC = () => {
               <Skeleton className="h-4 w-24" variant="text" />
             </div>
           </div>
-        </div>
+        </GlassCard>
 
         {/* Service selection */}
-        <div className="glass-card p-4 sm:p-6 mb-6">
+        <GlassCard hover={false} className="p-4 sm:p-6 mb-6">
           <Skeleton className="h-6 w-36 mb-4" variant="text" />
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-center gap-3 mb-3 pb-3 border-b border-border last:border-0">
@@ -599,17 +643,17 @@ export const BookingSkeleton: React.FC = () => {
               <Skeleton className="h-5 w-16" variant="text" />
             </div>
           ))}
-        </div>
+        </GlassCard>
 
         {/* Date/Time */}
-        <div className="glass-card p-4 sm:p-6">
+        <GlassCard hover={false} className="p-4 sm:p-6">
           <Skeleton className="h-6 w-32 mb-4" variant="text" />
           <div className="grid grid-cols-3 gap-2 mb-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton key={i} className="h-10 rounded-lg" variant="rectangular" />
             ))}
           </div>
-        </div>
+        </GlassCard>
       </div>
     </div>
   );
