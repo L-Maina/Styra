@@ -469,7 +469,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.4, ease: 'easeInOut' }}
-        className="fixed top-0 left-0 right-0 z-40 hidden md:block glass-nav"
+        className="fixed top-0 left-0 right-0 z-[9999] hidden md:block glass-nav"
       >
         <div className="relative w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between min-h-[44px] sm:min-h-[56px] lg:min-h-[64px]">
@@ -619,14 +619,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
 
                     <AnimatePresence>
                       {isNotificationsOpen && (
-                        <>
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-40"
-                            onClick={() => setIsNotificationsOpen(false)}
-                          />
                           <motion.div
                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -693,7 +685,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                               })}
                             </div>
                           </motion.div>
-                        </>
                       )}
                     </AnimatePresence>
                   </div>
@@ -720,14 +711,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
 
                       <AnimatePresence>
                         {isMessagesOpen && (
-                          <>
-                            <motion.div
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              className="fixed inset-0 z-40"
-                              onClick={() => setIsMessagesOpen(false)}
-                            />
                             <motion.div
                               initial={{ opacity: 0, y: 10, scale: 0.95 }}
                               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -790,7 +773,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                                 </button>
                               </div>
                             </motion.div>
-                          </>
                         )}
                       </AnimatePresence>
                     </div>
@@ -1061,7 +1043,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.4, ease: 'easeInOut' }}
-        className="fixed top-0 left-0 right-0 z-40 md:hidden safe-area-top glass-nav"
+        className="fixed top-0 left-0 right-0 z-[9999] md:hidden safe-area-top glass-nav"
       >
         <div className="relative flex items-center justify-between min-h-[44px] sm:min-h-[56px] px-3 sm:px-4">
           {/* Left Side - Back Button for sub-pages only */}
@@ -1140,14 +1122,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
         {/* Mobile Notifications Panel - Liquid Glass */}
         <AnimatePresence>
           {isNotificationsOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-40 bg-black/20"
-                onClick={() => setIsNotificationsOpen(false)}
-              />
               <motion.div
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1216,14 +1190,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                   })}
                 </div>
               </motion.div>
-            </>
           )}
         </AnimatePresence>
       </motion.header>
 
       {/* Mobile Bottom Tab Bar - Premium Liquid Glass Style */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden safe-area-bottom"
+        className="fixed bottom-0 left-0 right-0 z-[9999] md:hidden safe-area-bottom"
         style={{
           background: 'rgba(255, 255, 255, 0.9)',
           backdropFilter: 'blur(20px)',

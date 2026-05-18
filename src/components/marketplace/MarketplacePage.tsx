@@ -611,7 +611,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         <FadeIn delay={0.15}>
           <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-wrap">
             {/* Left: Filter Buttons */}
-            <div className="flex items-center gap-2 flex-1 flex-nowrap overflow-x-auto">
+            <div className="flex items-center gap-2 flex-1 flex-nowrap overflow-x-auto lg:overflow-visible">
               {/* Mobile Filter Button */}
               <GlassButton
                 variant="default"
