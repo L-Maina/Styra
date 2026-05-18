@@ -9,8 +9,8 @@ import {
   FadeIn,
   StaggerChildren,
   StaggerItem,
-  Skeleton,
 } from '@/components/ui/custom/glass-components';
+import { BusinessCardSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { useAuthStore } from '@/store';
 import { cn } from '@/lib/utils';
 import type { Business } from '@/types';
@@ -34,15 +34,17 @@ export const FeaturedBusinesses: React.FC<FeaturedBusinessesProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <section className="py-10 sm:py-16">
+      <section className="pt-6 pb-10 sm:pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-6 sm:mb-8">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-6 w-24" />
+            <div>
+              <div className="h-8 w-48 skeleton rounded-xl mb-2" />
+              <div className="h-4 w-64 skeleton rounded-xl" />
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {[...Array(6)].map((_, i) => (
-              <Skeleton key={i} className="h-64 w-full" />
+              <BusinessCardSkeleton key={i} />
             ))}
           </div>
         </div>

@@ -43,6 +43,7 @@ import { CareersPage } from '@/components/pages/CareersPage';
 
 import { ApiDocumentation } from '@/components/docs/ApiDocumentation';
 import { GlassButton, GlassCard } from '@/components/ui/custom/glass-components';
+import { HeroSectionSkeleton, BusinessCardSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { useAuthStore, useAdminStore } from '@/store';
 import { api } from '@/lib/api-client';
 import { useBusinesses, useBookings, useApiNotifications, useConversations } from '@/hooks/use-business-data';
@@ -113,6 +114,7 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [useMyLocation, setUseMyLocation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [businessDetailLoading, setBusinessDetailLoading] = useState(false);
 
   // Auth prompt modal state for guests
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
@@ -322,6 +324,7 @@ export default function HomePage() {
     navigate('business');
 
     // Then fetch full details (including images, portfolio, reviews, staff)
+    setBusinessDetailLoading(true);
     try {
       const res = await api.getBusiness(business.id);
       if (res.data) {
@@ -329,6 +332,8 @@ export default function HomePage() {
       }
     } catch {
       // If fetch fails, the basic data is already set — images will just be missing
+    } finally {
+      setBusinessDetailLoading(false);
     }
   }, [navigate]);
 
@@ -419,6 +424,34 @@ export default function HomePage() {
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
+        // Show skeleton while businesses are loading
+        if (businessesLoading) {
+          return (
+            <motion.div
+              key="home-loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <HeroSectionSkeleton />
+              <section className="pt-6 pb-10 sm:pb-16">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="flex items-center justify-between mb-6 sm:mb-8">
+                    <div>
+                      <div className="h-8 w-48 skeleton rounded-xl mb-2" />
+                      <div className="h-4 w-64 skeleton rounded-xl" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <BusinessCardSkeleton key={i} />
+                    ))}
+                  </div>
+                </div>
+              </section>
+            </motion.div>
+          );
+        }
         return (
           <motion.div
             key="home"
@@ -470,6 +503,7 @@ export default function HomePage() {
             searchQuery={searchQuery}
             selectedCategory={selectedCategory}
             useMyLocation={useMyLocation}
+            isLoading={businessesLoading}
             onSelectBusiness={handleSelectBusiness}
             onSearch={handleSearch}
             onFavorite={() => requireAuth('favorite')}
@@ -482,6 +516,7 @@ export default function HomePage() {
           <BusinessProfilePage
             key="business"
             business={selectedBusiness}
+            isLoading={businessDetailLoading}
             onBack={() => navigate('home')}
             onBook={(service) => {
               // Require auth for booking

@@ -33,6 +33,7 @@ import {
   StaggerChildren,
   StaggerItem,
 } from '@/components/ui/custom/glass-components';
+import { MarketplaceSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { LocationAutocomplete } from '@/components/ui/custom/LocationAutocomplete';
 import { SearchAutocomplete } from '@/components/ui/custom/SearchAutocomplete';
 import { BusinessCard } from '@/components/home/FeaturedBusinesses';
@@ -44,6 +45,7 @@ interface MarketplacePageProps {
   searchQuery?: string;
   selectedCategory?: string;
   useMyLocation?: boolean;
+  isLoading?: boolean;
   onSelectBusiness?: (business: Business) => void;
   onSearch?: (query: string) => void;
   onFavorite?: (business: Business) => void;
@@ -92,6 +94,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   searchQuery = '',
   selectedCategory = '',
   useMyLocation = false,
+  isLoading = false,
   onSelectBusiness,
   onSearch,
   onFavorite,
@@ -512,6 +515,11 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  // Show skeleton while loading
+  if (isLoading) {
+    return <MarketplaceSkeleton />;
+  }
 
   return (
     <motion.div

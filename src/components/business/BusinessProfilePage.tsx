@@ -37,12 +37,14 @@ import {
   GlassBadge,
   FadeIn,
 } from '@/components/ui/custom/glass-components';
+import { BusinessProfileSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { useAuthStore } from '@/store';
 import { cn } from '@/lib/utils';
 import type { Business, Service, Staff, Review, User } from '@/types';
 
 interface BusinessProfilePageProps {
   business: Business;
+  isLoading?: boolean;
   onBack?: () => void;
   onBook?: (service?: Service) => void;
   onMessage?: () => void;
@@ -116,6 +118,7 @@ const defaultDayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday',
 
 export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
   business,
+  isLoading = false,
   onBack,
   onBook,
   onMessage,
@@ -172,6 +175,11 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
     if (!todayHours || todayHours.toLowerCase() === 'closed') return false;
     return true; // Simplified — actual open/close time parsing would go here
   }, [operatingHours]);
+
+  // Show skeleton while loading
+  if (isLoading) {
+    return <BusinessProfileSkeleton />;
+  }
 
   return (
     <motion.div
