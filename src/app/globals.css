@@ -423,6 +423,11 @@
   animation: shimmer 2s ease-in-out infinite;
 }
 
+/* Shimmer animation utility class for image loading placeholders */
+.animate-shimmer {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
 /* ============================================
    PREMIUM BUTTON SYSTEM
    ============================================ */

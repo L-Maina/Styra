@@ -89,18 +89,19 @@ export async function GET(request: NextRequest) {
         reviewCount: b._count.reviews,
         portfolioCount: b._count.portfolio,
         reviews: [],
-        // Use coverImage first, fall back to boothPhotoUrl for display
-        coverImage: b.coverImage || b.boothPhotoUrl || null,
-        // For public listings, strip large base64 data URLs to keep responses small.
-        // Keep the boolean flags so the frontend knows images exist and can show placeholders.
-        // The full images are loaded when viewing the individual business profile.
+        // For public listings, strip ALL large base64 data URLs to keep responses small.
+        // Cover images are lazy-loaded by BusinessCard via /api/businesses/[id]/cover
+        // to avoid multi-megabyte listing responses that time out.
         ...(isPublicListing ? {
           coverImage: null,
           logo: null,
           boothPhotoUrl: null,
           hasCoverImage: !!(b.coverImage || b.boothPhotoUrl),
           hasLogo: !!b.logo,
-        } : {}),
+        } : {
+          // Owner's dashboard: keep coverImage for display
+          coverImage: b.coverImage || b.boothPhotoUrl || null,
+        }),
       };
     });
 

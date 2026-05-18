@@ -81,14 +81,22 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
       className="min-h-screen pb-24"
     >
       {/* Cover Image */}
-      <div className="relative h-48 sm:h-64 md:h-80 bg-gradient-to-br from-primary/20 to-secondary/20">
-        {business.coverImage && (
+      <div className="relative h-48 sm:h-64 md:h-80 bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden">
+        {(business.coverImage || business.boothPhotoUrl) ? (
           <img
-            src={business.coverImage}
+            src={business.coverImage || business.boothPhotoUrl || ''}
             alt={business.name}
             className="w-full h-full object-cover"
           />
-        )}
+        ) : (business as any).hasCoverImage ? (
+          // Cover image exists but is still loading (detail fetch in progress)
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/30 via-primary/20 to-secondary/30">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+            <span className="text-6xl sm:text-7xl font-bold text-primary/40">
+              {business.name?.charAt(0)?.toUpperCase() || 'B'}
+            </span>
+          </div>
+        ) : null}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
         {/* Back Button - Hidden on mobile since Navbar handles back navigation */}
@@ -181,6 +189,9 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
               <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl sm:text-3xl overflow-hidden flex-shrink-0">
                 {business.logo ? (
                   <img src={business.logo} alt={business.name} className="w-full h-full object-cover" />
+                ) : (business as any).hasLogo && !business.logo ? (
+                  // Logo exists but is still loading (detail fetch in progress)
+                  <span className="text-white font-bold animate-pulse">{business.name?.charAt(0)?.toUpperCase() || 'B'}</span>
                 ) : (
                   '💇'
                 )}

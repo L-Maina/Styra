@@ -145,6 +145,12 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
   const [isFavorite, setIsFavorite] = React.useState(false);
   const { user, isAuthenticated } = useAuthStore();
   
+  // Lazy-loaded cover image state
+  const [coverImageUrl, setCoverImageUrl] = React.useState<string | null>(business.coverImage || null);
+  const [imageLoading, setImageLoading] = React.useState(false);
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const hasFetchedImage = React.useRef(false);
+
   // Mode-based restrictions - only show favorite in CLIENT mode (or guest)
   const activeMode = user?.activeMode || 'CLIENT';
   const isAdmin = user?.roles?.includes('ADMIN');
@@ -165,6 +171,45 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
     }
   };
 
+  // Lazy-load cover image when card becomes visible
+  React.useEffect(() => {
+    // If cover image is already available (from detail fetch or owner listing), skip lazy load
+    if (coverImageUrl || hasFetchedImage.current) return;
+    // Only lazy-load if the business has a cover image (flag set by listing API)
+    if (!(business as any).hasCoverImage) return;
+
+    const currentRef = cardRef.current;
+    if (!currentRef) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !hasFetchedImage.current) {
+          hasFetchedImage.current = true;
+          setImageLoading(true);
+          // Fetch just the cover image from the lightweight endpoint
+          fetch(`/api/businesses/${business.id}/cover`)
+            .then((res) => res.json())
+            .then((json) => {
+              if (json.success && json.data?.coverImage) {
+                setCoverImageUrl(json.data.coverImage);
+              }
+            })
+            .catch(() => {
+              // Silently fail — placeholder remains
+            })
+            .finally(() => {
+              setImageLoading(false);
+            });
+          observer.unobserve(currentRef);
+        }
+      },
+      { rootMargin: '200px' } // Start loading 200px before card enters viewport
+    );
+
+    observer.observe(currentRef);
+    return () => observer.disconnect();
+  }, [business.id, (business as any).hasCoverImage, coverImageUrl]);
+
   return (
     <GlassCard
       variant="default"
@@ -176,16 +221,23 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       onClick={onClick}
     >
       {/* Image */}
-      <div className="relative h-40 sm:h-48 bg-gradient-to-br from-primary/20 to-secondary/20">
-        {business.coverImage ? (
+      <div ref={cardRef} className="relative h-40 sm:h-48 bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden">
+        {coverImageUrl ? (
           <img
-            src={business.coverImage}
+            src={coverImageUrl}
             alt={business.name}
             className="w-full h-full object-cover"
           />
+        ) : imageLoading ? (
+          // Shimmer loading placeholder while image is being fetched
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+            <span className="text-5xl font-bold text-primary/40">
+              {business.name?.charAt(0)?.toUpperCase() || 'B'}
+            </span>
+          </div>
         ) : (business as any).hasCoverImage ? (
-          // Business has a cover image but it was stripped from listing for performance
-          // Show a gradient placeholder with the business initial
+          // Business has a cover image but it hasn't loaded yet
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/30 via-primary/20 to-secondary/30">
             <span className="text-5xl font-bold text-primary/60">
               {business.name?.charAt(0)?.toUpperCase() || 'B'}
