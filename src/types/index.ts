@@ -92,8 +92,9 @@ export interface Business {
   id: string;
   ownerId: string;
   name: string;
-  slug: string;
+  slug?: string;
   description?: string;
+  category?: string;
   logo?: string;
   coverImage?: string;
   boothPhotoUrl?: string;
@@ -106,8 +107,10 @@ export interface Business {
   country?: string;
   latitude?: number;
   longitude?: number;
-  serviceRadius: number;
-  verificationStatus: VerificationStatus;
+  serviceRadius?: number;
+  operatingHours?: string; // JSON string of operating hours
+  amenities?: string; // JSON string of amenities list
+  verificationStatus?: VerificationStatus;
   subscriptionPlan: SubscriptionPlan;
   rating: number;
   reviewCount: number;
