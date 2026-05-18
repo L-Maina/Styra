@@ -11,6 +11,7 @@ import {
   StaggerItem,
 } from '@/components/ui/custom/glass-components';
 import { BusinessCardSkeleton } from '@/components/ui/custom/skeleton-presets';
+import { Skeleton } from '@/components/ui/custom/glass-components';
 import { useAuthStore } from '@/store';
 import { cn } from '@/lib/utils';
 import type { Business } from '@/types';
@@ -38,12 +39,13 @@ export const FeaturedBusinesses: React.FC<FeaturedBusinessesProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-6 sm:mb-8">
             <div>
-              <div className="h-8 w-48 skeleton rounded-xl mb-2" />
-              <div className="h-4 w-64 skeleton rounded-xl" />
+              <Skeleton className="h-8 w-48 mb-2" variant="text" />
+              <Skeleton className="h-4 w-64" variant="text" />
             </div>
+            <Skeleton className="h-5 w-20 hidden sm:block" variant="text" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {[...Array(6)].map((_, i) => (
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <BusinessCardSkeleton key={i} />
             ))}
           </div>

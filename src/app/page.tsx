@@ -44,6 +44,7 @@ import { CareersPage } from '@/components/pages/CareersPage';
 import { ApiDocumentation } from '@/components/docs/ApiDocumentation';
 import { GlassButton, GlassCard } from '@/components/ui/custom/glass-components';
 import { HeroSectionSkeleton, BusinessCardSkeleton, CategoriesSectionSkeleton, CTASectionSkeleton, DashboardSkeleton, BookingSkeleton, BusinessProfileSkeleton } from '@/components/ui/custom/skeleton-presets';
+import { Skeleton } from '@/components/ui/custom/glass-components';
 import { useAuthStore, useAdminStore } from '@/store';
 import { api } from '@/lib/api-client';
 import { useBusinesses, useBookings, useApiNotifications, useConversations } from '@/hooks/use-business-data';
@@ -144,9 +145,9 @@ export default function HomePage() {
 
   // ─── Minimum loading time for skeletons ──────────────────────────────
   // Ensures skeleton UI shows for at least 1.2s so users can perceive it
-  const showBusinessesSkeleton = useMinimumLoading(businessesLoading, 1200);
-  const showBusinessDetailSkeleton = useMinimumLoading(businessDetailLoading, 1000);
-  const showBookingsSkeleton = useMinimumLoading(bookingsLoading, 800);
+  const showBusinessesSkeleton = useMinimumLoading(businessesLoading, 2000);
+  const showBusinessDetailSkeleton = useMinimumLoading(businessDetailLoading, 1500);
+  const showBookingsSkeleton = useMinimumLoading(bookingsLoading, 1000);
 
   // Guest mode - if not authenticated, treat as CLIENT guest
   const isGuest = !isAuthenticated && !user;
@@ -445,9 +446,10 @@ export default function HomePage() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="flex items-center justify-between mb-6 sm:mb-8">
                     <div>
-                      <div className="h-8 w-48 skeleton rounded-xl mb-2" />
-                      <div className="h-4 w-64 skeleton rounded-xl" />
+                      <Skeleton className="h-8 w-48 mb-2" variant="text" />
+                      <Skeleton className="h-4 w-64" variant="text" />
                     </div>
+                    <Skeleton className="h-5 w-20 hidden sm:block" variant="text" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {[1, 2, 3, 4, 5, 6].map((i) => (

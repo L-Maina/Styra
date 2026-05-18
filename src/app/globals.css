@@ -402,12 +402,13 @@
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: rgba(108, 78, 255, 0.12);
+  background: rgba(108, 78, 255, 0.20);
   border-radius: var(--radius);
+  animation: skeleton-pulse 2s ease-in-out infinite;
 }
 
 .light .skeleton {
-  background: rgba(108, 78, 255, 0.08);
+  background: rgba(108, 78, 255, 0.18);
 }
 
 .skeleton::after {
@@ -420,23 +421,28 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(108, 78, 255, 0.18) 25%,
-    rgba(58, 190, 255, 0.14) 50%,
-    rgba(108, 78, 255, 0.18) 75%,
+    rgba(108, 78, 255, 0.30) 25%,
+    rgba(58, 190, 255, 0.24) 50%,
+    rgba(108, 78, 255, 0.30) 75%,
     transparent 100%
   );
-  animation: shimmer 1.8s ease-in-out infinite;
+  animation: shimmer 1.5s ease-in-out infinite;
 }
 
 .light .skeleton::after {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(108, 78, 255, 0.12) 25%,
-    rgba(58, 190, 255, 0.10) 50%,
-    rgba(108, 78, 255, 0.12) 75%,
+    rgba(108, 78, 255, 0.22) 25%,
+    rgba(58, 190, 255, 0.18) 50%,
+    rgba(108, 78, 255, 0.22) 75%,
     transparent 100%
   );
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 /* Shimmer animation utility class for image loading placeholders */
