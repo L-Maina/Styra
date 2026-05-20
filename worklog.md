@@ -129,3 +129,25 @@ Stage Summary:
 - styra.app is NOT our domain — user needs to either purchase it or use the Vercel URL
 - NEXT_PUBLIC_APP_URL set to correct deployment URL on Vercel
 - Clean path URLs avoid XML entity issues with unescaped ampersands
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Fix sitemap URLs — update from old Vercel URL to correct global URL styra-silk.vercel.app
+
+Work Log:
+- User confirmed the global URL is styra-silk.vercel.app (not styra.app or the old Vercel deployment URL)
+- Updated fallback URLs in 4 files: sitemap.ts, layout.tsx, robots.txt, middleware.ts
+- Changed from styra-mkdf6yzjk7-8552s-projects.vercel.app → styra-silk.vercel.app
+- Deleted old NEXT_PUBLIC_APP_URL env vars on Vercel (were encrypted/sensitive with wrong values)
+- Created new NEXT_PUBLIC_APP_URL=https://styra-silk.vercel.app as plain text for production/preview/development
+- Triggered manual Vercel deployment via API (dpl_BB8CPn11y4L3syGM8sAzopSx4Eat)
+- Verified deployment completed (READY state)
+- Confirmed sitemap at https://styra-silk.vercel.app/sitemap.xml now shows 27 URLs all with correct domain
+- robots.txt also updated with correct sitemap URL
+
+Stage Summary:
+- Sitemap fully working at https://styra-silk.vercel.app/sitemap.xml with 27 URLs
+- All URLs now correctly point to styra-silk.vercel.app domain
+- NEXT_PUBLIC_APP_URL env var set on Vercel for all environments
+- Code pushed to GitHub (commit 2d081da)
