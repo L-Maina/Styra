@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      where.name = { contains: search };
+      where.name = { contains: search, mode: 'insensitive' };
     }
 
     const [services, total] = await Promise.all([

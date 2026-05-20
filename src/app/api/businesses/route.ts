@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
 
     if (query) {
       where.OR = [
-        { name: { contains: query } },
-        { description: { contains: query } },
+        { name: { contains: query, mode: 'insensitive' } },
+        { description: { contains: query, mode: 'insensitive' } },
       ];
     }
 
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (city) {
-      where.city = { contains: city };
+      where.city = { contains: city, mode: 'insensitive' };
     }
 
     if (minRating) {

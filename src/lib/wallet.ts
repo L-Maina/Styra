@@ -218,7 +218,7 @@ export async function holdForDispute(
         bookingId,
         type: 'REFUND',
         status: 'FAILED',
-        metadata: { contains: '"action":"DISPUTE_HOLD"' },
+        metadata: { contains: '"action":"DISPUTE_HOLD"', mode: 'insensitive' },
       },
     });
 

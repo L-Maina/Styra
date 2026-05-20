@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       where: {
         ...dateFilter,
         event: 'page_view',
-        page: { contains: businessSlug },
+        page: { contains: businessSlug, mode: 'insensitive' },
       },
     });
 
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       where: {
         ...dateFilter,
         event: { startsWith: 'booking_' },
-        page: { contains: businessSlug },
+        page: { contains: businessSlug, mode: 'insensitive' },
       },
       _count: { event: true },
     });
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       where: {
         ...dateFilter,
         event: 'booking_completed',
-        page: { contains: businessSlug },
+        page: { contains: businessSlug, mode: 'insensitive' },
       },
       select: { properties: true, timestamp: true },
       orderBy: { timestamp: 'asc' },
@@ -99,8 +99,8 @@ export async function GET(request: NextRequest) {
       where: {
         ...dateFilter,
         event: 'page_view',
-        page: { contains: businessSlug },
-        properties: { contains: 'service' },
+        page: { contains: businessSlug, mode: 'insensitive' },
+        properties: { contains: 'service', mode: 'insensitive' },
       },
       select: { properties: true },
       take: 200,
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
       where: {
         ...dateFilter,
         event: 'message_sent',
-        page: { contains: businessSlug },
+        page: { contains: businessSlug, mode: 'insensitive' },
       },
     });
 
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
       where: {
         ...dateFilter,
         event: 'favorite_added',
-        page: { contains: businessSlug },
+        page: { contains: businessSlug, mode: 'insensitive' },
       },
     });
 
@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
       where: {
         ...dateFilter,
         event: 'review_submitted',
-        page: { contains: businessSlug },
+        page: { contains: businessSlug, mode: 'insensitive' },
       },
     });
 

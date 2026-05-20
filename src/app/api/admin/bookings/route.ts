@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (search) {
       where.OR = [
-        { customerName: { contains: search } },
-        { customerEmail: { contains: search } },
-        { serviceName: { contains: search } },
-        { staffName: { contains: search } },
+        { customerName: { contains: search, mode: 'insensitive' } },
+        { customerEmail: { contains: search, mode: 'insensitive' } },
+        { serviceName: { contains: search, mode: 'insensitive' } },
+        { staffName: { contains: search, mode: 'insensitive' } },
       ];
     }
 

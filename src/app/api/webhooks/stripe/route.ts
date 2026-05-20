@@ -465,7 +465,7 @@ async function handleDisputeCreated(
   }
 
   const payment = await db.payment.findFirst({
-    where: { description: { contains: chargeId } },
+    where: { description: { contains: chargeId, mode: 'insensitive' } },
   });
 
   if (!payment) {

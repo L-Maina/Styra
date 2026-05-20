@@ -228,10 +228,10 @@ async function handleSystemRequest() {
   // Database size approximation
   let dbSizeBytes = 0;
   try {
-    const result = await db.$queryRaw<Array<{ size: number }>>`
-      SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()
+    const result = await db.$queryRaw<Array<{ size: bigint }>>`
+      SELECT pg_database_size(current_database()) as size
     `;
-    dbSizeBytes = result[0]?.size || 0;
+    dbSizeBytes = Number(result[0]?.size || 0);
   } catch {
     dbSizeBytes = 0;
   }

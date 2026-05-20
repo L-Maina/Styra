@@ -515,15 +515,15 @@ export async function getDetailedWebhookStats(): Promise<{
       // 7-day time series (daily buckets)
       db.$queryRaw`
         SELECT
-          date(createdAt) as date,
+          DATE("createdAt") as date,
           COUNT(*) as total,
           SUM(CASE WHEN status = 'PROCESSED' THEN 1 ELSE 0 END) as processed,
           SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed
-        FROM WebhookEvent
-        WHERE createdAt >= ${sevenDaysAgo.getTime()}
-        GROUP BY date(createdAt)
+        FROM "WebhookEvent"
+        WHERE "createdAt" >= ${sevenDaysAgo}
+        GROUP BY DATE("createdAt")
         ORDER BY date ASC
-      ` as unknown as Array<{ date: string; total: number; processed: number; failed: number }>,
+      ` as unknown as Array<{ date: string; total: bigint; processed: bigint; failed: bigint }>,
 
       // Retry tracking
       db.webhookEvent.aggregate({

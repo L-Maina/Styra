@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
       where.AND = [
         {
           OR: [
-            { user1: { name: { contains: search } } },
-            { user2: { name: { contains: search } } },
+            { user1: { name: { contains: search, mode: 'insensitive' } } },
+            { user2: { name: { contains: search, mode: 'insensitive' } } },
           ],
         },
       ];

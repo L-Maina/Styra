@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
           where: {
             userId: booking.customerId,
             type: 'BOOKING_REMINDER' as never,
-            link: { contains: '"reminderType":"VERIFY"' },
+            link: { contains: '"reminderType":"VERIFY"', mode: 'insensitive' },
             createdAt: { gte: new Date(now.getTime() - 4 * 60 * 60 * 1000) }, // 4 hours
           },
         });

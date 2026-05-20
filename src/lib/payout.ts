@@ -570,7 +570,7 @@ async function notifyProvider(
 async function countRetriesForBooking(bookingId: string): Promise<number> {
   const key = buildIdempotencyKey(bookingId);
   const existingPayouts = await db.payout.findMany({
-    where: { description: { contains: key } },
+    where: { description: { contains: key, mode: 'insensitive' } },
     select: { id: true, status: true },
   });
   // Count only failed/previous attempts (not the current one being created)
@@ -645,7 +645,7 @@ export async function triggerPayout(
   // 2. Check for existing payout (idempotency via prefix-based description match)
   const idempotencyKey = buildIdempotencyKey(bookingId);
   const existingPayout = await db.payout.findFirst({
-    where: { description: { contains: idempotencyKey } },
+    where: { description: { contains: idempotencyKey, mode: 'insensitive' } },
   });
 
   if (existingPayout) {
