@@ -257,13 +257,20 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
   return errorResponse('An unexpected error occurred', 500);
 }
 
-// Input sanitization
-export function sanitizeInput(input: string): string {
-  return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/javascript:/gi, '')
-    .replace(/on\w+\s*=/gi, '');
-}
+// Input sanitization — uses the comprehensive input-sanitizer module
+export { sanitizeString as sanitizeInput } from './input-sanitizer';
+
+/**
+ * Parse and sanitize a request body.
+ * Validates JSON depth, key count, string length, and strips malicious content.
+ *
+ * Usage in API routes:
+ *   const body = await request.json();
+ *   const result = sanitizeRequestBody(body);
+ *   if (!result.valid) return errorResponse(result.error!, 400);
+ *   const data = result.sanitized;
+ */
+export { sanitizeRequestBody } from './input-sanitizer';
 
 // Generate slug from name
 export function generateSlug(name: string): string {

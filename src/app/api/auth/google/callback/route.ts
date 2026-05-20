@@ -6,7 +6,8 @@ import { handleApiError } from "@/lib/api-utils";
  *
  * Handles Google OAuth 2.0 callback.
  * Receives ?code=...&state=... from Google.
- * Exchanges code for tokens, retrieves user info, creates/finds user.
+ * Validates state (CSRF protection), exchanges code for tokens,
+ * retrieves user info, creates/finds user.
  *
  * Requires: GOOGLE_CLIENT_SECRET, NEXT_PUBLIC_GOOGLE_CLIENT_ID
  */
@@ -22,6 +23,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // ── CSRF: Validate state parameter ──
+    // The state was set as a cookie by the /api/auth/google initiator.
+    // If it doesn't match, this could be a CSRF attack.
+    const cookieState = request.cookies.get('oauth-state')?.value;
+    if (!state || !cookieState || state !== cookieState) {
+      console.warn('[Google OAuth] State mismatch — possible CSRF attack', {
+        hasState: !!state,
+        hasCookieState: !!cookieState,
+      });
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL || "/"}?auth=google_failed&reason=invalid_state`
+      );
+    }
+
+    // Clear the state cookie (one-time use)
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
@@ -76,25 +92,22 @@ export async function GET(request: NextRequest) {
     // TODO: Issue Styra JWT
     // TODO: Redirect to frontend with success
 
-    // For now, return user info (in production, this would create a session)
-    return NextResponse.json({
+    // For now, return minimal user info (NEVER expose access_token/refresh_token to client)
+    const response = NextResponse.json({
       success: true,
       provider: "google",
       user: {
-        googleId: googleUser.sub,
         email: googleUser.email,
         name: googleUser.name,
         picture: googleUser.picture,
         emailVerified: googleUser.email_verified,
       },
-      tokens: {
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        expiresIn: tokens.expires_in,
-        tokenType: tokens.token_type,
-        scope: tokens.scope,
-      },
     });
+
+    // Clear the OAuth state cookie
+    response.cookies.delete('oauth-state');
+
+    return response;
   } catch (error) {
     console.error("[Google OAuth] Callback error:", error);
     return NextResponse.redirect(

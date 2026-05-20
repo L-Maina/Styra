@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleApiError } from "@/lib/api-utils";
+import { rateLimit, authRateLimitConfig } from "@/lib/rate-limit";
+
+// Max 5 OAuth initiation attempts per 15 minutes per IP
+const oauthRateLimiter = rateLimit(authRateLimitConfig);
 
 /**
  * GET /api/auth/apple
@@ -16,7 +19,11 @@ import { handleApiError } from "@/lib/api-utils";
  *
  * Requires: NEXT_PUBLIC_APPLE_CLIENT_ID and APPLE_CLIENT_SECRET env vars.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Rate limit check
+  const rateLimitResponse = await oauthRateLimiter(request);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const clientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID;
 
   if (!clientId) {
@@ -31,18 +38,21 @@ export async function GET() {
 
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/auth/apple/callback`;
 
+  // Generate state for CSRF protection
+  const state = crypto.randomUUID();
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
     scope: "name email",
     response_mode: "form_post",
-    state: crypto.randomUUID(),
+    state,
   });
 
   const appleAuthUrl = `https://appleid.apple.com/auth/authorize?${params.toString()}`;
 
-  return NextResponse.json(
+  const response = NextResponse.json(
     {
       success: true,
       provider: "apple",
@@ -51,8 +61,19 @@ export async function GET() {
     },
     { status: 200 }
   );
+
+  // Store state in a short-lived cookie so callback can verify it
+  response.cookies.set('apple-oauth-state', state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 10 * 60, // 10 minutes
+  });
+
+  return response;
 }
 
-export async function POST() {
-  return GET();
+export async function POST(request: NextRequest) {
+  return GET(request);
 }

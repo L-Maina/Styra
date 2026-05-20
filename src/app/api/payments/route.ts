@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
       }
 
       responseData = {
-        clientSecret: `${devTransactionRef}_secret_dev`,
+        clientSecret: `dev_only_not_a_real_secret_${Date.now()}`,
         paymentId: result.payment.id,
         paymentMethod: paymentMethod,
         devMode: 'true',

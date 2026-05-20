@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { rateLimit } from '@/lib/rate-limit';
+
+// Rate limit setup endpoint to prevent abuse
+const setupRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  maxRequests: 5,
+  message: 'Too many setup attempts. Please try again later.',
+});
+
+/**
+ * Generate a random password.
+ * Used instead of hardcoded 'password123' for demo accounts.
+ */
+function generateRandomPassword(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => chars[b % chars.length]).join('');
+}
 
 /**
  * POST /api/setup
@@ -8,10 +27,18 @@ import bcrypt from 'bcryptjs';
  * One-time production setup endpoint.
  * Creates the admin user + demo data if they don't already exist.
  * 
- * IMPORTANT: After running this, you should remove or disable this endpoint
- * in production by deleting this file or adding a guard.
+ * SECURITY IMPROVEMENTS:
+ *   - No hardcoded passwords — generates random ones per invocation
+ *   - Passwords are NEVER returned in the response body
+ *   - Rate limited to 5 attempts per hour
+ *   - Only available in development mode
+ *   - Requires SETUP_SECRET if set in environment
  */
 export async function POST(request: NextRequest) {
+  // Rate limit check
+  const rateLimitResponse = await setupRateLimiter(request);
+  if (rateLimitResponse) return rateLimitResponse;
+
   // Disable setup endpoint in production
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json(
@@ -34,6 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     const results: Record<string, string> = {};
+    const createdCredentials: Record<string, { email: string; passwordGenerated: boolean }> = {};
 
     // ── 1. Create Admin User ──────────────────────────────────
     const existingAdmin = await db.user.findUnique({
@@ -43,7 +71,8 @@ export async function POST(request: NextRequest) {
     if (existingAdmin) {
       results.admin = `Admin user already exists (${existingAdmin.email})`;
     } else {
-      const passwordHash = await bcrypt.hash('password123', 12);
+      const password = generateRandomPassword();
+      const passwordHash = await bcrypt.hash(password, 12);
       const admin = await db.user.create({
         data: {
           email: 'admin@styra.app',
@@ -54,6 +83,9 @@ export async function POST(request: NextRequest) {
         },
       });
       results.admin = `Created admin user: ${admin.email}`;
+      createdCredentials.admin = { email: admin.email, passwordGenerated: true };
+      // Log the password to server console only (never to API response)
+      console.log(`[Setup] Admin password: ${password} — SAVE THIS, it won't be shown again`);
     }
 
     // ── 2. Create Demo Business Owner ─────────────────────────
@@ -66,7 +98,8 @@ export async function POST(request: NextRequest) {
       businessOwner = existingOwner;
       results.businessOwner = `Business owner already exists (${existingOwner.email})`;
     } else {
-      const passwordHash = await bcrypt.hash('password123', 12);
+      const password = generateRandomPassword();
+      const passwordHash = await bcrypt.hash(password, 12);
       businessOwner = await db.user.create({
         data: {
           email: 'jane@styleshop.co.ke',
@@ -78,6 +111,8 @@ export async function POST(request: NextRequest) {
         },
       });
       results.businessOwner = `Created business owner: ${businessOwner.email}`;
+      createdCredentials.businessOwner = { email: businessOwner.email, passwordGenerated: true };
+      console.log(`[Setup] Business owner password: ${password} — SAVE THIS, it won't be shown again`);
     }
 
     // ── 3. Create Demo Customer ───────────────────────────────
@@ -90,7 +125,8 @@ export async function POST(request: NextRequest) {
       customer = existingCustomer;
       results.customer = `Customer already exists (${existingCustomer.email})`;
     } else {
-      const passwordHash = await bcrypt.hash('password123', 12);
+      const password = generateRandomPassword();
+      const passwordHash = await bcrypt.hash(password, 12);
       customer = await db.user.create({
         data: {
           email: 'john@example.com',
@@ -102,6 +138,8 @@ export async function POST(request: NextRequest) {
         },
       });
       results.customer = `Created customer: ${customer.email}`;
+      createdCredentials.customer = { email: customer.email, passwordGenerated: true };
+      console.log(`[Setup] Customer password: ${password} — SAVE THIS, it won't be shown again`);
     }
 
     // ── 4. Create Demo Businesses ────────────────────────────
@@ -196,17 +234,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Production setup complete!',
-      credentials: {
-        admin: { email: 'admin@styra.app', password: 'password123' },
-        businessOwner: { email: 'jane@styleshop.co.ke', password: 'password123' },
-        customer: { email: 'john@example.com', password: 'password123' },
-      },
+      // SECURITY: Passwords are NEVER included in the API response.
+      // They are logged to the server console only.
+      credentials: createdCredentials,
       instructions: {
-        step1: 'Go to the Sign In page',
-        step2: 'Enter admin@styra.app as email',
-        step3: 'Enter password123 as password',
+        step1: 'Check the server console for generated passwords',
+        step2: 'Go to the Sign In page',
+        step3: 'Enter the email and generated password',
         step4: 'Click Sign In — you will be automatically redirected to the Admin Dashboard',
-        note: 'You can change the admin password after first login from the Admin Dashboard settings.',
+        note: 'You can change passwords after first login from the Admin Dashboard settings. Passwords are only shown once in the server logs.',
       },
       details: results,
     });
@@ -227,6 +263,6 @@ export async function GET() {
   return NextResponse.json({
     message: 'POST to /api/setup to seed admin user and demo data',
     usage: 'Send a POST request to this endpoint to run the setup',
-    warning: 'This creates an admin account with full platform access',
+    warning: 'This creates accounts with randomly generated passwords (shown in server logs only)',
   });
 }

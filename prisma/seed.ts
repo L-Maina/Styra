@@ -16,7 +16,23 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...\n');
 
-  const passwordHash = await bcrypt.hash('password123', 12);
+  // SECURITY: Use SEED_PASSWORD env var or generate a random one
+  // Never hardcode passwords — even in seed scripts
+  const seedPassword = process.env.SEED_PASSWORD || (() => {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    const bytes = new Uint8Array(16);
+    // Use Math.random for seed script (no crypto available in this context)
+    for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    return Array.from(bytes).map(b => chars[b % chars.length]).join('');
+  })();
+
+  // Refuse to seed in production unless explicitly forced
+  if (process.env.NODE_ENV === 'production' && !process.env.FORCE_SEED_PRODUCTION) {
+    console.error('❌ Refusing to seed in production. Set FORCE_SEED_PRODUCTION=1 to override.');
+    process.exit(1);
+  }
+
+  const passwordHash = await bcrypt.hash(seedPassword, 12);
 
   // ── 1. Create Users (upsert by email) ──────────────────────────────
   const customer = await prisma.user.upsert({
@@ -283,9 +299,13 @@ async function main() {
 
   // ── Summary ────────────────────────────────────────────────────────
   console.log('\n📊 Seed Summary:');
-  console.log('  - Admin:     admin@styra.app / password123');
-  console.log('  - Business:  jane@styleshop.co.ke / password123');
-  console.log('  - Customer:  john@example.com / password123');
+  console.log('  - Admin:     admin@styra.app');
+  console.log('  - Business:  jane@styleshop.co.ke');
+  console.log('  - Customer:  john@example.com');
+  if (!process.env.SEED_PASSWORD) {
+    console.log(`  - Password:  ${seedPassword}`);
+    console.log('  ⚠️  Save this password — it won\'t be shown again. Set SEED_PASSWORD to use a known password.');
+  }
   console.log('\n✨ Seed completed!\n');
 }
 

@@ -1,10 +1,19 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { Pool } from 'pg';
+import { requireAdmin } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+
+// Rate limit db-setup to prevent abuse
+const dbSetupRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  maxRequests: 5,
+  message: 'Too many database setup attempts. Please try again later.',
+});
 
 /**
  * Split SQL into individual statements, handling DO $$ ... END $$; blocks.
@@ -81,7 +90,22 @@ const schemaSql = readFileSync(
  *
  * Idempotent — safe to run multiple times.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // SECURITY: Require admin authentication for database setup
+  // This endpoint executes raw SQL — it must not be publicly accessible
+  try {
+    await requireAdmin();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: 'Admin authentication required for database setup' },
+      { status: 401 }
+    );
+  }
+
+  // Rate limit check
+  const rateLimitResponse = await dbSetupRateLimiter(request);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const databaseUrl = process.env.DATABASE_URL;
 
   if (!databaseUrl) {
@@ -167,7 +191,18 @@ export async function POST() {
  * GET /api/db-setup
  * Returns info about the database state (table count, missing tables)
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // SECURITY: Require admin authentication for database diagnostics
+  // This endpoint leaks table names, record counts, and connection details
+  try {
+    await requireAdmin();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: 'Admin authentication required' },
+      { status: 401 }
+    );
+  }
+
   try {
     const { db } = await import('@/lib/db');
 

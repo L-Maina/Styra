@@ -3,7 +3,11 @@ import { db } from '@/lib/db';
 import { createOTP } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { rateLimit, authRateLimitConfig } from '@/lib/rate-limit';
 import { z } from 'zod';
+
+// Max 5 OTP resend attempts per 15 minutes per IP
+const resendOtpRateLimiter = rateLimit(authRateLimitConfig);
 
 const resendOtpSchema = z.object({
   phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number').max(20, 'Phone must be less than 20 characters'),
@@ -22,6 +26,10 @@ const resendOtpSchema = z.object({
  * If the user already exists and is verified, returns alreadyVerified.
  */
 export async function POST(request: NextRequest) {
+  // Rate limit check
+  const rateLimitResponse = await resendOtpRateLimiter(request);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const body = await request.json();
     const validated = resendOtpSchema.safeParse(body);

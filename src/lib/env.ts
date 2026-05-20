@@ -348,8 +348,18 @@ function buildConfig(): AppConfig {
 
     email: {
       apiKey: resendApiKey,
-      from: process.env.EMAIL_FROM || 'Styra <onboarding@resend.dev>',
-      isConfigured: emailConfigured,
+      // SECURITY: In production, EMAIL_FROM must be explicitly set.
+      // The resend.dev domain only works for the account owner's email.
+      from: (() => {
+        const configured = process.env.EMAIL_FROM;
+        if (configured) return configured;
+        if (strict) {
+          // In staging/production, fail explicitly rather than silently using a non-functional sender
+          return ''; // Empty string signals misconfiguration — email sending will be skipped
+        }
+        return 'Styra <onboarding@resend.dev>'; // Dev-only fallback
+      })(),
+      isConfigured: emailConfigured && !!process.env.EMAIL_FROM,
     },
 
     rateLimit: {

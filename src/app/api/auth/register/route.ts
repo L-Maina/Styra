@@ -4,6 +4,10 @@ import { hashPassword, createOTP } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { registerSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { rateLimit, authRateLimitConfig } from '@/lib/rate-limit';
+
+// Max 5 registration attempts per 15 minutes per IP
+const registerRateLimiter = rateLimit(authRateLimitConfig);
 
 /**
  * POST /api/auth/register
@@ -17,6 +21,10 @@ import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils'
  * and no orphan account is left behind.
  */
 export async function POST(request: NextRequest) {
+  // Rate limit check
+  const rateLimitResponse = await registerRateLimiter(request);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const body = await request.json();
     const validated = registerSchema.safeParse(body);

@@ -7,8 +7,8 @@ import jwt from "jsonwebtoken";
  *
  * Handles Apple Sign In callback.
  * Receives authorization.code + user from Apple's form_post response.
- * Validates the id_token using Apple's public keys (fetched from Apple).
- * Creates/finds user in database, issues Styra JWT.
+ * Validates state (CSRF protection), validates the id_token using Apple's
+ * public keys (fetched from Apple), creates/finds user, issues Styra JWT.
  *
  * Requires: APPLE_CLIENT_ID, APPLE_CLIENT_SECRET
  */
@@ -16,12 +16,26 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const code = formData.get("code");
+    const state = formData.get("state");
     const user = formData.get("user"); // JSON string with { name, email }
 
     if (!code) {
       return NextResponse.json(
         { success: false, error: "Missing authorization code" },
         { status: 400 }
+      );
+    }
+
+    // ── CSRF: Validate state parameter ──
+    const cookieState = request.cookies.get('apple-oauth-state')?.value;
+    if (!state || !cookieState || String(state) !== cookieState) {
+      console.warn('[Apple OAuth] State mismatch — possible CSRF attack', {
+        hasState: !!state,
+        hasCookieState: !!cookieState,
+      });
+      return NextResponse.json(
+        { success: false, error: "Invalid state parameter" },
+        { status: 403 }
       );
     }
 
@@ -81,19 +95,17 @@ export async function POST(request: NextRequest) {
     // TODO: Issue Styra JWT
     // TODO: Redirect to frontend with success
 
-    return NextResponse.json({
+    // Return minimal user info (NEVER expose access_token/refresh_token to client)
+    const response = NextResponse.json({
       success: true,
       provider: "apple",
       user: appleUser,
-      tokens: {
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        expiresIn: tokens.expires_in,
-        tokenType: tokens.token_type,
-        scope: tokens.scope,
-        idToken: tokens.id_token,
-      },
     });
+
+    // Clear the OAuth state cookie
+    response.cookies.delete('apple-oauth-state');
+
+    return response;
   } catch (error) {
     console.error("[Apple OAuth] Callback error:", error);
     return NextResponse.json(

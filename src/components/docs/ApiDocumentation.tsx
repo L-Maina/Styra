@@ -115,7 +115,7 @@ const API_CATEGORIES: ApiCategory[] = [
         requestBody: JSON.stringify(
           {
             email: 'user@example.com',
-            password: 'SecurePass123',
+            password: 'your_secure_password',
           },
           null,
           2
@@ -152,7 +152,7 @@ const API_CATEGORIES: ApiCategory[] = [
           {
             name: 'John Doe',
             email: 'user@example.com',
-            password: 'SecurePass123',
+            password: 'your_secure_password',
             phone: '+254712345678',
           },
           null,
@@ -166,7 +166,7 @@ const API_CATEGORIES: ApiCategory[] = [
               email: 'user@example.com',
               name: 'John Doe',
               role: 'CUSTOMER',
-              verificationToken: 'vt_abc123xyz',
+              verificationToken: 'your_token_here',
             },
           },
           null,
@@ -188,7 +188,7 @@ const API_CATEGORIES: ApiCategory[] = [
         requestBody: JSON.stringify(
           {
             phone: '+254712345678',
-            otp: '123456',
+            otp: 'your_otp_here',
           },
           null,
           2
@@ -215,7 +215,7 @@ const API_CATEGORIES: ApiCategory[] = [
         description: 'Verify user email with the token sent during registration. Creates a session and CSRF token on success.',
         requestBody: JSON.stringify(
           {
-            token: 'vt_abc123xyz',
+            token: 'your_token_here',
           },
           null,
           2
@@ -273,8 +273,8 @@ const API_CATEGORIES: ApiCategory[] = [
         description: 'Reset password using the token from the reset email. Rate limited to 5 attempts per hour.',
         requestBody: JSON.stringify(
           {
-            token: 'reset_token_xyz',
-            password: 'NewSecurePass456',
+            token: 'your_token_here',
+            password: 'your_secure_password',
           },
           null,
           2
@@ -786,9 +786,9 @@ const API_CATEGORIES: ApiCategory[] = [
           {
             success: true,
             data: {
-              clientSecret: 'pi_3abc_secret_def',
+              clientSecret: 'pi_example_not_a_real_secret',
               paymentId: 'pay_xyz789',
-              stripePublishableKey: 'pk_live_...',
+              stripePublishableKey: 'pk_test_...',
               devMode: 'false',
             },
           },
@@ -847,7 +847,7 @@ const API_CATEGORIES: ApiCategory[] = [
               currency: 'USD',
               paymentMethod: 'STRIPE',
               status: 'COMPLETED',
-              transactionId: 'pi_3abc...',
+              transactionId: 'pi_example_not_a_real_secret',
               createdAt: '2025-01-15T10:30:00Z',
             },
           },

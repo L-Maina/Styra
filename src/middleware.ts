@@ -1,16 +1,40 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { setCsrfCookie, validateCsrf } from '@/lib/csrf';
+import { checkMiddlewareRateLimit } from '@/lib/middleware-rate-limit';
+import { checkPayloadSize, validateContentType } from '@/lib/input-sanitizer';
 
 // ---------------------------------------------------------------------------
-// Middleware — Security headers, CSRF protection, CORS
+// Middleware — Rate limiting, Payload validation, Security headers,
+//             CSRF protection, CORS
 // ---------------------------------------------------------------------------
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
-  // ── CSRF validation for state-changing API requests ──
   if (pathname.startsWith('/api/')) {
+    // ── Rate limiting (FIRST — before any other processing) ──
+    // This is the first line of defense against brute-force and abuse.
+    const rateLimitResponse = checkMiddlewareRateLimit(request);
+    if (rateLimitResponse) {
+      return rateLimitResponse as unknown as NextResponse;
+    }
+
+    // ── Payload size check ──
+    // Reject oversized payloads before they're parsed
+    const payloadSizeResponse = checkPayloadSize(request);
+    if (payloadSizeResponse) {
+      return payloadSizeResponse as unknown as NextResponse;
+    }
+
+    // ── Content-Type validation ──
+    // Reject requests with unsupported content types
+    const contentTypeResponse = validateContentType(request);
+    if (contentTypeResponse) {
+      return contentTypeResponse as unknown as NextResponse;
+    }
+
+    // ── CSRF validation for state-changing API requests ──
     const csrfResult = validateCsrf(request);
     if (csrfResult) {
       return csrfResult; // Return 403 if CSRF validation fails

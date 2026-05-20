@@ -13,12 +13,34 @@ export interface AuthUser {
   tokenVersion?: number;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'styra-dev-secret-change-in-production';
+// SECURITY: No fallback secret. If JWT_SECRET is not set, authentication will not work.
+// In production/staging, the app should crash on startup (handled by env.ts validation).
+// In development, a warning is logged and a random dev-only secret is generated per process.
+const JWT_SECRET = (() => {
+  const secret = process.env.JWT_SECRET;
+  if (secret) return secret;
 
-// Warn (not throw) if JWT_SECRET is missing in production
-if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-  console.warn('[Styra] JWT_SECRET is not set. Using fallback — please set it in Vercel environment variables.');
-}
+  // Development-only: generate a random secret per process start
+  // This means JWTs are invalid after server restart, which is acceptable in dev
+  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    const devSecret = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    console.warn(
+      '[Styra] ⚠️  JWT_SECRET is not set. A random dev-only secret has been generated.\n' +
+      '  - JWTs will be invalid after server restart\n' +
+      '  - Add JWT_SECRET to your .env file for persistent tokens'
+    );
+    return devSecret;
+  }
+
+  // Production without JWT_SECRET — this should have been caught by env.ts validation
+  // but as a last resort, throw rather than use an insecure default
+  throw new Error(
+    '[FATAL] JWT_SECRET is not set. Refusing to start without a secure JWT secret.\n' +
+    'Set JWT_SECRET in your environment variables (minimum 32 characters).'
+  );
+})();
 const JWT_EXPIRES_IN = '7d';
 
 // Password hashing

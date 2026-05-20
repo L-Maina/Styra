@@ -42,8 +42,7 @@ const CSRF_EXEMPT_PATHS = [
   '/api/health',
   '/api/businesses/auto-verify', // Called internally during registration
   '/api/cron/', // Cron jobs are server-side only
-  '/api/setup',
-  '/api/db-setup',
+  '/api/setup', // Dev-only, guarded by NODE_ENV check
 ];
 
 const STATE_CHANGING_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];

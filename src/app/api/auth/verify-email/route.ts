@@ -4,11 +4,19 @@ import { createSession } from '@/lib/auth';
 import { verifyEmailToken } from '@/lib/email-verification';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { generateCsrfToken } from '@/lib/csrf';
+import { rateLimit, authRateLimitConfig } from '@/lib/rate-limit';
+
+// Max 5 email verification attempts per 15 minutes per IP
+const verifyEmailRateLimiter = rateLimit(authRateLimitConfig);
 
 // POST /api/auth/verify-email
 // Verifies an email verification token, marks user as verified,
 // and creates a session for the newly verified user.
 export async function POST(request: NextRequest) {
+  // Rate limit check
+  const rateLimitResponse = await verifyEmailRateLimiter(request);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const body = await request.json();
     const { token } = body;
