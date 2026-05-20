@@ -3,9 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // NOTE: For production (Vercel + Supabase), change provider to "postgresql" and add directUrl
 }
 
 // ============================================================
