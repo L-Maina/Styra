@@ -105,3 +105,27 @@ Stage Summary:
 - SPA deep-linking enables sitemap URLs to work when visited
 - .env.example provides template for all required env vars
 - robots.txt updated for proper crawling guidance
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix sitemap showing only styra.app/lander — update to correct Vercel URL
+
+Work Log:
+- Discovered styra.app is a PARKED domain (about Styra, Greece) — NOT our app
+- styra.app DNS points to AWS IPs (3.33.243.145) which redirects to /lander
+- Found actual Vercel project: styra-mkdf6yzjk7-8552s-projects.vercel.app
+- Updated NEXT_PUBLIC_APP_URL in layout.tsx, sitemap.ts, robots.txt
+- Set NEXT_PUBLIC_APP_URL env var on Vercel for production/preview/development
+- Added openGraph.url to layout.tsx for social sharing
+- Verified sitemap returns 27 URLs on production deployment (including dynamic business/blog from DB)
+- Fixed XML compliance: changed query param URLs (?page=X&category=Y) to clean path URLs (/marketplace/category/spa)
+- Added path-based deep-linking in page.tsx: /marketplace, /business/slug, /blog/slug, /marketplace/category/X
+- Both query param and path-based deep-links work
+- Sitemap now validates as well-formed XML
+
+Stage Summary:
+- Sitemap working at https://styra-mkdf6yzjk7-8552s-projects.vercel.app/sitemap.xml with 27 URLs
+- styra.app is NOT our domain — user needs to either purchase it or use the Vercel URL
+- NEXT_PUBLIC_APP_URL set to correct deployment URL on Vercel
+- Clean path URLs avoid XML entity issues with unescaped ampersands
