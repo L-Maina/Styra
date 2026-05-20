@@ -176,10 +176,11 @@ export async function POST(request: NextRequest) {
         longitude: validated.longitude ?? null,
         logo: validated.logo || null,
         coverImage: validated.coverImage || null,
-        // ID verification fields
-        idType: validated.idType || null,
-        idNumber: validated.idNumber || null,
-        idDocumentUrl: validated.idDocumentUrl || null,
+        // ID verification fields — NOT settable during business creation (mass assignment protection)
+        // These should only be set through a dedicated ID verification submission endpoint
+        idType: null,
+        idNumber: null,
+        idDocumentUrl: null,
         boothPhotoUrl: validated.boothPhotoUrl || null,
       },
       include: {

@@ -544,6 +544,20 @@ export async function calculatePlatformFee(amount: number): Promise<number> {
 
   const feePercentage = setting ? parseFloat(setting.value) : 15.0;
 
+  // Validate fee percentage: must be a number between 0 and 50
+  if (isNaN(feePercentage) || feePercentage < 0 || feePercentage > 50) {
+    throw new Error(
+      `Invalid platform fee percentage: ${feePercentage}. Must be between 0 and 50.`
+    );
+  }
+
+  // Warn about unreasonable fee percentages
+  if (feePercentage === 0) {
+    console.warn('[Escrow] Platform fee is 0% — no revenue will be collected');
+  } else if (feePercentage > 30) {
+    console.warn(`[Escrow] Platform fee is ${feePercentage}% — unusually high, expected ≤30%`);
+  }
+
   // Round to 2 decimal places
   return Math.round(amount * (feePercentage / 100) * 100) / 100;
 }

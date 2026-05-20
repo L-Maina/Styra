@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { setCsrfCookie, validateCsrf } from '@/lib/csrf';
+import { setCsrfCookie, getCsrfCookie, validateCsrf } from '@/lib/csrf';
 import { checkMiddlewareRateLimit } from '@/lib/middleware-rate-limit';
 import { checkPayloadSize, validateContentType } from '@/lib/input-sanitizer';
 
@@ -47,10 +47,19 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
+  response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
 
-  // ── Set/refresh CSRF cookie on every page load & API response ──
-  // This ensures the cookie is always available for the frontend to read
-  setCsrfCookie(response);
+  // ── Set CSRF cookie only when needed ──
+  // Re-use existing token to avoid breaking multi-tab sessions and to allow
+  // CDN caching. Only generate a new token if one doesn't already exist.
+  const existingCsrfToken = getCsrfCookie(request);
+  if (existingCsrfToken) {
+    setCsrfCookie(response, existingCsrfToken);
+  } else {
+    setCsrfCookie(response);
+  }
 
   // CORS for API routes
   if (pathname.startsWith('/api/')) {
@@ -64,13 +73,11 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     if (origin && allowedOrigins.includes(origin)) {
       response.headers.set('Access-Control-Allow-Origin', origin);
       response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       response.headers.set('Access-Control-Allow-Credentials', 'true');
       response.headers.set('Vary', 'Origin');
     }
     if (request.method === 'OPTIONS') {
-      // Also set CSRF cookie on OPTIONS preflight responses
-      setCsrfCookie(response);
       return new NextResponse(null, { status: 204, headers: Object.fromEntries(response.headers) });
     }
   }

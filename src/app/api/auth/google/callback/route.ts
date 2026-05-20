@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api-utils";
+import { db } from "@/lib/db";
+import { createSession } from "@/lib/auth";
 
 /**
  * GET /api/auth/google/callback
@@ -88,23 +90,71 @@ export async function GET(request: NextRequest) {
 
     const googleUser = await userResponse.json();
 
-    // TODO: Create/find user in database using googleUser data
-    // TODO: Issue Styra JWT
-    // TODO: Redirect to frontend with success
+    // ── Create/find user in database ──
+    const email = (googleUser.email as string)?.toLowerCase();
+    const name = (googleUser.name as string) || email;
+    const avatar = googleUser.picture as string | undefined;
 
-    // For now, return minimal user info (NEVER expose access_token/refresh_token to client)
-    const response = NextResponse.json({
-      success: true,
-      provider: "google",
-      user: {
-        email: googleUser.email,
-        name: googleUser.name,
-        picture: googleUser.picture,
-        emailVerified: googleUser.email_verified,
-      },
+    if (!email) {
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL || "/"}?auth=google_failed&reason=no_email`
+      );
+    }
+
+    let user = await db.user.findUnique({ where: { email } });
+
+    if (user) {
+      // Existing user — update avatar if not already set
+      if (!user.avatar && avatar) {
+        user = await db.user.update({
+          where: { id: user.id },
+          data: { avatar },
+        });
+      }
+    } else {
+      // New user — create with Google profile data
+      user = await db.user.create({
+        data: {
+          email,
+          name,
+          avatar: avatar || null,
+          role: "CUSTOMER",
+          isVerified: true,
+          emailVerified: true,
+        },
+      });
+
+      // Create wallet for the new user
+      await db.wallet.create({
+        data: {
+          userId: user.id,
+          balance: 0,
+          pendingBalance: 0,
+          currency: "KES",
+        },
+      });
+    }
+
+    if (user.isBanned) {
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL || "/"}?auth=google_failed&reason=banned`
+      );
+    }
+
+    // ── Issue Styra JWT session ──
+    await createSession({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      tokenVersion: user.tokenVersion,
     });
 
-    // Clear the OAuth state cookie
+    // ── Redirect to frontend with success indicator ──
+    const response = NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL || "/"}?auth=google_success`
+    );
+
+    // Clear the OAuth state cookie (one-time use)
     response.cookies.delete('oauth-state');
 
     return response;

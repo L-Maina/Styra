@@ -108,7 +108,6 @@ export async function GET() {
         oldest: backups.length > 0 ? backups[backups.length - 1].date : null,
         newest: backups.length > 0 ? backups[0].date : null,
         newestAgeHours: backups.length > 0 ? backups[0].ageHours : null,
-        backupDirectory: BACKUP_DIR,
         databaseType: 'PostgreSQL (Supabase)',
       },
     });
@@ -150,11 +149,17 @@ export async function POST(request: NextRequest) {
       const backups = readManifest();
       const latestBackup = backups.length > 0 ? backups[0] : null;
 
+      // Log script output server-side only (never expose to client)
+      if (stdout) console.log('[Backup] Script output:', stdout.slice(-500));
+      if (stderr) console.error('[Backup] Script stderr:', stderr.slice(-500));
+
       return successResponse({
         message: 'Backup created successfully',
-        backup: latestBackup,
-        scriptOutput: stdout?.slice(-500) || '', // Last 500 chars of output
-        scriptErrors: stderr?.slice(-500) || '',
+        backup: latestBackup ? {
+          name: latestBackup.name,
+          date: latestBackup.date,
+          size: latestBackup.size,
+        } : null,
       });
     } catch (execError: unknown) {
       const err = execError as { stdout?: string; stderr?: string; message?: string };

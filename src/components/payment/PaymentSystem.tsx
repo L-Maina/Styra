@@ -91,12 +91,19 @@ export interface TipOption {
 // COMMISSION CALCULATION UTILITIES
 // ============================================
 
-const PLATFORM_FEE_PERCENTAGE = 0.15; // 15%
-const PROVIDER_PERCENTAGE = 0.85; // 85%
+const DEFAULT_PLATFORM_FEE_PERCENTAGE = 0.15; // 15% fallback
+const DEFAULT_PROVIDER_PERCENTAGE = 0.85; // 85% fallback
+
+// Dynamic platform fee fetched from server
+let _platformFeePercentage = DEFAULT_PLATFORM_FEE_PERCENTAGE;
+let _providerPercentage = DEFAULT_PROVIDER_PERCENTAGE;
+
+export const getPlatformFeePercentage = () => _platformFeePercentage;
+export const getProviderPercentage = () => _providerPercentage;
 
 export const calculateCommission = (servicePrice: number, tip: number = 0) => {
-  const platformFee = Math.round(servicePrice * PLATFORM_FEE_PERCENTAGE * 100) / 100;
-  const providerAmount = Math.round((servicePrice * PROVIDER_PERCENTAGE + tip) * 100) / 100;
+  const platformFee = Math.round(servicePrice * _platformFeePercentage * 100) / 100;
+  const providerAmount = Math.round((servicePrice * _providerPercentage + tip) * 100) / 100;
   const total = servicePrice + tip;
 
   return {
@@ -105,8 +112,8 @@ export const calculateCommission = (servicePrice: number, tip: number = 0) => {
     providerAmount,
     tip,
     total,
-    platformFeePercentage: PLATFORM_FEE_PERCENTAGE * 100,
-    providerPercentage: PROVIDER_PERCENTAGE * 100,
+    platformFeePercentage: _platformFeePercentage * 100,
+    providerPercentage: _providerPercentage * 100,
   };
 };
 
@@ -813,6 +820,32 @@ export const PaymentCheckout: React.FC<PaymentCheckoutProps> = ({
 
   // Polling cleanup ref
   const pendingPollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fetch platform fee from server on mount instead of hardcoding
+  const [feeLoaded, setFeeLoaded] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (!res.ok) return;
+        const data = await res.json();
+        const serverFee = data?.data?.settings?.platformFee;
+        if (serverFee != null && !cancelled) {
+          const feeDecimal = Number(serverFee) / 100;
+          if (feeDecimal > 0 && feeDecimal < 1) {
+            _platformFeePercentage = feeDecimal;
+            _providerPercentage = 1 - feeDecimal;
+          }
+        }
+      } catch {
+        // Fallback to defaults already set
+      } finally {
+        if (!cancelled) setFeeLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Calculate commission breakdown
   const servicePrice = service.discountPrice || service.price;

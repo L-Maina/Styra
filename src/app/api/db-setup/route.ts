@@ -173,11 +173,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // Log the error server-side for debugging
+    console.error('[DB Setup] Error:', errorMessage);
+    // In production, do not expose error details to the client
+    const details = process.env.NODE_ENV === 'production' ? null : errorMessage;
     return NextResponse.json(
       {
         success: false,
         error: 'Database setup failed',
-        details: errorMessage,
+        details,
       },
       { status: 500 }
     );

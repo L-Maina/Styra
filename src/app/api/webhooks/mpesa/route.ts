@@ -95,24 +95,20 @@ export async function POST(request: NextRequest) {
       ipAddress: clientIp,
     });
 
-    // Step 2: Verify callback origin using HMAC signature
+    // Step 2: Verify callback origin
+    // M-Pesa STK Push callbacks don't include a signature header — they use
+    // CheckoutRequestID as the primary verification mechanism. We validate the
+    // CheckoutRequestID against an existing payment record in the processing step.
+    // If credentials ARE configured AND a signature header IS present, we verify it
+    // using passkey + checkoutRequestId from the request body (not a server timestamp).
     const mpesaSignature = request.headers.get('x-mpesa-signature');
     const mpesaPasskey = env.mpesa.passkey;
-    const shortcode = env.mpesa.shortcode;
 
-    if (mpesaPasskey && shortcode) {
-      // Credentials configured — signature verification is MANDATORY
-      if (!mpesaSignature) {
-        await markEventInvalidSignature(PROVIDER, eventId, 'Missing x-mpesa-signature header');
-        // 🔔 ALERT: Missing signature — potential spoofing
-        alertWebhookSignatureFailed('MPESA', clientIp);
-        return errorResponse('Missing M-Pesa signature', 401);
-      }
-
-      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    if (mpesaPasskey && mpesaSignature) {
+      // Credentials configured AND signature present — verify HMAC using passkey + checkoutRequestId
       const expectedSig = crypto
         .createHmac('sha256', mpesaPasskey)
-        .update(`${checkoutRequestId}${timestamp}`)
+        .update(checkoutRequestId || '')
         .digest('base64');
 
       try {
@@ -133,8 +129,16 @@ export async function POST(request: NextRequest) {
       }
 
       await markEventSignatureValid(PROVIDER, eventId);
+    } else if (!mpesaPasskey || !mpesaSignature) {
+      // No credentials configured or no signature header — M-Pesa STK Push callbacks
+      // don't include a signature header. Validate using CheckoutRequestID matching
+      // against existing payment records in the processing step instead.
+      if (!checkoutRequestId) {
+        await markEventInvalidSignature(PROVIDER, eventId, 'Missing CheckoutRequestID for fallback validation');
+        alertWebhookSignatureFailed('MPESA', clientIp);
+        return errorResponse('Missing CheckoutRequestID', 401);
+      }
     }
-    // If credentials NOT configured (dev mode), allow without signature check
 
     // Step 3: Idempotency check via DB
     const alreadyProcessed = await isEventAlreadyProcessed(PROVIDER, eventId);

@@ -20,21 +20,38 @@ export async function GET(request: NextRequest) {
       delete where.userId;
     }
 
-    const payments = await db.payment.findMany({
-      where,
-      include: {
-        booking: {
-          include: {
-            business: { select: { id: true, name: true } },
-            service: { select: { id: true, name: true } },
+    // Pagination support
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
+    const skip = (page - 1) * limit;
+
+    const [payments, total] = await Promise.all([
+      db.payment.findMany({
+        where,
+        include: {
+          booking: {
+            include: {
+              business: { select: { id: true, name: true } },
+              service: { select: { id: true, name: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      db.payment.count({ where }),
+    ]);
 
-    return successResponse(sanitizePaymentsForList(payments as unknown as Record<string, unknown>[]));
+    return successResponse({
+      payments: sanitizePaymentsForList(payments as unknown as Record<string, unknown>[]),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     if (error instanceof Response) return error as unknown as ReturnType<typeof errorResponse>;
     return handleApiError(error);
@@ -292,20 +309,16 @@ export async function POST(request: NextRequest) {
       return errorResponse('Please verify your email first', 403);
     }
 
-    // Idempotency: check if a payment already exists for this booking
-    const existingPayment = await db.payment.findFirst({
-      where: { bookingId: validated.bookingId },
-    });
-    if (existingPayment) {
-      return successResponse({
-        clientSecret: existingPayment.transactionRef || '',
-        paymentId: existingPayment.id,
-        devMode: 'false',
-      });
-    }
-
-    // Use transaction for atomicity
+    // Use transaction for atomicity — idempotency check INSIDE transaction to prevent race conditions
     const result = await db.$transaction(async (tx) => {
+      // Idempotency: check if a payment already exists for this booking (inside tx to prevent double-payment)
+      const existingPayment = await tx.payment.findFirst({
+        where: { bookingId: validated.bookingId },
+      });
+      if (existingPayment) {
+        throw new Error('PAYMENT_EXISTS');
+      }
+
       // Verify booking exists and belongs to user
       const booking = await tx.booking.findUnique({
         where: { id: validated.bookingId },
@@ -460,7 +473,7 @@ export async function POST(request: NextRequest) {
         });
       });
 
-      // Hold payment in escrow after successful payment (fire-and-forget)
+      // Hold payment in escrow after successful payment — HARD REQUIREMENT
       try {
         const platformFee = await calculatePlatformFee(result.amount);
         await holdInEscrow(
@@ -471,10 +484,20 @@ export async function POST(request: NextRequest) {
           validated.currency || 'KES'
         );
       } catch (escrowError) {
-        // Escrow failure should not block the payment flow
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Payments] Escrow hold failed (non-blocking):', escrowError);
-        }
+        // Escrow hold is mandatory — roll back payment and booking to PENDING
+        console.error('[Payments] Escrow hold failed (rolling back):', escrowError);
+
+        await db.payment.update({
+          where: { id: result.payment.id },
+          data: { status: 'pending' },
+        });
+
+        await db.booking.update({
+          where: { id: validated.bookingId },
+          data: { status: 'pending' },
+        });
+
+        return errorResponse('Payment processing failed — escrow could not be held. Please retry.', 503);
       }
 
       responseData = {

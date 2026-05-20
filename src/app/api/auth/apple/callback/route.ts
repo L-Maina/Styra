@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api-utils";
+import { db } from "@/lib/db";
+import { createSession } from "@/lib/auth";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
@@ -199,16 +201,70 @@ export async function POST(request: NextRequest) {
       name: user ? (JSON.parse(user as string).name as string) : undefined,
     };
 
-    // TODO: Create/find user in database using appleUser data
-    // TODO: Issue Styra JWT
-    // TODO: Redirect to frontend with success
+    // ── Create/find user in database ──
+    const email = appleUser.email?.toLowerCase();
+    // Apple may not always provide a name; use email as fallback
+    const name = appleUser.name || email || 'Apple User';
 
-    // Return minimal user info (NEVER expose access_token/refresh_token to client)
-    const response = NextResponse.json({
-      success: true,
-      provider: "apple",
-      user: appleUser,
+    if (!email) {
+      return NextResponse.json(
+        { success: false, error: "No email provided by Apple" },
+        { status: 400 }
+      );
+    }
+
+    let dbUser = await db.user.findUnique({ where: { email } });
+
+    if (dbUser) {
+      // Existing user — update name if it was missing and Apple provided one
+      if (!dbUser.avatar && appleUser.name) {
+        dbUser = await db.user.update({
+          where: { id: dbUser.id },
+          data: { name: appleUser.name },
+        });
+      }
+    } else {
+      // New user — create with Apple profile data
+      dbUser = await db.user.create({
+        data: {
+          email,
+          name,
+          role: "CUSTOMER",
+          isVerified: true,
+          emailVerified: true,
+        },
+      });
+
+      // Create wallet for the new user
+      await db.wallet.create({
+        data: {
+          userId: dbUser.id,
+          balance: 0,
+          pendingBalance: 0,
+          currency: "KES",
+        },
+      });
+    }
+
+    if (dbUser.isBanned) {
+      return NextResponse.json(
+        { success: false, error: "Account has been suspended" },
+        { status: 403 }
+      );
+    }
+
+    // ── Issue Styra JWT session ──
+    await createSession({
+      id: dbUser.id,
+      email: dbUser.email,
+      role: dbUser.role,
+      tokenVersion: dbUser.tokenVersion,
     });
+
+    // ── Redirect to frontend with success indicator ──
+    const response = NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL || "/"}?auth=apple_success`
+    );
 
     // Clear the OAuth state cookie
     response.cookies.delete('apple-oauth-state');

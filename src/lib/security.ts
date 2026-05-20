@@ -23,7 +23,10 @@ export interface SecurityHeadersConfig {
 export const defaultSecurityHeaders: SecurityHeadersConfig = {
   contentSecurityPolicy: [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
+    "script-src 'self' https://js.stripe.com",
+    // 'unsafe-inline' is required in style-src because Tailwind CSS generates
+    // inline styles at runtime that depend on it. This is a known trade-off;
+    // style injection cannot execute JS, so the risk is lower than script-src.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https: blob:",
     "font-src 'self' data:",

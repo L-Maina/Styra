@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       results.admin = `Created admin user: ${admin.email}`;
       createdCredentials.admin = { email: admin.email, passwordGenerated: true };
       // Log the password to server console only (never to API response)
-      console.log(`[Setup] Admin password: ${password} — SAVE THIS, it won't be shown again`);
+      console.log('[Setup] Admin account created. Password has been set.');
     }
 
     // ── 2. Create Demo Business Owner ─────────────────────────
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       });
       results.businessOwner = `Created business owner: ${businessOwner.email}`;
       createdCredentials.businessOwner = { email: businessOwner.email, passwordGenerated: true };
-      console.log(`[Setup] Business owner password: ${password} — SAVE THIS, it won't be shown again`);
+      console.log('[Setup] Business owner account created. Password has been set.');
     }
 
     // ── 3. Create Demo Customer ───────────────────────────────
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       });
       results.customer = `Created customer: ${customer.email}`;
       createdCredentials.customer = { email: customer.email, passwordGenerated: true };
-      console.log(`[Setup] Customer password: ${password} — SAVE THIS, it won't be shown again`);
+      console.log('[Setup] Customer account created. Password has been set.');
     }
 
     // ── 4. Create Demo Businesses ────────────────────────────

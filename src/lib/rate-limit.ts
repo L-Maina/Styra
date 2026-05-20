@@ -69,9 +69,25 @@ export const globalRateLimitConfig: SlidingWindowConfig = {
 
 let _redis: Redis | null = null;
 let _redisAvailable: boolean | null = null;
+let _redisUnavailableSince: number | null = null;
+
+// How long to wait before attempting Redis reconnection after a failure
+const REDIS_RECOVERY_MS = 30_000; // 30 seconds
 
 export async function getRedis(): Promise<Redis | null> {
-  if (_redisAvailable === false) return null;
+  // Recovery logic: if Redis has been unavailable for more than REDIS_RECOVERY_MS,
+  // attempt to reconnect instead of permanently staying disconnected
+  if (_redisAvailable === false) {
+    if (_redisUnavailableSince && Date.now() - _redisUnavailableSince > REDIS_RECOVERY_MS) {
+      console.log('[Redis] Recovery: attempting reconnect after', Math.round((Date.now() - _redisUnavailableSince) / 1000), 's');
+      _redisAvailable = null; // Reset to try again
+      _redisUnavailableSince = null;
+      // Continue to try connection below
+    } else {
+      return null;
+    }
+  }
+
   if (_redis) return _redis;
 
   try {
@@ -90,12 +106,20 @@ export async function getRedis(): Promise<Redis | null> {
     ]);
 
     _redisAvailable = true;
-    _redis.on('error', () => { _redisAvailable = false; });
-    _redis.on('close', () => { _redisAvailable = false; });
+    _redisUnavailableSince = null;
+    _redis.on('error', () => {
+      _redisAvailable = false;
+      if (!_redisUnavailableSince) _redisUnavailableSince = Date.now();
+    });
+    _redis.on('close', () => {
+      _redisAvailable = false;
+      if (!_redisUnavailableSince) _redisUnavailableSince = Date.now();
+    });
 
     return _redis;
   } catch {
     _redisAvailable = false;
+    _redisUnavailableSince = Date.now();
     _redis = null;
     return null;
   }
@@ -139,6 +163,17 @@ export function getClientIp(req: any): string {
 // which may indicate credential stuffing or session hijacking.
 
 const userIpHistory = new Map<string, { ips: Set<string>; lastSwitch: number }>();
+const MAX_USER_IP_HISTORY_SIZE = 10000;
+
+function trimUserIpHistory(): void {
+  if (userIpHistory.size <= MAX_USER_IP_HISTORY_SIZE) return;
+  let deleted = 0;
+  for (const key of userIpHistory.keys()) {
+    if (deleted >= MEMORY_STORE_TRIM_COUNT) break;
+    userIpHistory.delete(key);
+    deleted++;
+  }
+}
 
 export interface AnomalyResult {
   suspicious: boolean;
@@ -151,6 +186,7 @@ export function detectAnomaly(userId: string | undefined, currentIp: string): An
   const history = userIpHistory.get(userId);
   if (!history) {
     // First request from this user — initialize tracking
+    trimUserIpHistory();
     userIpHistory.set(userId, { ips: new Set([currentIp]), lastSwitch: Date.now() });
     return null;
   }
@@ -229,6 +265,7 @@ async function slidingWindowRedis(
     };
   } catch {
     _redisAvailable = false;
+    if (!_redisUnavailableSince) _redisUnavailableSince = Date.now();
     return null;
   }
 }
@@ -243,6 +280,21 @@ interface MemoryEntry {
 
 const memoryStore = new Map<string, MemoryEntry>();
 let _cleanupTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Maximum entries in the in-memory store to prevent unbounded memory growth
+const MAX_MEMORY_STORE_SIZE = 10000;
+const MEMORY_STORE_TRIM_COUNT = 1000;
+
+function trimMemoryStore(store: Map<string, MemoryEntry>): void {
+  if (store.size <= MAX_MEMORY_STORE_SIZE) return;
+  // Delete the oldest entries (first-inserted via iterator order)
+  let deleted = 0;
+  for (const key of store.keys()) {
+    if (deleted >= MEMORY_STORE_TRIM_COUNT) break;
+    store.delete(key);
+    deleted++;
+  }
+}
 
 function cleanupMemoryStore(): void {
   const now = Date.now();
@@ -268,6 +320,8 @@ function slidingWindowMemory(
 
   let entry = memoryStore.get(key);
   if (!entry) {
+    // Enforce size limit before adding a new entry
+    trimMemoryStore(memoryStore);
     entry = { timestamps: [] };
     memoryStore.set(key, entry);
   }

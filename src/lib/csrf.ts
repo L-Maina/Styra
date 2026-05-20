@@ -35,7 +35,7 @@ const CSRF_EXEMPT_PATHS = [
   '/api/auth/resend-otp',
   '/api/auth/resend-verification',
   '/api/auth/verify-email',
-  '/api/auth/logout',
+  // /api/auth/logout removed from exempt — requires CSRF to prevent forced logout attacks
   '/api/auth/logout-all',
   '/api/auth/me',
   '/api/webhooks/',

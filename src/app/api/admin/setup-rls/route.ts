@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       sql = readFileSync(sqlPath, 'utf-8');
     } catch {
       return NextResponse.json(
-        { error: 'RLS SQL script not found', path: sqlPath },
+        { error: 'RLS SQL script not found. Please ensure the file exists.' },
         { status: 500 }
       );
     }
