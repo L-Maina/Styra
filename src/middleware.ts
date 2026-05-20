@@ -67,9 +67,6 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
       response.headers.set('Access-Control-Allow-Credentials', 'true');
       response.headers.set('Vary', 'Origin');
-    } else if (origin) {
-      response.headers.set('Access-Control-Allow-Origin', allowedOrigins[0]);
-      response.headers.set('Vary', 'Origin');
     }
     if (request.method === 'OPTIONS') {
       // Also set CSRF cookie on OPTIONS preflight responses

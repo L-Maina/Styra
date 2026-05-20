@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     // Step 3: Signature verification
     if (!env.paystack.webhookSecret) {
-      if (env.features.devPaymentFallback) {
+      if (env.features.devPaymentFallback && process.env.NODE_ENV !== 'production') {
         // Dev mode: parse body as JSON without verification
         parsedBody = JSON.parse(body) as PaystackEventBody;
       } else {

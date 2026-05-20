@@ -24,8 +24,7 @@ import jwt from 'jsonwebtoken';
 import { headers } from 'next/headers';
 import { cookies } from 'next/headers';
 import { db } from './db';
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { JWT_SECRET } from './auth';
 
 // ────────────────────────────────────────────────────
 // Token Verification
@@ -38,11 +37,20 @@ interface VerifiedUser {
   tokenVersion?: number;
 }
 
-function verifyTokenFromHeader(authHeader: string | null): VerifiedUser | null {
+async function verifyTokenFromHeader(authHeader: string | null): Promise<VerifiedUser | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   const token = authHeader.slice(7);
   try {
-    return jwt.verify(token, JWT_SECRET!) as VerifiedUser;
+    const payload = jwt.verify(token, JWT_SECRET) as VerifiedUser;
+
+    // SECURITY: Check tokenVersion and isBanned against the database
+    // to prevent use of stale or revoked Bearer tokens
+    const user = await db.user.findUnique({ where: { id: payload.userId } });
+    if (!user || user.isBanned || (user.tokenVersion !== undefined && user.tokenVersion !== payload.tokenVersion)) {
+      return null;
+    }
+
+    return payload;
   } catch {
     return null;
   }
@@ -54,7 +62,7 @@ async function verifyTokenFromCookie(): Promise<VerifiedUser | null> {
     const token = cookieStore.get('styra-token')?.value;
     if (!token) return null;
 
-    const payload = jwt.verify(token, JWT_SECRET!) as VerifiedUser;
+    const payload = jwt.verify(token, JWT_SECRET) as VerifiedUser;
     if (!payload) return null;
 
     // Check token version to handle forced logouts

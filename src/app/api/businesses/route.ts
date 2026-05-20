@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
 import { parseSort } from '@/lib/query-optimization';
 import { performAutoVerify } from '@/lib/auto-verify';
+import { createBusinessSchema } from '@/lib/validations';
 
 // Search/list businesses
 export async function GET(request: NextRequest) {
@@ -156,27 +157,30 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Validate input with Zod schema
+    const validated = createBusinessSchema.parse(body);
+
     const business = await db.business.create({
       data: {
         ownerId: session.userId,
-        name: body.name,
-        description: body.description || null,
-        category: body.category || 'general',
-        phone: body.phone || null,
-        email: body.email || null,
-        website: body.website || null,
-        address: body.address || null,
-        city: body.city || null,
-        country: body.country || null,
-        latitude: body.latitude ?? null,
-        longitude: body.longitude ?? null,
-        logo: body.logo || null,
-        coverImage: body.coverImage || null,
+        name: validated.name,
+        description: validated.description || null,
+        category: validated.category || 'general',
+        phone: validated.phone || null,
+        email: validated.email || null,
+        website: validated.website || null,
+        address: validated.address || null,
+        city: validated.city || null,
+        country: validated.country || null,
+        latitude: validated.latitude ?? null,
+        longitude: validated.longitude ?? null,
+        logo: validated.logo || null,
+        coverImage: validated.coverImage || null,
         // ID verification fields
-        idType: body.idType || null,
-        idNumber: body.idNumber || null,
-        idDocumentUrl: body.idDocumentUrl || null,
-        boothPhotoUrl: body.boothPhotoUrl || null,
+        idType: validated.idType || null,
+        idNumber: validated.idNumber || null,
+        idDocumentUrl: validated.idDocumentUrl || null,
+        boothPhotoUrl: validated.boothPhotoUrl || null,
       },
       include: {
         services: true,
@@ -196,7 +200,7 @@ export async function POST(request: NextRequest) {
         data: {
           userId: session.userId,
           title: 'Application Received',
-          message: `Your business "${body.name}" has been submitted for review. You will be notified once it is approved.`,
+          message: `Your business "${validated.name}" has been submitted for review. You will be notified once it is approved.`,
           type: 'VERIFICATION_UPDATE',
           link: `/business/${business.id}`,
         },
@@ -219,7 +223,7 @@ export async function POST(request: NextRequest) {
           data: admins.map(admin => ({
             userId: admin.id,
             title: 'New Business Application',
-            message: `${body.name} has submitted a new business application and is awaiting review.`,
+            message: `${validated.name} has submitted a new business application and is awaiting review.`,
             type: 'SYSTEM_ALERT',
             link: `/admin?tab=businesses`,
           })),

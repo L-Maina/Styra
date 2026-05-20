@@ -16,7 +16,7 @@ export interface AuthUser {
 // SECURITY: No fallback secret. If JWT_SECRET is not set, authentication will not work.
 // In production/staging, the app should crash on startup (handled by env.ts validation).
 // In development, a warning is logged and a random dev-only secret is generated per process.
-const JWT_SECRET = (() => {
+export const JWT_SECRET = (() => {
   const secret = process.env.JWT_SECRET;
   if (secret) return secret;
 
@@ -80,9 +80,21 @@ export async function getSession(): Promise<any | null> {
     return null;
   }
   
+  // SECURITY: Only expose a whitelisted subset of user fields — never include password
+  const safeUser = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    isVerified: user.isVerified,
+    isBanned: user.isBanned,
+    phone: user.phone,
+    tokenVersion: user.tokenVersion,
+  };
+
   // Add `id` as alias for `userId` so that code using user.id works correctly.
   // The JWT payload uses `userId`, but many API routes reference `user.id`.
-  return { ...payload, id: payload.userId, user };
+  return { ...payload, id: payload.userId, user: safeUser };
 }
 
 // Create a session (set JWT cookie)

@@ -47,18 +47,25 @@ export const updateProfileSchema = z.object({
 export const createBusinessSchema = z.object({
   name: z.string().min(2, 'Business name must be at least 2 characters').max(100, 'Name must be less than 100 characters'),
   description: z.string().max(5000, 'Description must be less than 5000 characters').optional(),
+  category: z.string().max(50, 'Category must be less than 50 characters').optional(),
   phone: z.string().regex(/^\+?[1-9]\d{6,14}$/, 'Invalid phone number').max(20, 'Phone must be less than 20 characters').optional().or(z.literal('')),
   email: z.string().email('Invalid email address').max(254, 'Email must be less than 254 characters').optional().or(z.literal('')),
   website: z.string().url('Invalid website URL').optional().or(z.literal('')),
-  address: z.string().min(5, 'Address must be at least 5 characters'),
-  city: z.string().min(2, 'City must be at least 2 characters'),
-  country: z.string().min(2, 'Country must be at least 2 characters'),
+  address: z.string().min(5, 'Address must be at least 5 characters').optional(),
+  city: z.string().min(2, 'City must be at least 2 characters').optional(),
+  country: z.string().min(2, 'Country must be at least 2 characters').optional(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   serviceRadius: z.number().min(1).max(100).default(10),
-});
+  logo: z.string().max(100000, 'Logo data too large').optional(),
+  coverImage: z.string().max(500000, 'Cover image data too large').optional(),
+  idType: z.string().max(50).optional(),
+  idNumber: z.string().max(100).optional(),
+  idDocumentUrl: z.string().max(500).optional(),
+  boothPhotoUrl: z.string().max(500000, 'Booth photo data too large').optional(),
+}).strict();
 
-export const updateBusinessSchema = createBusinessSchema.partial();
+export const updateBusinessSchema = createBusinessSchema.partial().strict();
 
 // Service validations
 export const createServiceSchema = z.object({

@@ -77,6 +77,62 @@ export async function uploadImageFromUrl(
   url: string,
   options?: { folder?: string; public_id?: string }
 ): Promise<UploadResult> {
+  // SSRF Protection: Validate URL before passing to Cloudinary
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    throw new Error('Invalid URL provided for image upload');
+  }
+
+  // Only allow HTTPS protocol
+  if (parsedUrl.protocol !== 'https:') {
+    throw new Error('Only HTTPS URLs are allowed for image upload');
+  }
+
+  // Block private/internal IPs to prevent SSRF
+  const hostname = parsedUrl.hostname.toLowerCase();
+
+  // Block loopback
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+    throw new Error('URLs pointing to local addresses are not allowed');
+  }
+
+  // Block link-local
+  if (hostname.startsWith('169.254.') || hostname.startsWith('fe80:')) {
+    throw new Error('URLs pointing to link-local addresses are not allowed');
+  }
+
+  // Block private IPv4 ranges
+  if (
+    hostname.startsWith('10.') ||
+    hostname.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+  ) {
+    throw new Error('URLs pointing to private addresses are not allowed');
+  }
+
+  // Block IPv6 unique local addresses (fc00::/7)
+  if (hostname.startsWith('fc') || hostname.startsWith('fd')) {
+    throw new Error('URLs pointing to local addresses are not allowed');
+  }
+
+  // Optional: Allowlist known image hosts
+  const allowedHosts = [
+    'cloudinary.com',
+    'res.cloudinary.com',
+    'images.unsplash.com',
+    'unsplash.com',
+    'imgur.com',
+    'i.imgur.com',
+  ];
+  const isAllowedHost = allowedHosts.some(
+    host => hostname === host || hostname.endsWith('.' + host)
+  );
+  if (!isAllowedHost) {
+    throw new Error('Image URL must be from an allowed image host (Cloudinary, Unsplash, Imgur)');
+  }
+
   return uploadImage(url, options);
 }
 

@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     return successResponse({
       message: otpSent ? 'New verification code sent to your phone' : 'New verification code generated',
       otpSent,
-      otpCode: otpSent ? undefined : otpCode,
+      otpCode: undefined,
     });
   } catch (error) {
     return handleApiError(error);

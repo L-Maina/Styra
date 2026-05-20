@@ -43,10 +43,24 @@ export async function GET(
     const match = imageDataUrl.match(/^data:(image\/[\w+.-]+);base64,(.+)$/);
 
     if (!match) {
-      // Not a valid data URL — return as-is (could be an external URL)
-      // For external URLs, redirect the browser
+      // Not a valid data URL — could be an external URL
+      // SECURITY: Only allow redirects to known safe domains (Cloudinary, app domain)
       if (imageDataUrl.startsWith('http')) {
-        return NextResponse.redirect(imageDataUrl);
+        try {
+          const parsedUrl = new URL(imageDataUrl);
+          const allowedHosts = [
+            'cloudinary.com',
+            'res.cloudinary.com',
+          ];
+          // Also allow any *.cloudinary.com subdomain
+          const isAllowed = allowedHosts.some(host => parsedUrl.hostname === host || parsedUrl.hostname.endsWith('.' + host));
+          if (!isAllowed) {
+            return new NextResponse('Redirect to this domain is not allowed', { status: 400 });
+          }
+          return NextResponse.redirect(imageDataUrl);
+        } catch {
+          return new NextResponse('Invalid image URL', { status: 400 });
+        }
       }
       return new NextResponse('Invalid image format', { status: 400 });
     }

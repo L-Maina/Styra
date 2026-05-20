@@ -170,6 +170,9 @@ export async function holdInEscrow(
  * Updates: PlatformTransaction.escrowStatus = RELEASED
  * Creates: Notification for provider
  *
+ * SECURITY: The escrow status check and update are atomic (single $transaction)
+ * to prevent race conditions where concurrent requests could double-release funds.
+ *
  * @param bookingId - The booking ID
  * @param reason    - Why the escrow was released (e.g., "Customer confirmed", "Auto-verified")
  */
@@ -177,17 +180,36 @@ export async function releaseFromEscrow(
   bookingId: string,
   reason: string,
 ): Promise<EscrowReleaseResult> {
-  // Find the escrow-held transaction
-  const escrowTx = await db.platformTransaction.findFirst({
-    where: {
-      bookingId,
-      type: 'ESCROW_HELD',
-      escrowStatus: 'HELD',
-    },
+  // Atomic transaction: find escrow + update status in one go to prevent race conditions
+  const escrowTx = await db.$transaction(async (tx) => {
+    // Find the HELD escrow transaction with a row-level lock
+    const held = await tx.platformTransaction.findFirst({
+      where: {
+        bookingId,
+        type: 'ESCROW_HELD',
+        escrowStatus: 'HELD',
+      },
+    });
+
+    if (!held) {
+      return null;
+    }
+
+    // Immediately mark as RELEASED within the same transaction to prevent double-release
+    await tx.platformTransaction.update({
+      where: { id: held.id },
+      data: {
+        escrowStatus: 'RELEASED',
+        completedAt: new Date(),
+        description: `Escrow released: ${reason}`,
+      },
+    });
+
+    return held;
   });
 
   if (!escrowTx) {
-    // Check if already released
+    // Check if already released (idempotent)
     const releasedTx = await db.platformTransaction.findFirst({
       where: {
         bookingId,
@@ -216,14 +238,9 @@ export async function releaseFromEscrow(
   // Release pending balance → available balance (uses its own tx internally)
   await releaseToBalance(providerUserId, escrowTx.providerAmount, bookingId);
 
-  // Update PlatformTransaction
-  const updatedTransaction = await db.platformTransaction.update({
+  // Get the updated transaction for return value
+  const updatedTransaction = await db.platformTransaction.findUnique({
     where: { id: escrowTx.id },
-    data: {
-      escrowStatus: 'RELEASED',
-      completedAt: new Date(),
-      description: `Escrow released: ${reason}`,
-    },
   });
 
   // Create a SERVICE_COMPLETED PlatformTransaction for revenue tracking
@@ -288,7 +305,7 @@ export async function releaseFromEscrow(
 
   return {
     success: true,
-    transaction: updatedTransaction,
+    transaction: updatedTransaction!,
     releasedAmount: escrowTx.providerAmount,
   };
 }
@@ -297,6 +314,9 @@ export async function releaseFromEscrow(
  * Refund escrow funds back to the customer.
  * Creates a REFUND PlatformTransaction and reverses the provider's wallet credit.
  *
+ * SECURITY: The escrow status check and update are atomic (single $transaction)
+ * to prevent race conditions where concurrent requests could double-refund funds.
+ *
  * @param bookingId - The booking ID
  * @param reason    - Why the refund was issued
  */
@@ -304,42 +324,61 @@ export async function refundFromEscrow(
   bookingId: string,
   reason: string,
 ): Promise<EscrowRefundResult> {
-  // Find the escrow transaction
-  const escrowTx = await db.platformTransaction.findFirst({
-    where: {
-      bookingId,
-      type: 'ESCROW_HELD',
-    },
+  // Atomic transaction: find escrow + update status in one go to prevent race conditions
+  const escrowResult = await db.$transaction(async (tx) => {
+    // Find the escrow transaction
+    const held = await tx.platformTransaction.findFirst({
+      where: {
+        bookingId,
+        type: 'ESCROW_HELD',
+      },
+    });
+
+    if (!held) {
+      return null;
+    }
+
+    // Already refunded — idempotent return
+    if (held.escrowStatus === 'REFUNDED') {
+      return { ...held, alreadyRefunded: true as const };
+    }
+
+    // Immediately mark as REFUNDED within the same transaction to prevent double-refund
+    const updated = await tx.platformTransaction.update({
+      where: { id: held.id },
+      data: {
+        escrowStatus: 'REFUNDED',
+        status: 'REFUNDED',
+        completedAt: new Date(),
+        description: `Refunded: ${reason}`,
+      },
+    });
+
+    return { ...updated, alreadyRefunded: false as const };
   });
 
-  if (!escrowTx) {
+  if (!escrowResult) {
     throw new Error(`No escrow transaction found for booking: ${bookingId}`);
   }
 
-  if (!escrowTx.userId) {
-    throw new Error(`Escrow transaction missing userId for booking: ${bookingId}`);
-  }
-
-  if (escrowTx.escrowStatus === 'REFUNDED') {
+  if (escrowResult.alreadyRefunded) {
     return {
       success: true,
-      transaction: escrowTx,
-      refundAmount: escrowTx.amount,
+      transaction: escrowResult,
+      refundAmount: escrowResult.amount,
     };
   }
 
-  const providerUserId = escrowTx.userId;
-  const refundAmount = escrowTx.providerAmount;
+  if (!escrowResult.userId) {
+    throw new Error(`Escrow transaction missing userId for booking: ${bookingId}`);
+  }
 
-  // Update the escrow transaction status
-  const updatedTransaction = await db.platformTransaction.update({
-    where: { id: escrowTx.id },
-    data: {
-      escrowStatus: 'REFUNDED',
-      status: 'REFUNDED',
-      completedAt: new Date(),
-      description: `Refunded: ${reason}`,
-    },
+  const providerUserId = escrowResult.userId;
+  const refundAmount = escrowResult.providerAmount;
+
+  // Get the updated transaction
+  const updatedTransaction = await db.platformTransaction.findUnique({
+    where: { id: escrowResult.id },
   });
 
   // Create a REFUND PlatformTransaction
@@ -347,16 +386,16 @@ export async function refundFromEscrow(
     data: {
       type: 'REFUND',
       bookingId,
-      businessId: escrowTx.businessId ?? '',
+      businessId: escrowResult.businessId ?? '',
       userId: providerUserId,
-      amount: escrowTx.amount,
+      amount: escrowResult.amount,
       platformFee: 0,
       providerAmount: -refundAmount,
-      currency: escrowTx.currency,
+      currency: escrowResult.currency,
       status: 'COMPLETED',
       description: `Refund to customer: ${reason}`,
       metadata: JSON.stringify({
-        escrowTransactionId: escrowTx.id,
+        escrowTransactionId: escrowResult.id,
         reason,
         refundAmount,
       }),
@@ -408,13 +447,13 @@ export async function refundFromEscrow(
     amount: -refundAmount,
     type: 'REFUND',
     status: 'COMPLETED',
-    referenceId: escrowTx.id,
-    metadata: { reason, escrowTransactionId: escrowTx.id, refundAmount },
+    referenceId: escrowResult.id,
+    metadata: { reason, escrowTransactionId: escrowResult.id, refundAmount },
   });
 
   return {
     success: true,
-    transaction: updatedTransaction,
+    transaction: updatedTransaction!,
     refundAmount,
   };
 }

@@ -26,12 +26,18 @@ const SENSITIVE_FIELDS: ReadonlySet<string> = new Set([
   'emailVerificationToken',
   // Third-party provider identifiers / tokens
   'stripeCustomerId',
+  'stripeAccountId',
   'paypalCustomerId',
   'mpesaPhoneNumber',
   'providerRef',       // External payment provider IDs (Payment/Payout)
   'authKey',           // Web Push auth secret (PushSubscription)
   'p256dhKey',         // Web Push encryption key (PushSubscription)
   'code',              // OTP verification code
+  // Identity / PII fields
+  'idNumber',
+  'idDocumentUrl',
+  'idType',
+  'verificationResult',
 ]);
 
 /**

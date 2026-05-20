@@ -51,12 +51,8 @@ export async function POST(request: NextRequest) {
     const emailSent = await sendEmail({ to: user.email, ...template });
 
     if (!emailSent) {
-      // Email not configured (no RESEND_API_KEY) — return reset link directly
-      return successResponse({
-        message: 'Email not configured. Use the link below to reset your password.',
-        resetUrl,
-        emailSent: false,
-      });
+      // Email not configured (no RESEND_API_KEY) — do NOT expose reset URL
+      return errorResponse('Password reset is currently unavailable. Please contact support.', 503);
     }
 
     return successResponse({

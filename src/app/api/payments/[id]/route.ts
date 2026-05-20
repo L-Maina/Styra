@@ -59,6 +59,16 @@ export async function GET(
  * PATCH /api/payments/[id] — Update payment (admin only)
  * For manual payment confirmation in edge cases
  */
+
+// Valid state transitions for payment status
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  PENDING: ['PROCESSING', 'FAILED'],
+  PROCESSING: ['COMPLETED', 'FAILED'],
+  COMPLETED: ['REFUNDED'],
+  FAILED: [],
+  REFUNDED: [],
+};
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -70,7 +80,7 @@ export async function PATCH(
 
     const { newStatus, adminNotes } = body as { newStatus?: string; adminNotes?: string };
 
-    // Validate status transition
+    // Validate status value
     const validStatuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'REFUNDED'];
     if (!newStatus || !validStatuses.includes(newStatus)) {
       return errorResponse(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400);
@@ -83,6 +93,15 @@ export async function PATCH(
 
     if (!payment) {
       return errorResponse('Payment not found', 404);
+    }
+
+    // Validate state transition
+    const allowedTransitions = VALID_TRANSITIONS[payment.status] || [];
+    if (!allowedTransitions.includes(newStatus)) {
+      return errorResponse(
+        `Invalid status transition from ${payment.status} to ${newStatus}. Allowed transitions: ${allowedTransitions.length > 0 ? allowedTransitions.join(', ') : 'none'}`,
+        400,
+      );
     }
 
     // Use transaction for atomic status update + booking sync + notification

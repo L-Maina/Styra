@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
         email,
         name: validated.data.name,
         otpSent,
-        otpCode: otpSent ? undefined : otpCode,
+        otpCode: undefined,
       },
       201
     );

@@ -58,6 +58,10 @@ model User {
   disputesReceived   Dispute[]            @relation("DisputeProvider")
   supportTickets     SupportTicket[]
   media              Media[]
+
+  @@index([role])
+  @@index([isBanned])
+  @@index([createdAt])
 }
 
 model Business {
@@ -117,6 +121,13 @@ model Business {
   advertisements   Advertisement[]
   discountCodes    DiscountCode[]
   escrow           Escrow[]
+
+  @@index([ownerId])
+  @@index([category])
+  @@index([city])
+  @@index([isActive, verificationStatus])
+  @@index([rating])
+  @@index([createdAt])
 }
 
 model Service {
@@ -136,6 +147,9 @@ model Service {
   business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   bookings   Booking[]
   timeSlots  TimeSlot[]
+
+  @@index([businessId])
+  @@index([isActive])
 }
 
 model Staff {
@@ -153,6 +167,8 @@ model Staff {
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   bookings Booking[]
+
+  @@index([businessId])
 }
 
 model PortfolioItem {
@@ -203,6 +219,13 @@ model Booking {
   reviews  Review[]
   escrow   Escrow[]
   disputes Dispute[]
+
+  @@index([customerId])
+  @@index([businessId])
+  @@index([status])
+  @@index([date])
+  @@index([serviceId, date, status])
+  @@index([createdAt])
 }
 
 model Review {
@@ -218,6 +241,10 @@ model Review {
   booking  Booking @relation(fields: [bookingId], references: [id])
   customer User    @relation(fields: [customerId], references: [id])
   business Business @relation(fields: [businessId], references: [id])
+
+  @@index([customerId])
+  @@index([businessId])
+  @@index([rating])
 }
 
 model Favorite {
@@ -253,6 +280,11 @@ model Payment {
   booking Booking @relation(fields: [bookingId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
   escrow   Escrow[]
+
+  @@index([userId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Payout {
@@ -268,6 +300,10 @@ model Payout {
   failedReason    String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([businessId])
+  @@index([userId])
+  @@index([status])
 }
 
 model Escrow {
@@ -284,6 +320,10 @@ model Escrow {
   booking Booking  @relation(fields: [bookingId], references: [id])
   payment Payment? @relation(fields: [paymentId], references: [id])
   business Business @relation(fields: [providerUserId], references: [id])
+
+  @@index([bookingId])
+  @@index([status])
+  @@index([providerUserId])
 }
 
 model PlatformTransaction {
@@ -305,6 +345,11 @@ model PlatformTransaction {
   completedAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([bookingId])
+  @@index([userId])
+  @@index([escrowStatus])
+  @@index([type])
 }
 
 model TransactionLog {
@@ -318,6 +363,10 @@ model TransactionLog {
   referenceId String?
   metadata    String?
   createdAt   DateTime @default(now())
+
+  @@index([userId, type, status])
+  @@index([bookingId])
+  @@index([userId, bookingId, type])
 }
 
 // ── Categories ─────────────────────────────────────────────
@@ -389,6 +438,9 @@ model ChatMessage {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User        @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
 }
 
 model Message {
@@ -402,6 +454,9 @@ model Message {
   isRead         Boolean  @default(false)
   readAt         DateTime?
   createdAt      DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([recipientId, isRead])
 }
 
 // ── Notifications ──────────────────────────────────────────
@@ -417,6 +472,9 @@ model Notification {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
 
 model NotificationPreference {
@@ -476,6 +534,10 @@ model OTPVerification {
   createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phone])
+  @@index([email])
+  @@index([expiresAt])
 }
 
 model PasswordReset {
@@ -499,6 +561,8 @@ model EmailVerificationToken {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 // ── User Moderation ────────────────────────────────────────
@@ -555,6 +619,11 @@ model Dispute {
   booking  Booking  @relation(fields: [bookingId], references: [id])
   customer User     @relation("DisputeCustomer", fields: [customerId], references: [id])
   provider User     @relation("DisputeProvider", fields: [providerId], references: [id])
+
+  @@index([bookingId])
+  @@index([status])
+  @@index([customerId])
+  @@index([providerId])
 }
 
 model InsuranceClaim {
@@ -585,6 +654,10 @@ model InsuranceClaim {
   updatedAt     DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([businessId])
 }
 
 // ── Admin & Monitoring ─────────────────────────────────────
@@ -597,6 +670,10 @@ model AuditLog {
   details   String?
   ipAddress String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model SecurityAuditLog {
@@ -614,6 +691,9 @@ model SecurityAuditLog {
   hash         String
   previousHash String?
   createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model SecurityAlert {
@@ -628,6 +708,9 @@ model SecurityAlert {
   metadata    String?
   status      String   @default("OPEN")
   createdAt   DateTime @default(now())
+
+  @@index([severity])
+  @@index([status])
 }
 
 model MonitoringError {
@@ -643,6 +726,10 @@ model MonitoringError {
   resolved   Boolean   @default(false)
   resolvedAt DateTime?
   createdAt  DateTime  @default(now())
+
+  @@index([route])
+  @@index([resolved])
+  @@index([createdAt])
 }
 
 model AdminReport {
@@ -709,6 +796,10 @@ model FormSubmission {
   status    String   @default("PENDING")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([userId])
 }
 
 // ── Webhooks & Analytics ───────────────────────────────────
@@ -733,6 +824,9 @@ model WebhookEvent {
   createdAt        DateTime  @default(now())
 
   @@unique([provider, providerEventId])
+  @@index([provider])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model AnalyticsEvent {
@@ -745,6 +839,11 @@ model AnalyticsEvent {
   page       String?
   timestamp  DateTime
   createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([event])
+  @@index([timestamp])
 }
 
 model RateLimit {
@@ -786,6 +885,9 @@ model TimeSlot {
   createdAt DateTime @default(now())
 
   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, date])
+  @@index([isBooked])
 }
 
 // ── CMS & Content ──────────────────────────────────────────
@@ -810,6 +912,10 @@ model BlogArticle {
   publishedAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  @@index([isPublished])
+  @@index([category])
+  @@index([createdAt])
 }
 
 model BrandKit {
@@ -865,6 +971,10 @@ model Promotion {
   updatedAt      DateTime  @updatedAt
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([status])
+  @@index([startDate, endDate])
 }
 
 model Advertisement {
@@ -977,6 +1087,10 @@ model JobApplication {
   updatedAt DateTime @updatedAt
 
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([email])
+  @@index([status])
 }
 
 // ── Platform Earnings & Withdrawals ─────────────────────────
@@ -995,6 +1109,10 @@ model PlatformEarning {
   withdrawnAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([businessId])
+  @@index([earnedAt])
 }
 
 model PlatformWithdrawal {
@@ -1010,4 +1128,7 @@ model PlatformWithdrawal {
   processedAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }

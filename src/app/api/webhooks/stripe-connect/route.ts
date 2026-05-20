@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!webhookSecret) {
-      if (env.features.devPaymentFallback) {
+      if (env.features.devPaymentFallback && process.env.NODE_ENV !== 'production') {
         // Dev mode: parse body as JSON without verification
         event = JSON.parse(body) as Stripe.Event;
       } else {
@@ -144,10 +144,11 @@ export async function POST(request: NextRequest) {
         await markEventSignatureValid(PROVIDER, provisionalEventId);
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        console.error('[Stripe Connect Webhook] Signature verification failed:', errorMessage);
         await markEventInvalidSignature(PROVIDER, provisionalEventId, errorMessage);
         alertWebhookSignatureFailed('STRIPE_CONNECT', clientIp);
         return new Response(
-          JSON.stringify({ error: `Webhook signature verification failed: ${errorMessage}` }),
+          JSON.stringify({ error: 'Webhook signature verification failed' }),
           { status: 401, headers: { 'Content-Type': 'application/json' } },
         );
       }

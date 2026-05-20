@@ -48,6 +48,8 @@ export function paginatedResponse<T>(
 }
 
 export function handleApiError(error: unknown): NextResponse<ApiResponse> {
+  const isProduction = process.env.NODE_ENV === 'production';
+
   // Handle Response throws from auth middleware (requireAuth, requireAdmin, etc.)
   if (error instanceof Response) {
     return NextResponse.json(
@@ -66,7 +68,7 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
     console.error(`[API Error Stack] ${error.stack}`);
   }
 
-  // Zod validation errors
+  // Zod validation errors — safe to expose to clients
   if (error instanceof ZodError) {
     const messages = error.issues.map((e) => `${e.path.join('.')}: ${e.message}`);
     return errorResponse(messages.join(', '), 400);
@@ -80,6 +82,20 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
     // Log the actual Prisma error code for debugging
     console.error(`[DB Init Error] Code: ${errorCode}, Message: ${msg}`);
 
+    if (isProduction) {
+      // In production, return generic messages without internal details
+      if (msg.includes('Tenant or user not found') || errorCode === 'P1000' ||
+          msg.includes('ECONNREFUSED') || errorCode === 'P1001' ||
+          msg.includes('timed out') || errorCode === 'P1008') {
+        return errorResponse('Database connection failed. Please try again later.', 503);
+      }
+      if (msg.includes('DATABASE_URL') || errorCode === 'P1003') {
+        return errorResponse('A server configuration error occurred.', 500);
+      }
+      return errorResponse('A database error occurred.', 503);
+    }
+
+    // Development: provide detailed diagnostics
     if (msg.includes('Tenant or user not found') || errorCode === 'P1000') {
       return errorResponse(
         'Database connection error: Supabase pooler cannot authenticate. Your DATABASE_URL is likely wrong.',
@@ -134,15 +150,18 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
 
     switch (code) {
       case 'P2002':
-        return errorResponse('A record with this value already exists', 409, undefined, code);
+        return errorResponse('A record with this value already exists', 409);
       case 'P2025':
-        return errorResponse('Record not found', 404, undefined, code);
+        return errorResponse('Record not found', 404);
       case 'P2003':
-        return errorResponse('Invalid reference to related record', 400, undefined, code);
+        return errorResponse('Invalid reference to related record', 400);
       case 'P2032':
         return errorResponse('Database type mismatch — please contact support', 500);
       case 'P2021':
         // Table does not exist in database
+        if (isProduction) {
+          return errorResponse('A database error occurred.', 503);
+        }
         const tableMatch = msg.match(/table `?\w+`\.`?(\w+)`?/i) || msg.match(/relation "(\w+)"/);
         const tableName = tableMatch ? tableMatch[1] : 'unknown';
         return errorResponse(
@@ -153,32 +172,32 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
         );
       case 'P1001':
         return errorResponse(
-          'Cannot connect to database.',
+          isProduction ? 'A database error occurred.' : 'Cannot connect to database.',
           503,
-          'Check your DATABASE_URL and ensure your Supabase project is not paused.',
-          code
+          isProduction ? undefined : 'Check your DATABASE_URL and ensure your Supabase project is not paused.',
+          isProduction ? undefined : code
         );
       case 'P1000':
         return errorResponse(
-          'Database authentication failed.',
+          isProduction ? 'A database error occurred.' : 'Database authentication failed.',
           503,
-          'Your DATABASE_URL has wrong credentials. Get the correct connection string from Supabase Dashboard → Settings → Database → Connection string.',
-          code
+          isProduction ? undefined : 'Your DATABASE_URL has wrong credentials. Get the correct connection string from Supabase Dashboard → Settings → Database → Connection string.',
+          isProduction ? undefined : code
         );
       default:
-        // For any unknown Prisma error, include the actual error message and code
+        // For any unknown Prisma error, include details only in development
         return errorResponse(
           'A database error occurred.',
           500,
-          `[${code}] ${msg.substring(0, 300)}`,
-          code
+          isProduction ? undefined : `[${code}] ${msg.substring(0, 300)}`,
+          isProduction ? undefined : code
         );
     }
   }
 
   if (error instanceof Prisma.PrismaClientValidationError) {
     console.error(`[Prisma Validation Error] ${error.message}`);
-    return errorResponse('Invalid data provided', 400, error.message.substring(0, 300));
+    return errorResponse('Invalid data provided', 400, isProduction ? undefined : error.message.substring(0, 300));
   }
 
   // Generic errors — detect common database issues
@@ -192,6 +211,25 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
       return errorResponse('You do not have permission to perform this action', 403);
     }
 
+    if (isProduction) {
+      // In production, return generic error messages without leaking internals
+      if (msg.includes('DATABASE_URL') || msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT')) {
+        return errorResponse('A server error occurred. Please try again later.', 503);
+      }
+      if ((msg.includes('relation') && msg.includes('does not exist')) || msg.includes('Tenant or user not found')) {
+        return errorResponse('A server error occurred. Please try again later.', 503);
+      }
+      if (msg.includes('authentication failed') || msg.includes('password authentication')) {
+        return errorResponse('A server error occurred. Please try again later.', 503);
+      }
+      if (msg.includes('database') && msg.includes('does not exist')) {
+        return errorResponse('A server error occurred. Please try again later.', 503);
+      }
+      // Generic catch-all for other errors
+      return errorResponse('An error occurred while processing your request.', 400);
+    }
+
+    // Development: detailed error messages
     // DATABASE_URL not set
     if (msg.includes('DATABASE_URL')) {
       return errorResponse(

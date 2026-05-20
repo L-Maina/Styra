@@ -109,9 +109,10 @@ export async function GET(request: NextRequest) {
 // PUT - Update user status (suspend/activate)
 export async function PUT(request: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     const body = await request.json();
-    const { userId, action, reason, adminId, duration } = body;
+    const { userId, action, reason, duration } = body;
+    const adminId = session.userId;
 
     if (!userId || !action) {
       return errorResponse('User ID and action are required', 400);

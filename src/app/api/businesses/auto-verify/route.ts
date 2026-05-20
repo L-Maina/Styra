@@ -1,12 +1,16 @@
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { performAutoVerify } from '@/lib/auto-verify';
+import { requireAdmin } from '@/lib/auth';
 
 // POST /api/businesses/auto-verify — Auto-verification during business registration
 // Uses the shared performAutoVerify() utility for consistency.
 // Does NOT require admin auth — called internally during registration.
 export async function POST(request: NextRequest) {
   try {
+    // Require admin auth — this endpoint must not be called without authentication
+    await requireAdmin();
+
     const { businessId } = await request.json();
 
     if (!businessId) {

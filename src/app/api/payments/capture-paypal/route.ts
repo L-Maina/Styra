@@ -75,6 +75,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify captured amount matches expected payment amount
+    const capturedAmount = parseFloat(captureResult.amount);
+    if (isNaN(capturedAmount) || capturedAmount !== payment.amount) {
+      await db.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'FAILED',
+          description: JSON.stringify({
+            captureId: captureResult.captureId,
+            captureStatus: captureResult.status,
+            captureAmount: captureResult.amount,
+            captureCurrency: captureResult.currency,
+            expectedAmount: payment.amount,
+            amountMismatch: true,
+            captureAttemptedAt: new Date().toISOString(),
+          }),
+        },
+      });
+
+      return errorResponse(
+        'Captured amount does not match expected payment amount',
+        400,
+      );
+    }
+
     await db.$transaction(async (tx) => {
       await tx.payment.update({
         where: { id: payment.id },

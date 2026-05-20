@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { updateBusinessSchema } from '@/lib/validations';
 
 // Get business by ID
 export async function GET(
@@ -81,30 +82,23 @@ export async function PATCH(
       return errorResponse('You do not have permission to update this business', 403);
     }
 
+    // Validate input with Zod schema
+    const validated = updateBusinessSchema.parse(body);
+
     const data: Record<string, unknown> = {};
-    if (body.name !== undefined) data.name = body.name;
-    if (body.description !== undefined) data.description = body.description;
-    if (body.category !== undefined) data.category = body.category;
-    if (body.phone !== undefined) data.phone = body.phone;
-    if (body.email !== undefined) data.email = body.email;
-    if (body.website !== undefined) data.website = body.website;
-    if (body.address !== undefined) data.address = body.address;
-    if (body.city !== undefined) data.city = body.city;
-    if (body.country !== undefined) data.country = body.country;
-    if (body.latitude !== undefined) data.latitude = body.latitude;
-    if (body.longitude !== undefined) data.longitude = body.longitude;
-    if (body.logo !== undefined) data.logo = body.logo;
-    if (body.coverImage !== undefined) data.coverImage = body.coverImage;
-    if (body.operatingHours !== undefined) {
-      data.operatingHours = typeof body.operatingHours === 'string'
-        ? body.operatingHours
-        : JSON.stringify(body.operatingHours);
-    }
-    if (body.amenities !== undefined) {
-      data.amenities = typeof body.amenities === 'string'
-        ? body.amenities
-        : JSON.stringify(body.amenities);
-    }
+    if (validated.name !== undefined) data.name = validated.name;
+    if (validated.description !== undefined) data.description = validated.description;
+    if (validated.category !== undefined) data.category = validated.category;
+    if (validated.phone !== undefined) data.phone = validated.phone;
+    if (validated.email !== undefined) data.email = validated.email;
+    if (validated.website !== undefined) data.website = validated.website;
+    if (validated.address !== undefined) data.address = validated.address;
+    if (validated.city !== undefined) data.city = validated.city;
+    if (validated.country !== undefined) data.country = validated.country;
+    if (validated.latitude !== undefined) data.latitude = validated.latitude;
+    if (validated.longitude !== undefined) data.longitude = validated.longitude;
+    if (validated.logo !== undefined) data.logo = validated.logo;
+    if (validated.coverImage !== undefined) data.coverImage = validated.coverImage;
 
     const updatedBusiness = await db.business.update({
       where: { id },

@@ -1,6 +1,92 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api-utils";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
+
+// ── Apple JWKS Key Fetching ──────────────────────────────────────────────────
+
+// Cache Apple's JWKS keys for 24 hours
+let jwksCache: { keys: Array<{ kid: string; n: string; e: string; kty: string }>; fetchedAt: number } | null = null;
+const JWKS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+async function getAppleJWKS() {
+  if (jwksCache && Date.now() - jwksCache.fetchedAt < JWKS_CACHE_TTL) {
+    return jwksCache.keys;
+  }
+
+  const response = await fetch('https://appleid.apple.com/auth/keys');
+  if (!response.ok) {
+    throw new Error('Failed to fetch Apple JWKS');
+  }
+
+  const data = await response.json();
+  jwksCache = { keys: data.keys, fetchedAt: Date.now() };
+  return jwksCache.keys;
+}
+
+/**
+ * Get Apple's public key for a given key ID (kid) as a PEM string.
+ * Fetches Apple's JWKS, finds the matching key, and converts it to PEM format
+ * for use with jsonwebtoken.verify().
+ */
+async function getApplePublicKey(kid: string): Promise<string | null> {
+  try {
+    const keys = await getAppleJWKS();
+    const key = keys.find((k) => k.kid === kid);
+    if (!key) return null;
+
+    // Convert JWK (n, e) to PEM using Node.js crypto
+    const modulus = Buffer.from(key.n, 'base64url');
+    const exponent = Buffer.from(key.e, 'base64url');
+
+    // Build DER-encoded RSA public key
+    const der = createRSAPublicKeyDER(modulus, exponent);
+
+    // Convert DER to PEM
+    const pem = `-----BEGIN PUBLIC KEY-----\n${der.toString('base64').match(/.{1,64}/g)?.join('\n')}\n-----END PUBLIC KEY-----`;
+    return pem;
+  } catch (error) {
+    console.error('[Apple OAuth] Failed to get Apple public key:', error);
+    return null;
+  }
+}
+
+/**
+ * Create a DER-encoded RSA public key from modulus and exponent.
+ */
+function createRSAPublicKeyDER(modulus: Buffer, exponent: Buffer): Buffer {
+  // ASN.1 DER encoding for RSA public key (PKCS#1)
+  function encodeLength(length: number): Buffer {
+    if (length < 128) return Buffer.from([length]);
+    const hex = length.toString(16);
+    const bytes = Buffer.from(hex.length % 2 ? '0' + hex : hex, 'hex');
+    return Buffer.concat([Buffer.from([0x80 | bytes.length]), bytes]);
+  }
+
+  function encodeInteger(buf: Buffer): Buffer {
+    // Add leading zero if high bit is set (to keep it positive)
+    if (buf[0] & 0x80) buf = Buffer.concat([Buffer.from([0x00]), buf]);
+    return Buffer.concat([Buffer.from([0x02]), encodeLength(buf.length), buf]);
+  }
+
+  const modEnc = encodeInteger(modulus);
+  const expEnc = encodeInteger(exponent);
+
+  // SEQUENCE { INTEGER modulus, INTEGER exponent }
+  const seqContent = Buffer.concat([modEnc, expEnc]);
+  const seq = Buffer.concat([Buffer.from([0x30]), encodeLength(seqContent.length), seqContent]);
+
+  // BIT STRING { SEQUENCE { ... } }
+  const bitStringContent = Buffer.concat([Buffer.from([0x00]), seq]);
+  const bitString = Buffer.concat([Buffer.from([0x03]), encodeLength(bitStringContent.length), bitStringContent]);
+
+  // SEQUENCE { OID rsaEncryption, NULL, BIT STRING { SEQUENCE { ... } } }
+  const rsaEncryptionOid = Buffer.from([0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00]);
+  const spkiContent = Buffer.concat([rsaEncryptionOid, bitString]);
+  const spki = Buffer.concat([Buffer.from([0x30]), encodeLength(spkiContent.length), spkiContent]);
+
+  return spki;
+}
 
 /**
  * POST /api/auth/apple/callback
@@ -72,17 +158,39 @@ export async function POST(request: NextRequest) {
 
     const tokens = await tokenResponse.json();
 
-    // Decode the id_token to get Apple user info
-    const decoded = jwt.decode(tokens.id_token, { complete: true });
-
-    if (!decoded) {
+    // Verify the id_token using Apple's public keys (JWKS)
+    // Step 1: Decode the header to get the key ID (kid)
+    const decodedHeader = jwt.decode(tokens.id_token, { complete: true });
+    if (!decodedHeader || typeof decodedHeader.header?.kid !== 'string') {
       return NextResponse.json(
-        { success: false, error: "Failed to decode Apple id_token" },
+        { success: false, error: "Failed to decode Apple id_token header" },
         { status: 400 }
       );
     }
 
-    const payload = decoded.payload as Record<string, unknown> | undefined;
+    // Step 2: Fetch Apple's JWKS and find the matching key
+    const applePublicKey = await getApplePublicKey(decodedHeader.header.kid);
+    if (!applePublicKey) {
+      return NextResponse.json(
+        { success: false, error: "Unable to verify Apple id_token: key not found" },
+        { status: 400 }
+      );
+    }
+
+    // Step 3: Verify the id_token signature with the public key
+    let payload: Record<string, unknown>;
+    try {
+      payload = jwt.verify(tokens.id_token, applePublicKey, {
+        algorithms: ['RS256'],
+        issuer: 'https://appleid.apple.com',
+      }) as Record<string, unknown>;
+    } catch (verifyError) {
+      console.error('[Apple OAuth] id_token verification failed:', verifyError);
+      return NextResponse.json(
+        { success: false, error: "Apple id_token verification failed" },
+        { status: 400 }
+      );
+    }
 
     const appleUser = {
       sub: payload?.sub as string | undefined,

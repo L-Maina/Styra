@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { requireAdmin } from '@/lib/auth';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Paths relative to project root
 const PROJECT_ROOT = process.cwd();
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const { stdout, stderr } = await execAsync(`bash "${scriptPath}"`, {
+      const { stdout, stderr } = await execFileAsync('bash', [scriptPath], {
         timeout: 120000, // 2 minute timeout
         cwd: PROJECT_ROOT,
         env: {
