@@ -4,6 +4,7 @@ import { requireAuth, blockRole } from '@/lib/auth';
 import { updateBookingSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { sanitizeResponse } from '@/lib/response-sanitizer';
+import { refundFromEscrow } from '@/lib/escrow';
 
 // Helper: check if user can view/manage a booking
 async function canViewBooking(user: any, customerId: string, businessId: string): Promise<boolean> {
@@ -192,6 +193,22 @@ export async function DELETE(
       where: { id },
       data: { status: 'cancelled', cancelledAt: new Date() },
     });
+
+    // Process escrow refund if there's a completed payment with held escrow
+    if (completedPayment) {
+      try {
+        await refundFromEscrow(id, 'Booking cancelled');
+      } catch (escrowError) {
+        // Escrow refund may fail if no escrow exists (e.g. payment not captured yet)
+        // Log but don't fail the cancellation — the payment status is already updated
+        if (process.env.NODE_ENV === 'development') {
+          console.error(
+            `[Booking] Escrow refund failed for ${id.slice(0, 8)}:`,
+            escrowError instanceof Error ? escrowError.message : 'unknown',
+          );
+        }
+      }
+    }
 
     return successResponse({ message: 'Booking cancelled successfully', booking: updatedBooking });
   } catch (error) {

@@ -152,8 +152,17 @@ export async function createPayPalOrder(
     return null;
   }
 
-  // Platform fee is 5% of the service amount (minimum $1)
-  const platformFee = Math.max(1, parseFloat((amount * 0.05).toFixed(2)));
+  // Use the same configurable platform fee as other payment methods (default 15%)
+  const { calculatePlatformFee } = await import('@/lib/escrow');
+  let platformFee: number;
+  try {
+    platformFee = await calculatePlatformFee(amount);
+  } catch {
+    // Fallback to 15% if database lookup fails
+    platformFee = Math.round(amount * 0.15 * 100) / 100;
+  }
+  // Ensure minimum $1 platform fee
+  platformFee = Math.max(1, platformFee);
   const totalAmount = parseFloat((amount + platformFee).toFixed(2));
 
   try {

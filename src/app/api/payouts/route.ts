@@ -4,6 +4,7 @@ import { successResponse, errorResponse } from '@/lib/api-utils';
 import { db } from '@/lib/db';
 import { triggerPayout, getPayoutsForBusiness } from '@/lib/payout';
 import { getWallet } from '@/lib/wallet';
+import { checkFinancialRateLimit } from '@/lib/financial-rate-limit';
 
 /**
  * GET /api/payouts
@@ -52,6 +53,12 @@ export async function POST(request: NextRequest) {
   try {
     // Block admin from directly requesting payouts — use /api/payouts/trigger instead
     const session = await requireRole('business_owner');
+
+    // Financial rate limiting
+    const rateLimit = checkFinancialRateLimit(session.userId, 'PAYOUT');
+    if (!rateLimit.allowed) {
+      return errorResponse('Rate limit exceeded. Please try again later.', 429);
+    }
 
     const body = await request.json();
     const { bookingId } = body as { bookingId?: string };

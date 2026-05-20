@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { requireAdmin } from '@/lib/auth';
+import { resolveDispute } from '@/lib/verification';
 
 // GET - Fetch all disputes
 export async function GET(request: NextRequest) {
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
 // PUT - Update dispute status/resolution
 export async function PUT(request: NextRequest) {
   try {
-    await requireAdmin();
+    const adminUser = await requireAdmin();
     const body = await request.json();
     const { disputeId, status, adminMessage, resolution } = body;
 
@@ -80,21 +81,55 @@ export async function PUT(request: NextRequest) {
       return errorResponse('Dispute ID is required', 400);
     }
 
+    // If a resolution type is provided, use the proper resolveDispute flow
+    // which handles escrow release/refund, wallet balances, and TransactionLog entries
+    const validResolutionTypes = ['RELEASE_TO_PROVIDER', 'FULL_REFUND', 'PARTIAL_REFUND'];
+    if (resolution?.type && validResolutionTypes.includes(resolution.type)) {
+      try {
+        const result = await resolveDispute(
+          disputeId,
+          resolution.type,
+          adminUser.userId,
+        );
+
+        // If adminMessage is provided, append it to the resolution JSON
+        if (adminMessage) {
+          const existing = await db.dispute.findUnique({ where: { id: disputeId } });
+          if (existing?.resolution) {
+            let existingResolution: Record<string, any> = {};
+            try { existingResolution = JSON.parse(existing.resolution); } catch { /* ignore */ }
+            existingResolution.adminMessage = adminMessage;
+            await db.dispute.update({
+              where: { id: disputeId },
+              data: { resolution: JSON.stringify(existingResolution) },
+            });
+          }
+        }
+
+        return successResponse({ dispute: result.dispute, message: result.message });
+      } catch (resolveError) {
+        return errorResponse(
+          resolveError instanceof Error ? resolveError.message : 'Failed to resolve dispute',
+          500,
+        );
+      }
+    }
+
+    // Fallback: simple status/message update without escrow operations
     const updateData: Record<string, unknown> = {};
 
     if (status) {
       updateData.status = status;
     }
 
-    // Store resolution and admin message in the resolution field
-    if (adminMessage || resolution) {
+    // Store admin message in the resolution field
+    if (adminMessage) {
       const existing = await db.dispute.findUnique({ where: { id: disputeId } });
       let existingResolution: Record<string, any> = {};
       if (existing?.resolution) {
         try { existingResolution = JSON.parse(existing.resolution); } catch { /* ignore */ }
       }
-      if (adminMessage) existingResolution.adminMessage = adminMessage;
-      if (resolution) existingResolution.resolution = resolution;
+      existingResolution.adminMessage = adminMessage;
       updateData.resolution = JSON.stringify(existingResolution);
     }
 
@@ -102,16 +137,6 @@ export async function PUT(request: NextRequest) {
       where: { id: disputeId },
       data: updateData,
     });
-
-    // If resolution involves refund, process it
-    if (resolution && resolution.type === 'FULL_REFUND') {
-      if (dispute.bookingId) {
-        await db.payment.updateMany({
-          where: { bookingId: dispute.bookingId },
-          data: { status: 'REFUNDED' },
-        });
-      }
-    }
 
     return successResponse({ dispute });
   } catch (error) {

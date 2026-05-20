@@ -1,20 +1,22 @@
 /**
  * Internal Wallet System for Providers
  *
- * - balance: Provider funds (single balance field — no separate pending field)
- * - currency: Provider's default currency
+ * - balance:        Available balance (released from escrow — withdrawable)
+ * - pendingBalance: Pending balance (held in escrow — not yet withdrawable)
+ * - currency:       Provider's default currency
  *
  * Flow:
- *   Payment PAID → providerAmount goes to balance (via creditPendingBalance)
- *   Booking VERIFIED → logical state change only (PlatformTransaction.escrowStatus)
- *                       wallet balance is NOT touched again (funds already present)
- *   Payout triggered → deduct from balance (via deductForPayout)
- *   Refund → deduct from balance (handled by escrow refund flow)
- *   Dispute → deduct from balance (holdForDispute), reversed on resolution
+ *   Payment PAID    → pendingBalance incremented (via creditPendingBalance)
+ *   Booking VERIFIED → pendingBalance decremented, balance incremented (via releaseToBalance)
+ *   Payout triggered → deduct from balance only (via deductForPayout)
+ *   Refund → add back to balance (via refundToBalance)
+ *   Dispute → balance decremented, pendingBalance incremented (via holdForDispute)
+ *   Dispute resolved (provider wins) → pendingBalance decremented, balance incremented (via releaseDisputeHold)
  *
  * Escrow state tracking:
  *   The PlatformTransaction model tracks escrow status (HELD → RELEASED → REFUNDED).
- *   The wallet only stores the current balance; escrow state is external to the wallet.
+ *   The wallet mirrors this with two fields: pendingBalance (escrow) and balance (available).
+ *   Providers can only withdraw from balance; pendingBalance is held until escrow is released.
  *
  * All balance mutations use Prisma interactive transactions to ensure atomicity.
  * Negative balances are NEVER allowed — operations will fail with an error.
@@ -80,10 +82,9 @@ export async function getWallet(userId: string): Promise<Wallet> {
 }
 
 /**
- * Credit the provider's balance after a payment is received and escrow is held.
- * This is the ONLY time the wallet balance is incremented for a booking payment.
- * When the escrow is later released, the balance is NOT incremented again
- * (see releaseToBalance which is a logical no-op for the wallet).
+ * Credit the provider's pending balance after a payment is received.
+ * Funds are held in pendingBalance (escrow) until the booking is verified,
+ * at which point releaseToBalance() moves them to the available balance.
  *
  * @param userId  - The provider's user ID (business owner)
  * @param amount  - The provider's portion of the payment (total - platformFee)
@@ -121,7 +122,7 @@ export async function creditPendingBalance(
 
     const updated = await tx.wallet.update({
       where: { id: wallet.id },
-      data: { balance: { increment: amount } },
+      data: { pendingBalance: { increment: amount } },
     });
 
     return { success: true, wallet: updated };
@@ -131,18 +132,14 @@ export async function creditPendingBalance(
 }
 
 /**
- * Release funds from pending balance to available balance.
+ * Release funds from pending balance (escrow) to available balance.
  * Called after a booking is verified (service confirmed).
  *
- * IMPORTANT: The Wallet schema has a single `balance` field (no separate
- * pendingBalance). Funds are already credited to `balance` during the
- * escrow hold via `creditPendingBalance`. This function therefore does NOT
- * increment the balance again — it only serves as an idempotency guard
- * and state-transition marker. The actual escrow state is tracked in
- * PlatformTransaction.escrowStatus (HELD → RELEASED).
+ * This moves funds from pendingBalance to balance, making them available
+ * for the provider to withdraw.
  *
  * @param userId    - The provider's user ID
- * @param amount    - Amount being released (for logging / idempotency only)
+ * @param amount    - Amount being released from escrow
  * @param bookingId - The associated booking (idempotency key)
  */
 export async function releaseToBalance(
@@ -175,12 +172,21 @@ export async function releaseToBalance(
       };
     }
 
-    // NOTE: We do NOT increment the balance here. The provider's share was
-    // already credited to wallet.balance by creditPendingBalance() when the
-    // escrow was initially held. Releasing the escrow is a logical state
-    // change tracked in PlatformTransaction.escrowStatus, not a wallet mutation.
+    if (wallet.pendingBalance < amount) {
+      throw new Error(
+        `Insufficient pending balance for release. Required: ${amount}, Pending: ${wallet.pendingBalance}`,
+      );
+    }
 
-    return { success: true, wallet };
+    const updated = await tx.wallet.update({
+      where: { id: wallet.id },
+      data: {
+        pendingBalance: { decrement: amount },
+        balance: { increment: amount },
+      },
+    });
+
+    return { success: true, wallet: updated };
   });
 
   return result;
@@ -234,6 +240,7 @@ export async function holdForDispute(
       where: { id: wallet.id },
       data: {
         balance: { decrement: amount },
+        pendingBalance: { increment: amount },
       },
     });
 
@@ -262,9 +269,16 @@ export async function releaseDisputeHold(
   const result = await db.$transaction(async (tx) => {
     const wallet = await ensureWallet(tx, userId);
 
+    if (wallet.pendingBalance < amount) {
+      throw new Error(
+        `Insufficient pending balance for dispute release. Required: ${amount}, Pending: ${wallet.pendingBalance}`,
+      );
+    }
+
     const updated = await tx.wallet.update({
       where: { id: wallet.id },
       data: {
+        pendingBalance: { decrement: amount },
         balance: { increment: amount },
       },
     });
@@ -314,7 +328,7 @@ export async function deductForPayout(
 
     if (wallet.balance < amount) {
       throw new Error(
-        `Insufficient balance for payout. Required: ${amount}, Available: ${wallet.balance}`,
+        `Insufficient available balance for payout. Required: ${amount}, Available: ${wallet.balance}`,
       );
     }
 
@@ -392,8 +406,8 @@ export async function getWalletSummary(userId: string): Promise<WalletSummary> {
   return {
     wallet,
     totalEarnings: earningsResult._sum.amount || 0,
-    totalPending: 0,
-    totalHeld: 0,
+    totalPending: wallet.pendingBalance,
+    totalHeld: wallet.pendingBalance,
     totalWithdrawn: withdrawnResult._sum.amount || 0,
   };
 }
@@ -404,9 +418,7 @@ export async function getWalletSummary(userId: string): Promise<WalletSummary> {
  */
 export async function getPlatformWalletStats(): Promise<PlatformWalletStats> {
   const aggregateResult = await db.wallet.aggregate({
-    _sum: {
-      balance: true,
-    },
+    _sum: { balance: true, pendingBalance: true },
     _count: true,
   });
 
@@ -418,8 +430,8 @@ export async function getPlatformWalletStats(): Promise<PlatformWalletStats> {
 
   return {
     totalBalance: aggregateResult._sum?.balance || 0,
-    totalPending: 0,
-    totalHeld: 0,
+    totalPending: aggregateResult._sum?.pendingBalance || 0,
+    totalHeld: aggregateResult._sum?.pendingBalance || 0,
     activeWallets: aggregateResult._count || 0,
     totalProvidersWithFunds: providersWithFunds,
   };

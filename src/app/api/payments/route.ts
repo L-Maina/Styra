@@ -41,6 +41,240 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// ── Lazy Stripe singleton ────────────────────────────────────────────────────
+
+let _stripe: typeof import('stripe').default | null = null;
+
+async function getStripeClient() {
+  if (_stripe) return _stripe;
+  if (!env.stripe.secretKey) return null;
+  try {
+    const Stripe = (await import('stripe')).default;
+    _stripe = new Stripe(env.stripe.secretKey, {
+      apiVersion: '2023-10-16' as any,
+    });
+    return _stripe;
+  } catch {
+    console.error('[Payments] Failed to initialize Stripe client');
+    return null;
+  }
+}
+
+// ── Provider handlers ────────────────────────────────────────────────────────
+
+/**
+ * Create a Stripe PaymentIntent for card payments.
+ * Returns clientSecret for the frontend to confirm payment.
+ */
+async function handleStripePayment(
+  payment: { id: string; transactionRef: string },
+  amount: number,
+  currency: string,
+  bookingId: string,
+  userId: string,
+): Promise<{ responseData: Record<string, string>; success: boolean }> {
+  const stripe = await getStripeClient();
+  if (!stripe) {
+    return { responseData: {}, success: false };
+  }
+
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Stripe uses cents
+      currency: currency.toLowerCase() || 'kes',
+      metadata: {
+        bookingId,
+        paymentId: payment.id,
+        userId,
+      },
+      transfer_group: bookingId, // For Stripe Connect later
+      automatic_payment_methods: { enabled: true },
+    });
+
+    // Save the client secret and provider ref
+    await db.payment.update({
+      where: { id: payment.id },
+      data: {
+        providerRef: paymentIntent.id,
+        description: JSON.stringify({ clientSecret: paymentIntent.client_secret }),
+      },
+    });
+
+    return {
+      responseData: {
+        clientSecret: paymentIntent.client_secret || '',
+        providerRef: paymentIntent.id,
+        paymentId: payment.id,
+        paymentMethod: 'stripe',
+      },
+      success: true,
+    };
+  } catch (err) {
+    console.error('[Payments] Stripe PaymentIntent creation failed:', err instanceof Error ? err.message : err);
+    return { responseData: {}, success: false };
+  }
+}
+
+/**
+ * Initiate M-Pesa STK Push for mobile payments.
+ * Returns checkoutRequestID for polling status.
+ */
+async function handleMpesaPayment(
+  payment: { id: string; transactionRef: string },
+  amount: number,
+  bookingId: string,
+  customerPhone: string | null,
+): Promise<{ responseData: Record<string, string>; success: boolean }> {
+  if (!customerPhone) {
+    console.error('[Payments] M-Pesa requires a customer phone number');
+    return { responseData: {}, success: false };
+  }
+
+  try {
+    const { initiateStkPush } = await import('@/lib/mpesa');
+
+    const stkResult = await initiateStkPush(
+      customerPhone,
+      amount,
+      bookingId,
+      payment.id,
+    );
+
+    if (stkResult) {
+      await db.payment.update({
+        where: { id: payment.id },
+        data: {
+          providerRef: stkResult.checkoutRequestID,
+          description: JSON.stringify({
+            merchantRequestID: stkResult.merchantRequestID,
+            checkoutRequestID: stkResult.checkoutRequestID,
+          }),
+        },
+      });
+
+      return {
+        responseData: {
+          checkoutRequestID: stkResult.checkoutRequestID,
+          merchantRequestID: stkResult.merchantRequestID,
+          paymentId: payment.id,
+          paymentMethod: 'mpesa',
+        },
+        success: true,
+      };
+    }
+
+    return { responseData: {}, success: false };
+  } catch (err) {
+    console.error('[Payments] M-Pesa STK Push failed:', err instanceof Error ? err.message : err);
+    return { responseData: {}, success: false };
+  }
+}
+
+/**
+ * Initialize a Paystack transaction for card/bank/mobile money payments.
+ * Returns authorizationUrl for the frontend to redirect the user.
+ */
+async function handlePaystackPayment(
+  payment: { id: string; transactionRef: string },
+  amount: number,
+  currency: string,
+  bookingId: string,
+  customerEmail: string,
+): Promise<{ responseData: Record<string, string>; success: boolean }> {
+  if (!env.paystack.secretKey) {
+    return { responseData: {}, success: false };
+  }
+
+  try {
+    const { getPaystackClient } = await import('@/lib/paystack');
+    const paystackClient = getPaystackClient(env.paystack.secretKey);
+
+    const result = await paystackClient.initializeTransaction({
+      amount: Math.round(amount * 100), // Paystack uses kobo
+      currency: currency || 'KES',
+      reference: payment.transactionRef,
+      email: customerEmail,
+      metadata: { bookingId, paymentId: payment.id },
+      callbackUrl: `${env.appUrl}/?page=booking&id=${bookingId}`,
+    });
+
+    await db.payment.update({
+      where: { id: payment.id },
+      data: {
+        providerRef: result.reference,
+        description: JSON.stringify({
+          authorizationUrl: result.authorizationUrl,
+          accessCode: result.accessCode,
+        }),
+      },
+    });
+
+    return {
+      responseData: {
+        authorizationUrl: result.authorizationUrl,
+        accessCode: result.accessCode,
+        reference: result.reference,
+        paymentId: payment.id,
+        paymentMethod: 'paystack',
+      },
+      success: true,
+    };
+  } catch (err) {
+    console.error('[Payments] Paystack transaction initialization failed:', err instanceof Error ? err.message : err);
+    return { responseData: {}, success: false };
+  }
+}
+
+/**
+ * Create a PayPal order with CAPTURE intent.
+ * Returns orderId and approveUrl for the frontend to redirect the user.
+ */
+async function handlePaypalPayment(
+  payment: { id: string; transactionRef: string },
+  amount: number,
+  currency: string,
+  bookingId: string,
+): Promise<{ responseData: Record<string, string>; success: boolean }> {
+  try {
+    const { createPayPalOrder } = await import('@/lib/paypal');
+
+    const result = await createPayPalOrder(
+      amount,
+      currency || 'USD',
+      bookingId,
+      payment.id,
+    );
+
+    if (result) {
+      await db.payment.update({
+        where: { id: payment.id },
+        data: {
+          providerRef: result.orderId,
+          description: JSON.stringify({
+            orderId: result.orderId,
+            approveUrl: result.approveUrl,
+          }),
+        },
+      });
+
+      return {
+        responseData: {
+          orderId: result.orderId,
+          approveUrl: result.approveUrl,
+          paymentId: payment.id,
+          paymentMethod: 'paypal',
+        },
+        success: true,
+      };
+    }
+
+    return { responseData: {}, success: false };
+  } catch (err) {
+    console.error('[Payments] PayPal order creation failed:', err instanceof Error ? err.message : err);
+    return { responseData: {}, success: false };
+  }
+}
+
 // Create Payment Intent
 export async function POST(request: NextRequest) {
   try {
@@ -52,7 +286,7 @@ export async function POST(request: NextRequest) {
     // Check email verification before allowing payment
     const fullUser = await db.user.findUnique({
       where: { id: user.userId },
-      select: { isVerified: true },
+      select: { isVerified: true, phone: true, email: true },
     });
     if (!fullUser?.isVerified && user.role !== 'ADMIN') {
       return errorResponse('Please verify your email first', 403);
@@ -111,14 +345,93 @@ export async function POST(request: NextRequest) {
         data: { status: 'pending' },
       });
 
-      return { payment, amount, booking };
+      return {
+        payment,
+        amount,
+        booking,
+        customerPhone: booking.customerPhone || fullUser?.phone || null,
+        customerEmail: booking.customerEmail || fullUser?.email || user.email,
+      };
     });
 
-    // Handle payment method — dev mode fallback since external APIs may not be configured
+    // Handle payment method — attempt real provider API, fall back to dev mode
     let responseData: Record<string, string> = {};
-
     const paymentMethod = validated.paymentMethod.toLowerCase();
+    const currency = validated.currency || 'KES';
 
+    // Try the real provider API first
+    let providerSuccess = false;
+
+    if (!env.features.devPaymentFallback || !isDev()) {
+      // Production / non-dev mode: call real payment provider APIs
+      switch (paymentMethod) {
+        case 'stripe': {
+          const result_stripe = await handleStripePayment(
+            result.payment,
+            result.amount,
+            currency,
+            validated.bookingId,
+            user.userId,
+          );
+          if (result_stripe.success) {
+            responseData = result_stripe.responseData;
+            providerSuccess = true;
+          }
+          break;
+        }
+
+        case 'mpesa': {
+          const result_mpesa = await handleMpesaPayment(
+            result.payment,
+            result.amount,
+            validated.bookingId,
+            result.customerPhone,
+          );
+          if (result_mpesa.success) {
+            responseData = result_mpesa.responseData;
+            providerSuccess = true;
+          }
+          break;
+        }
+
+        case 'paystack': {
+          const result_paystack = await handlePaystackPayment(
+            result.payment,
+            result.amount,
+            currency,
+            validated.bookingId,
+            result.customerEmail,
+          );
+          if (result_paystack.success) {
+            responseData = result_paystack.responseData;
+            providerSuccess = true;
+          }
+          break;
+        }
+
+        case 'paypal': {
+          const result_paypal = await handlePaypalPayment(
+            result.payment,
+            result.amount,
+            currency,
+            validated.bookingId,
+          );
+          if (result_paypal.success) {
+            responseData = result_paypal.responseData;
+            providerSuccess = true;
+          }
+          break;
+        }
+      }
+    }
+
+    // If provider call succeeded, return the provider-specific response
+    if (providerSuccess) {
+      return successResponse(responseData, 201);
+    }
+
+    // Provider not configured or call failed — fall back to dev mode
+    // The payment record still exists with status "pending" (can be retried)
     if (env.features.devPaymentFallback || isDev()) {
       // Dev mode: simulate payment processing
       const devTransactionRef = `${paymentMethod}_dev_${Date.now()}`;
@@ -171,20 +484,20 @@ export async function POST(request: NextRequest) {
         devMode: 'true',
       };
     } else {
-      // Production mode: external payment providers would be called here.
+      // Production mode: provider call failed but no dev fallback
       // The payment is created with `pending` status — a webhook handler should:
       //   1. Confirm payment success and update payment.status to 'completed'
       //   2. Update booking status to 'confirmed'
       //   3. Call holdInEscrow() to place funds in escrow
-      //
-      // If no webhook handler is wired up, escrow will NOT be held and the
-      // commission/settlement flow will not activate for this booking.
-      // TODO: Wire up webhook handlers for Stripe/M-Pesa/Paystack that call
-      //       holdInEscrow() on successful payment confirmation.
+      console.warn(
+        `[Payments] Provider "${paymentMethod}" call failed for payment ${result.payment.id}. ` +
+        'Payment record created with pending status — can be retried via webhook.'
+      );
       responseData = {
         clientSecret: result.payment.transactionRef,
         paymentId: result.payment.id,
         paymentMethod: paymentMethod,
+        providerFailed: 'true',
       };
     }
 

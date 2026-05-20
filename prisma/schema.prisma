@@ -95,6 +95,13 @@ model Business {
   verificationResult String? // JSON string with AI verification details
   rejectionReason String?  // Reason for rejection (shown to provider)
   verifiedAt      DateTime? // When verification was completed
+  // Stripe Connect fields
+  stripeAccountId    String?   // Stripe Connect account ID (acct_xxx)
+  stripeOnboardingComplete Boolean @default(false)
+  payoutPreference   String?   @default("MPESA")  // MPESA, PAYPAL, STRIPE, PAYSTACK, BANK_TRANSFER
+  paypalEmail        String?   // PayPal email for receiving payouts
+  bankAccountDetails String?   // JSON string with bank account details for manual transfers
+  mpesaPhone         String?   // M-Pesa phone number for B2C payouts
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -446,12 +453,13 @@ model PushSubscription {
 // ── Auth & Verification ────────────────────────────────────
 
 model Wallet {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  balance   Float    @default(0)
-  currency  String   @default("KES")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  balance         Float    @default(0)      // Available balance (released from escrow)
+  pendingBalance  Float    @default(0)      // Pending balance (held in escrow)
+  currency        String   @default("KES")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -899,8 +907,8 @@ model PlatformSetting {
   id                    String   @id @default(cuid())
   key                   String   @unique
   value                 String
-  platformFee           Float    @default(10)
-  minWithdrawal         Float    @default(500)
+  platformFee           Float    @default(15)
+  minWithdrawal         Float    @default(50)
   autoApproveBusinesses Boolean  @default(false)
   requireIdVerification Boolean  @default(true)
   maintenanceMode       Boolean  @default(false)
@@ -969,4 +977,37 @@ model JobApplication {
   updatedAt DateTime @updatedAt
 
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+// ── Platform Earnings & Withdrawals ─────────────────────────
+
+model PlatformEarning {
+  id              String    @id @default(cuid())
+  type            String    // BOOKING_COMMISSION, PREMIUM_LISTING, ADVERTISEMENT, SUBSCRIPTION
+  amount          Float
+  currency        String    @default("KES")
+  status          String    @default("AVAILABLE") // AVAILABLE, WITHDRAWN, ON_HOLD
+  bookingId       String?
+  businessId      String?
+  withdrawalId    String?
+  description     String?
+  earnedAt        DateTime  @default(now())
+  withdrawnAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model PlatformWithdrawal {
+  id              String    @id @default(cuid())
+  amount          Float
+  currency        String    @default("KES")
+  method          String    // BANK_TRANSFER, MPESA, PAYPAL, STRIPE
+  status          String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  reference       String?
+  destination     String?   // Bank account, PayPal email, M-Pesa phone
+  notes           String?
+  processedBy     String?
+  processedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }

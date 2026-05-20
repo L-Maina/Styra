@@ -110,13 +110,13 @@ export const createPaymentSchema = z.object({
   bookingId: z.string(),
   amount: z.number().positive('Amount must be positive'),
   currency: z.string().length(3, 'Currency must be 3 characters').default('KES'),
-  paymentMethod: z.enum(['STRIPE', 'PAYPAL', 'MPESA']),
+  paymentMethod: z.enum(['STRIPE', 'PAYPAL', 'MPESA', 'PAYSTACK']),
 });
 
 // Payment Intent validation (amount comes from booking total, not client)
 export const createPaymentIntentSchema = z.object({
   bookingId: z.string().min(1),
-  paymentMethod: z.enum(['STRIPE', 'PAYPAL', 'MPESA']),
+  paymentMethod: z.enum(['STRIPE', 'PAYPAL', 'MPESA', 'PAYSTACK']),
   currency: z.string().default('KES'),
 });
 

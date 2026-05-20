@@ -4,6 +4,7 @@ import { requireAuth, requireRole } from '@/lib/auth';
 import { triggerPayout } from '@/lib/payout';
 import { db } from '@/lib/db';
 import { successResponse, handleApiError } from '@/lib/api-utils';
+import { checkFinancialRateLimit } from '@/lib/financial-rate-limit';
 
 const triggerPayoutSchema = z.object({
   bookingId: z.string().min(1, 'Booking ID is required'),
@@ -20,6 +21,13 @@ const triggerPayoutSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const user = await requireRole('business_owner', 'admin');
+
+    // Financial rate limiting
+    const rateLimit = checkFinancialRateLimit(user.userId, 'PAYOUT');
+    if (!rateLimit.allowed) {
+      return handleApiError(new Error('Rate limit exceeded. Please try again later.'));
+    }
+
     const body = await request.json();
     const { bookingId } = triggerPayoutSchema.parse(body);
 
