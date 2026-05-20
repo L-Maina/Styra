@@ -74,3 +74,34 @@ Stage Summary:
 - Comprehensive sanitization module available for route-level body sanitization
 - Prototype pollution, XSS, and injection attacks are mitigated
 - Configurable limits via environment variables
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Security hardening follow-up + sitemap for Google crawling + ioredis explanation
+
+Work Log:
+- Fixed hardcoded admin password in /api/admin/cleanup/route.ts — moved to ADMIN_PASSWORD env var
+- Password is no longer returned in the API response body
+- Created .env.example with all required environment variables (committed with git add -f to bypass .env* gitignore)
+- Full codebase scan confirmed no other hardcoded secrets (scan by Explore agent found codebase clean)
+- Created comprehensive sitemap.ts with:
+  - Static pages (home, marketplace, map, about, blog, support, safety, careers, press, advertise)
+  - Legal pages (/terms, /privacy, /provider-policies) — actual Next.js SSR routes
+  - 10 category pages with ?page=marketplace&category=X deep-links
+  - Dynamic business profile pages fetched from DB (?page=business&id=XXX)
+  - Dynamic blog article pages fetched from DB (?page=blog&article=SLUG)
+  - Graceful DB fallback (returns static pages only if DB is unavailable)
+- Added SPA deep-linking support in page.tsx:
+  - ?page=X parameter parsing on initial load
+  - ?page=business&id=XXX stores business ID in sessionStorage and fetches from API
+  - Valid pages mapped to internal state (home, marketplace, map, about, blog, support, safety, careers, press, advertise, login, register, business)
+- Updated robots.txt with sitemap reference, crawl delays, and /api/ /admin disallow
+- Pushed all changes to GitHub (commit ee178af)
+
+Stage Summary:
+- Hardcoded admin password removed and moved to env var
+- Comprehensive sitemap.ts allows Google to discover all public content
+- SPA deep-linking enables sitemap URLs to work when visited
+- .env.example provides template for all required env vars
+- robots.txt updated for proper crawling guidance
