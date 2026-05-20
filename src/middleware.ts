@@ -57,7 +57,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     const origin = request.headers.get('origin') || '';
     // Only allow specific origins
     const allowedOrigins = [
-      process.env.NEXT_PUBLIC_APP_URL || 'https://styra.app',
+      process.env.NEXT_PUBLIC_APP_URL || 'https://styra-silk.vercel.app',
       'http://localhost:3000',
     ].filter(Boolean);
 

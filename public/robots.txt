@@ -17,7 +17,7 @@ Allow: /
 Crawl-delay: 1
 
 # Sitemap
-Sitemap: https://styra-mkdf6yzjk7-8552s-projects.vercel.app/sitemap.xml
+Sitemap: https://styra-silk.vercel.app/sitemap.xml
 
 # Disallow admin/auth/api routes
 Disallow: /api/

@@ -16,7 +16,7 @@ import { MetadataRoute } from 'next';
  */
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://styra-mkdf6yzjk7-8552s-projects.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://styra-silk.vercel.app';
 
   // ── Static Pages (always included — no DB dependency) ──────────────
   const staticPages: MetadataRoute.Sitemap = [
