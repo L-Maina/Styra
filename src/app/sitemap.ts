@@ -5,17 +5,14 @@ import { MetadataRoute } from 'next';
  *
  * ARCHITECTURE: This file does NOT import Prisma at the module level.
  * Database queries are done inside isolated try/catch blocks so that
- * even if the DB is completely unavailable (wrong URL, connection refused,
- * schema mismatch, etc.), the static pages + categories always render.
+ * even if the DB is completely unavailable, static pages always render.
  *
- * This is critical because:
- *   1. During `next build`, DATABASE_URL may not be set
- *   2. On Vercel cold starts, the DB may be momentarily unreachable
- *   3. In local dev with SQLite, the Prisma schema expects PostgreSQL
+ * XML COMPLIANCE: URLs use path-based format (/marketplace/category/spa)
+ * instead of query params (?page=X&category=Y) to avoid XML entity
+ * issues with unescaped ampersands.
  *
- * DEEP-LINKING: Since Styra is a single-page app, we use ?page=X
- * query parameters that the app's page.tsx parses to navigate to
- * the correct internal page.
+ * DEEP-LINKING: Since Styra is a single-page app, the page.tsx component
+ * parses these URL paths and navigates to the correct internal page.
  */
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -30,55 +27,55 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/?page=marketplace`,
+      url: `${baseUrl}/marketplace`,
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/?page=map`,
+      url: `${baseUrl}/map`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/?page=about`,
+      url: `${baseUrl}/about`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.6,
     },
     {
-      url: `${baseUrl}/?page=blog`,
+      url: `${baseUrl}/blog`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/?page=support`,
+      url: `${baseUrl}/support`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.5,
     },
     {
-      url: `${baseUrl}/?page=safety`,
+      url: `${baseUrl}/safety`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.5,
     },
     {
-      url: `${baseUrl}/?page=careers`,
+      url: `${baseUrl}/careers`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.4,
     },
     {
-      url: `${baseUrl}/?page=press`,
+      url: `${baseUrl}/press`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.4,
     },
     {
-      url: `${baseUrl}/?page=advertise`,
+      url: `${baseUrl}/advertise`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.5,
@@ -105,6 +102,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // ── Category Pages (no DB dependency) ─────────────────────────────
+  // Use path format /marketplace/category/spa to avoid XML entity issues
   const categories = [
     'barbershop',
     'hair-salon',
@@ -119,7 +117,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   const categoryPages: MetadataRoute.Sitemap = categories.map((category) => ({
-    url: `${baseUrl}/?page=marketplace&category=${category}`,
+    url: `${baseUrl}/marketplace/category/${category}`,
     lastModified: new Date(),
     changeFrequency: 'daily' as const,
     priority: 0.7,
@@ -131,7 +129,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     // Dynamic import so Prisma is only loaded if we actually need it
-    // This prevents module-level crashes when DB is misconfigured
     const { db } = await import('@/lib/db');
 
     // Fetch approved businesses
@@ -148,11 +145,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
-        take: 1000, // Cap at 1000 businesses for sitemap size
+        take: 1000,
       });
 
       businessPages = businesses.map((business) => ({
-        url: `${baseUrl}/?page=business&id=${business.id}`,
+        url: `${baseUrl}/business/${business.slug || business.id}`,
         lastModified: business.updatedAt || business.createdAt,
         changeFrequency: 'weekly' as const,
         priority: 0.8,
@@ -176,7 +173,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
 
       blogPages = articles.map((article) => ({
-        url: `${baseUrl}/?page=blog&article=${article.slug || article.id}`,
+        url: `${baseUrl}/blog/${article.slug || article.id}`,
         lastModified: article.updatedAt || article.createdAt,
         changeFrequency: 'monthly' as const,
         priority: 0.6,
@@ -185,7 +182,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       console.warn('[Sitemap] Could not fetch blog articles:', error instanceof Error ? error.message : error);
     }
   } catch (error) {
-    // Prisma module itself failed to load (e.g., missing at build time)
     console.warn('[Sitemap] Database module unavailable:', error instanceof Error ? error.message : error);
   }
 

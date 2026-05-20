@@ -82,7 +82,7 @@ export default function HomePage() {
           return 'reset-password';
         }
 
-        // Deep-linking support for sitemap/SEO: ?page=X redirects to that page
+        // Deep-linking support: ?page=X query parameter (legacy format)
         const deepPage = params.get('page');
         if (deepPage) {
           const validPages: Record<string, string> = {
@@ -101,13 +101,60 @@ export default function HomePage() {
             'business': 'business',
           };
           if (validPages[deepPage]) {
-            // Store the business ID if provided for business deep-links
             const businessId = params.get('id');
             if (businessId && deepPage === 'business') {
               sessionStorage.setItem('styra-deep-business-id', businessId);
             }
             return validPages[deepPage];
           }
+        }
+
+        // Deep-linking support: path-based URLs (sitemap format)
+        // e.g. /marketplace, /marketplace/category/spa, /business/slug, /blog/article
+        const pathname = window.location.pathname;
+        if (pathname && pathname !== '/') {
+          const pathRoutes: Record<string, string> = {
+            '/marketplace': 'marketplace',
+            '/map': 'map',
+            '/about': 'about',
+            '/blog': 'blog',
+            '/support': 'support',
+            '/safety': 'safety',
+            '/careers': 'careers',
+            '/press': 'press',
+            '/advertise': 'advertise',
+          };
+
+          // Exact path match
+          if (pathRoutes[pathname]) {
+            return pathRoutes[pathname];
+          }
+
+          // /marketplace/category/X → marketplace with category
+          if (pathname.startsWith('/marketplace/category/')) {
+            const category = pathname.split('/marketplace/category/')[1];
+            if (category) {
+              setSelectedCategory(category.replace(/-/g, ' '));
+            }
+            return 'marketplace';
+          }
+
+          // /business/slug-or-id → business profile
+          if (pathname.startsWith('/business/')) {
+            const businessSlugOrId = pathname.split('/business/')[1];
+            if (businessSlugOrId) {
+              sessionStorage.setItem('styra-deep-business-id', businessSlugOrId);
+            }
+            return 'business';
+          }
+
+          // /blog/slug → blog article
+          if (pathname.startsWith('/blog/') && pathname.length > 6) {
+            return 'blog';
+          }
+
+          // /terms, /privacy, /provider-policies are actual Next.js SSR routes
+          // They don't need SPA deep-linking — they render their own pages
         }
       }
     } catch { /* ignore */ }
