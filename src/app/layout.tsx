@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Styra" }],
   creator: "Styra",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://styra.app"
+    process.env.NEXT_PUBLIC_APP_URL || "https://styra-mkdf6yzjk7-8552s-projects.vercel.app"
   ),
   icons: {
     icon: "/favicon.ico",
@@ -48,6 +48,7 @@ export const metadata: Metadata = {
       "Discover and book premium grooming services near you. Barbers, salons, spas — all on one platform.",
     type: "website",
     siteName: "Styra",
+    url: process.env.NEXT_PUBLIC_APP_URL || "https://styra-mkdf6yzjk7-8552s-projects.vercel.app",
   },
   twitter: {
     card: "summary_large_image",
