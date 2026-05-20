@@ -264,7 +264,7 @@ async function handleConnectWebhookEvent(event: Stripe.Event): Promise<WebhookRe
       return await handleTransferCreated(transfer, event.id);
     }
 
-    case 'transfer.failed': {
+    case 'transfer.failed' as any: {
       const transfer = event.data.object as Stripe.Transfer;
       return await handleTransferFailed(transfer, event.id);
     }

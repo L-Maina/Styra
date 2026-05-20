@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 
 // ── Lazy Stripe singleton ────────────────────────────────────────────────────
 
-let _stripe: typeof import('stripe').default | null = null;
+let _stripe: InstanceType<typeof import('stripe').default> | null = null;
 
 async function getStripeClient() {
   if (_stripe) return _stripe;

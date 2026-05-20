@@ -16,7 +16,7 @@ import type { Prisma } from '@prisma/client';
 //   6. markEventInvalidSignature() — Mark when signature verification fails
 //   7. pruneOldEvents() — Cleanup old events (call from cron/scheduler)
 
-export type WebhookProvider = 'STRIPE' | 'PAYPAL' | 'MPESA' | 'PAYSTACK';
+export type WebhookProvider = 'STRIPE' | 'STRIPE_CONNECT' | 'PAYPAL' | 'MPESA' | 'PAYSTACK';
 
 /** Sensitive header patterns to redact from logs */
 const SENSITIVE_HEADER_PATTERNS = [
