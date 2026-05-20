@@ -125,12 +125,18 @@ export async function POST() {
     } catch {}
 
     // Recreate admin account if none exists
-    const adminEmail = 'admin@styra.app';
-    const adminPassword = 'Admin@2024!Secure';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@styra.app';
+    const adminPassword = process.env.ADMIN_PASSWORD;
     const { hashPassword } = await import('@/lib/auth');
 
     const existingAdmin = await db.user.findUnique({ where: { email: adminEmail } });
     if (!existingAdmin) {
+      if (!adminPassword) {
+        return errorResponse(
+          'ADMIN_PASSWORD env var is not set. Cannot recreate admin account after cleanup. Set ADMIN_PASSWORD in your environment variables.',
+          500
+        );
+      }
       const hashedPassword = await hashPassword(adminPassword);
       await db.user.create({
         data: {
@@ -159,8 +165,7 @@ export async function POST() {
       message: 'Database cleaned successfully. All user/seed data removed.',
       totalRecordsDeleted: totalDeleted,
       details: deletedCounts,
-      adminAccount: adminEmail,
-      adminPassword: 'Admin@2024!Secure',
+      adminAccount: existingAdmin ? adminEmail : `${adminEmail} (created)`,
       autoApproveEnabled: true,
     });
   } catch (error) {

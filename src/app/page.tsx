@@ -71,15 +71,43 @@ export default function HomePage() {
   const { user, logout, updateUser, switchMode, activateProviderMode, isAuthenticated } = useAuthStore();
   
   const [currentPage, setCurrentPage] = useState<string>(() => {
-    // Check for password reset token in URL (direct link from email/dev mode)
     try {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
+
+        // Check for password reset token in URL (direct link from email/dev mode)
         const resetToken = params.get('token');
         if (resetToken) {
-          // Store token for the ResetPasswordPage to pick up
           sessionStorage.setItem('styra-reset-token', resetToken);
           return 'reset-password';
+        }
+
+        // Deep-linking support for sitemap/SEO: ?page=X redirects to that page
+        const deepPage = params.get('page');
+        if (deepPage) {
+          const validPages: Record<string, string> = {
+            'home': 'home',
+            'marketplace': 'marketplace',
+            'map': 'map',
+            'about': 'about',
+            'blog': 'blog',
+            'support': 'support',
+            'safety': 'safety',
+            'careers': 'careers',
+            'press': 'press',
+            'advertise': 'advertise',
+            'login': 'login',
+            'register': 'register',
+            'business': 'business',
+          };
+          if (validPages[deepPage]) {
+            // Store the business ID if provided for business deep-links
+            const businessId = params.get('id');
+            if (businessId && deepPage === 'business') {
+              sessionStorage.setItem('styra-deep-business-id', businessId);
+            }
+            return validPages[deepPage];
+          }
         }
       }
     } catch { /* ignore */ }
@@ -169,6 +197,29 @@ export default function HomePage() {
     return () => {
       if (announceRef.current) clearTimeout(announceRef.current);
     };
+  }, [currentPage]);
+
+  // ─── Deep-link business loading (from sitemap URLs like ?page=business&id=xxx) ──
+  useEffect(() => {
+    if (currentPage !== 'business') return;
+    try {
+      const businessId = sessionStorage.getItem('styra-deep-business-id');
+      if (businessId && !selectedBusiness) {
+        sessionStorage.removeItem('styra-deep-business-id');
+        setBusinessDetailLoading(true);
+        api.getBusiness(businessId).then((res) => {
+          if (res.data) {
+            setSelectedBusiness(res.data as Business);
+          }
+        }).catch(() => {
+          // If fetch fails, redirect to marketplace
+          setCurrentPage('marketplace');
+        }).finally(() => {
+          setBusinessDetailLoading(false);
+        });
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
   // ─── Session validation on mount ──────────────────────────────────
