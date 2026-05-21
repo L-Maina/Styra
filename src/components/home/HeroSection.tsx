@@ -123,12 +123,33 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     onNavigate?.('marketplace');
   };
 
-  const stats = [
-    { value: '10K+', label: 'Service Providers' },
-    { value: '50K+', label: 'Happy Customers' },
-    { value: '100K+', label: 'Bookings Made' },
-    { value: '4.9', label: 'Average Rating' },
-  ];
+  const [stats, setStats] = useState<
+    { value: string; label: string }[]
+  >([]);
+
+  // Fetch real stats from the API
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(res => res.json())
+      .then(json => {
+        if (json.success && json.data) {
+          const d = json.data;
+          const built: { value: string; label: string }[] = [];
+          if (d.total_providers > 0)
+            built.push({ value: String(d.total_providers), label: 'Service Providers' });
+          if (d.total_customers > 0)
+            built.push({ value: String(d.total_customers), label: 'Happy Customers' });
+          if (d.total_bookings > 0)
+            built.push({ value: String(d.total_bookings), label: 'Bookings Made' });
+          if (d.average_rating > 0)
+            built.push({ value: String(d.average_rating), label: 'Average Rating' });
+          setStats(built);
+        }
+      })
+      .catch(() => {
+        // Stats are non-critical; leave empty
+      });
+  }, []);
 
   const features = [
     {
@@ -166,7 +187,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6"
               >
                 <Star className="h-4 w-4 fill-current" />
-                #1 Grooming Marketplace
+                Kenya's Grooming Marketplace
               </motion.div>
             </FadeIn>
 
@@ -249,25 +270,27 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
           {/* Right Content - Stats & Features */}
           <div className="space-y-6">
-            {/* Stats Grid */}
-            <FadeIn delay={0.3}>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                {stats.map((stat, index) => (
-                  <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 + index * 0.1 }}
-                    className="glass-card p-3 sm:p-4 text-center"
-                  >
-                    <div className="text-xl sm:text-2xl md:text-3xl font-bold gradient-text">
-                      {stat.value}
-                    </div>
-                    <div className="text-xs sm:text-sm text-muted-foreground">{stat.label}</div>
-                  </motion.div>
-                ))}
-              </div>
-            </FadeIn>
+            {/* Stats Grid - only shown when we have real data */}
+            {stats.length > 0 && (
+              <FadeIn delay={0.3}>
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  {stats.map((stat, index) => (
+                    <motion.div
+                      key={stat.label}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 + index * 0.1 }}
+                      className="glass-card p-3 sm:p-4 text-center"
+                    >
+                      <div className="text-xl sm:text-2xl md:text-3xl font-bold gradient-text">
+                        {stat.value}
+                      </div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">{stat.label}</div>
+                    </motion.div>
+                  ))}
+                </div>
+              </FadeIn>
+            )}
 
             {/* Feature Cards */}
             <div className="space-y-3">

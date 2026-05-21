@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Check, Star } from 'lucide-react';
 import { GlassButton, FadeIn, GradientText } from '@/components/ui/custom/glass-components';
@@ -12,10 +12,32 @@ interface CTASectionProps {
 export const CTASection: React.FC<CTASectionProps> = ({ onNavigate }) => {
   const benefits = [
     'List your business for free',
-    'Reach thousands of customers',
+    'Reach new customers',
     'Manage bookings easily',
     'Grow your brand online',
   ];
+
+  const [stats, setStats] = useState<{
+    total_providers: number;
+    average_rating: number;
+  } | null>(null);
+
+  // Fetch real stats from the API
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(res => res.json())
+      .then(json => {
+        if (json.success && json.data) {
+          setStats({
+            total_providers: json.data.total_providers,
+            average_rating: json.data.average_rating,
+          });
+        }
+      })
+      .catch(() => {
+        // Stats are non-critical
+      });
+  }, []);
 
   return (
     <section className="py-12 sm:py-16 lg:py-20 relative overflow-hidden">
@@ -37,7 +59,7 @@ export const CTASection: React.FC<CTASectionProps> = ({ onNavigate }) => {
               <GradientText>Styra</GradientText>
             </h2>
             <p className="text-base sm:text-lg text-muted-foreground mb-6 sm:mb-8">
-              Join thousands of grooming professionals who trust Styra to 
+              Join grooming professionals across Kenya who trust Styra to 
               grow their business. List your services, manage bookings, and reach 
               new customers every day.
             </p>
@@ -80,43 +102,31 @@ export const CTASection: React.FC<CTASectionProps> = ({ onNavigate }) => {
             </div>
           </FadeIn>
 
-          {/* Right Content - Stats Card */}
+          {/* Right Content - Real Stats Card */}
           <FadeIn delay={0.2}>
             <div className="glass-card p-5 sm:p-6 lg:p-8 glow">
               <div className="text-center mb-6 sm:mb-8">
-                <h3 className="text-lg sm:text-xl font-semibold mb-2">Business Growth Stats</h3>
+                <h3 className="text-lg sm:text-xl font-semibold mb-2">Join the Community</h3>
                 <p className="text-muted-foreground text-xs sm:text-sm">
-                  Average performance of businesses on Styra
+                  Be part of Kenya&apos;s growing grooming marketplace
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 sm:gap-6">
                 <StatItem
-                  value="3x"
-                  label="More Bookings"
-                  trend="+150%"
+                  value={stats ? String(stats.total_providers) : '—'}
+                  label="Service Providers"
                 />
                 <StatItem
-                  value="85%"
-                  label="Customer Retention"
-                  trend="+25%"
-                />
-                <StatItem
-                  value="$5K+"
-                  label="Monthly Revenue"
-                  trend="+200%"
-                />
-                <StatItem
-                  value="4.8★"
+                  value={stats && stats.average_rating > 0 ? `${stats.average_rating}★` : '—'}
                   label="Average Rating"
-                  trend="+0.5"
                 />
               </div>
 
               <div className="mt-8 p-4 rounded-xl bg-primary/5 border border-primary/10">
                 <p className="text-sm text-center">
-                  <span className="font-semibold text-primary">Limited Time:</span>{' '}
-                  Get 3 months of Premium features free when you sign up today!
+                  <span className="font-semibold text-primary">Free to get started:</span>{' '}
+                  List your business and start receiving bookings today!
                 </p>
               </div>
             </div>
@@ -131,14 +141,12 @@ export const CTASection: React.FC<CTASectionProps> = ({ onNavigate }) => {
 interface StatItemProps {
   value: string;
   label: string;
-  trend: string;
 }
 
-const StatItem: React.FC<StatItemProps> = ({ value, label, trend }) => (
+const StatItem: React.FC<StatItemProps> = ({ value, label }) => (
   <div className="text-center min-w-0">
     <div className="text-xl sm:text-2xl font-bold gradient-text mb-1">{value}</div>
     <div className="text-xs sm:text-sm text-muted-foreground mb-1">{label}</div>
-    <div className="text-xs text-green-600 font-medium">{trend}</div>
   </div>
 );
 

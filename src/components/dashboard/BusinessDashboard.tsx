@@ -276,7 +276,13 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   const completedBookings = bookings.filter(b => b.status === 'COMPLETED').length;
   const pendingBookings = bookings.filter(b => b.status === 'PENDING').length;
   const totalRevenue = bookings.filter(b => b.status === 'COMPLETED').reduce((sum, b) => sum + b.totalAmount, 0);
-  const averageRating = 4.9;
+  // Get average rating from bookings or business data
+  const averageRating = (() => {
+    const ratedBookings = bookings.filter(b => b.status === 'COMPLETED' && b.review?.rating);
+    if (ratedBookings.length === 0) return 0;
+    const sum = ratedBookings.reduce((acc, b) => acc + (b.review?.rating || 0), 0);
+    return Math.round((sum / ratedBookings.length) * 10) / 10;
+  })();
 
   // Show save message helper
   const showSaveMessage = (type: 'success' | 'error', text: string) => {
@@ -1572,32 +1578,25 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                     </h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div className="text-center p-4 rounded-lg bg-muted/30">
-                        <p className="text-2xl font-bold text-primary">1,542</p>
-                        <p className="text-sm text-muted-foreground">Profile Views</p>
-                        <p className="text-xs text-green-500 flex items-center justify-center gap-1 mt-1">
-                          <ArrowUpRight className="h-3 w-3" /> +18%
-                        </p>
+                        <p className="text-2xl font-bold text-primary">{completedBookings}</p>
+                        <p className="text-sm text-muted-foreground">Completed</p>
                       </div>
                       <div className="text-center p-4 rounded-lg bg-muted/30">
-                        <p className="text-2xl font-bold text-primary">89</p>
-                        <p className="text-sm text-muted-foreground">Inquiries</p>
-                        <p className="text-xs text-green-500 flex items-center justify-center gap-1 mt-1">
-                          <ArrowUpRight className="h-3 w-3" /> +24%
-                        </p>
+                        <p className="text-2xl font-bold text-primary">{pendingBookings}</p>
+                        <p className="text-sm text-muted-foreground">Pending</p>
                       </div>
                       <div className="text-center p-4 rounded-lg bg-muted/30">
-                        <p className="text-2xl font-bold text-primary">45</p>
-                        <p className="text-sm text-muted-foreground">Bookings</p>
-                        <p className="text-xs text-green-500 flex items-center justify-center gap-1 mt-1">
-                          <ArrowUpRight className="h-3 w-3" /> +12%
-                        </p>
+                        <p className="text-2xl font-bold text-primary">{totalBookings}</p>
+                        <p className="text-sm text-muted-foreground">Total Bookings</p>
                       </div>
                       <div className="text-center p-4 rounded-lg bg-muted/30">
-                        <p className="text-2xl font-bold text-primary">4.9</p>
+                        <p className="text-2xl font-bold text-primary">{averageRating > 0 ? averageRating : '—'}</p>
                         <p className="text-sm text-muted-foreground">Avg Rating</p>
-                        <p className="text-xs text-green-500 flex items-center justify-center gap-1 mt-1">
-                          <ArrowUpRight className="h-3 w-3" /> +0.2
-                        </p>
+                        {averageRating > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Based on reviews
+                          </p>
+                        )}
                       </div>
                     </div>
                   </GlassCard>
