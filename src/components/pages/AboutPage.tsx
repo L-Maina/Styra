@@ -103,6 +103,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 
 // ── Fallback defaults (used when CMS data is unavailable) ──
 
+// Generic aspirational values — these are fine as defaults
 const DEFAULT_VALUES: ValueItem[] = [
   { icon: 'Heart', title: 'Customer First', description: 'Every decision we make starts with our customers in mind.' },
   { icon: 'Target', title: 'Excellence', description: 'We strive for the highest quality in everything we do.' },
@@ -110,19 +111,13 @@ const DEFAULT_VALUES: ValueItem[] = [
   { icon: 'Lightbulb', title: 'Innovation', description: 'Constantly improving to serve you better.' },
 ];
 
-const DEFAULT_MILESTONES: MilestoneItem[] = [
-  { year: '2020', event: 'Styra founded in Nairobi, Kenya' },
-  { year: '2021', event: 'Expanded to major cities across Kenya' },
-  { year: '2022', event: 'Launched mobile apps, reached 1M+ bookings' },
-  { year: '2023', event: 'Regional expansion to Uganda, Tanzania, and Rwanda' },
-  { year: '2024', event: '10,000+ verified service providers on platform' },
-];
+// No fake milestones — timeline only appears when CMS provides real data
+const DEFAULT_MILESTONES: MilestoneItem[] = [];
 
+// Simple, honest default story — no fabricated narrative
 const DEFAULT_STORY = {
   paragraphs: [
-    'was born from a simple frustration: finding a great barber or stylist in Nairobi shouldn\'t require hours of research, phone calls, and trial and error. Our founders experienced this firsthand and decided to build a better way.',
-    'What started as a simple booking platform has evolved into a comprehensive ecosystem that empowers service providers to grow their businesses while giving customers unprecedented access to quality grooming services.',
-    'Today, we\'re proud to serve customers and businesses across East Africa, all while staying true to our founding principle: making self-care accessible to everyone.',
+    'is a platform dedicated to connecting skilled service providers with customers who value quality and convenience.',
   ],
 };
 
@@ -393,37 +388,39 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
           </div>
         </FadeIn>
 
-        {/* ── Timeline ─────────────────────────────────────── */}
-        <FadeIn delay={0.4}>
-          <GlassCard variant="bordered" glow className="mb-16">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-white" />
+        {/* ── Timeline (only shown when milestones are available) ── */}
+        {milestones.length > 0 && (
+          <FadeIn delay={0.4}>
+            <GlassCard variant="bordered" glow className="mb-16">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold">Our Journey</h2>
               </div>
-              <h2 className="text-2xl font-bold">Our Journey</h2>
-            </div>
-            <div className="space-y-6">
-              {milestones.map((milestone, index) => (
-                <motion.div
-                  key={milestone.year}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex gap-4"
-                >
-                  <div className="flex-shrink-0 w-16">
-                    <span className="inline-block px-3 py-1 rounded-lg gradient-bg text-white text-sm font-bold">
-                      {milestone.year}
-                    </span>
-                  </div>
-                  <div className="flex-1 pb-6 border-b border-border last:border-0">
-                    <p className="text-muted-foreground">{milestone.event}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </GlassCard>
-        </FadeIn>
+              <div className="space-y-6">
+                {milestones.map((milestone, index) => (
+                  <motion.div
+                    key={milestone.year}
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex gap-4"
+                  >
+                    <div className="flex-shrink-0 w-16">
+                      <span className="inline-block px-3 py-1 rounded-lg gradient-bg text-white text-sm font-bold">
+                        {milestone.year}
+                      </span>
+                    </div>
+                    <div className="flex-1 pb-6 border-b border-border last:border-0">
+                      <p className="text-muted-foreground">{milestone.event}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </GlassCard>
+          </FadeIn>
+        )}
 
         {/* ── Team ─────────────────────────────────────────── */}
         <FadeIn delay={0.5}>

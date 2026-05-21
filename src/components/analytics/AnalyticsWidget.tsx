@@ -105,23 +105,17 @@ export function AnalyticsWidget() {
     ? data.dailyTrend.slice(-7).map((d) => d.count)
     : [];
 
-  // Conversion rate approximation
-  const signupEvents = data?.dailyTrend
-    ? 0 // placeholder — real signup tracking would be separate
-    : 0;
-  const conversionRate =
-    data && data.pageViews > 0
-      ? ((signupEvents / data.pageViews) * 100).toFixed(1)
-      : '0.0';
+  // Conversion rate — requires real signup tracking (not yet implemented)
+  const conversionRate = '—';
 
-  // Avg session duration (placeholder — tracked via engagement events)
-  const avgSession = '4m 32s';
+  // Avg session duration — requires real session tracking (not yet implemented)
+  const avgSession = '—';
 
   const metrics: MetricCard[] = [
     {
       label: 'Total Page Views',
       value: data ? formatNumber(data.pageViews) : '—',
-      change: '+12%',
+      change: undefined,
       sparkData,
       icon: <Eye className="h-5 w-5 text-muted-foreground" />,
     },

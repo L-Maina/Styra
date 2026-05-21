@@ -11,24 +11,58 @@ const setupRateLimiter = rateLimit({
 });
 
 /**
- * Generate a random password.
- * Used instead of hardcoded 'password123' for demo accounts.
+ * Generate a cryptographically secure random password.
  */
 function generateRandomPassword(): string {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-  const bytes = new Uint8Array(16);
+  const bytes = new Uint8Array(20);
   crypto.getRandomValues(bytes);
   return Array.from(bytes).map(b => chars[b % chars.length]).join('');
 }
 
 /**
+ * Default platform settings to seed on first setup.
+ */
+const DEFAULT_PLATFORM_SETTINGS = [
+  { key: 'company_name', value: 'Styra' },
+  { key: 'company_tagline', value: 'Your Style, On Demand. Discover grooming services across Kenya, book instantly, and look your best every day.' },
+  { key: 'company_description', value: "Styra is Kenya's leading grooming marketplace, connecting customers with verified barbers, salons, and grooming professionals." },
+  { key: 'support_email', value: 'support@styra.app' },
+  { key: 'press_email', value: 'press@styra.app' },
+  { key: 'phone', value: '+254 712 345 678' },
+  { key: 'address', value: 'Nairobi, Kenya' },
+  { key: 'social_instagram', value: 'https://instagram.com/styra' },
+  { key: 'social_twitter', value: 'https://twitter.com/styra' },
+  { key: 'social_facebook', value: 'https://facebook.com/styra' },
+  { key: 'social_tiktok', value: 'https://tiktok.com/@styra' },
+  { key: 'social_linkedin', value: 'https://linkedin.com/company/styra' },
+  { key: 'whatsapp_number', value: '+254 712 345 678' },
+  { key: 'business_hours', value: 'Mon-Fri 8am-6pm EAT' },
+  { key: 'support_response_time', value: 'Within 24 hours' },
+  { key: 'website_url', value: 'https://styra.app' },
+  { key: 'site_name', value: 'Styra' },
+];
+
+/**
+ * Default FAQs to seed if none exist.
+ */
+const DEFAULT_FAQS = [
+  { question: 'How do I book an appointment?', answer: 'Browse our marketplace or map to find a service provider, select your desired service, choose an available time slot, and complete your booking.', category: 'booking', order: 1, isPublished: true },
+  { question: 'Can I reschedule or cancel my appointment?', answer: 'Yes! You can reschedule or cancel through your dashboard up to 24 hours before the scheduled time for a full refund.', category: 'booking', order: 2, isPublished: true },
+  { question: 'What payment methods do you accept?', answer: 'We accept all major credit and debit cards, PayPal, Apple Pay, Google Pay, and M-Pesa in supported regions.', category: 'payments', order: 1, isPublished: true },
+  { question: 'How do I become a service provider?', answer: 'Click "Become a Provider" and complete the onboarding process. Our team will review your application within 2-3 business days.', category: 'provider', order: 1, isPublished: true },
+  { question: 'How do I create an account?', answer: 'Click "Sign Up" on our homepage, enter your email and create a password, or sign up using Google.', category: 'account', order: 1, isPublished: true },
+];
+
+/**
  * POST /api/setup
- * 
- * One-time production setup endpoint.
- * Creates the admin user + demo data if they don't already exist.
- * 
- * SECURITY IMPROVEMENTS:
- *   - No hardcoded passwords — generates random ones per invocation
+ *
+ * Admin-only one-time setup endpoint.
+ * Creates the admin user, platform settings, and default FAQs.
+ * NO demo/fake data — all business data must come from real users.
+ *
+ * SECURITY:
+ *   - No hardcoded passwords — generates a random one per invocation
  *   - Passwords are NEVER returned in the response body
  *   - Rate limited to 5 attempts per hour
  *   - Only available in development mode
@@ -61,197 +95,97 @@ export async function POST(request: NextRequest) {
     }
 
     const results: Record<string, string> = {};
-    const createdCredentials: Record<string, { email: string; passwordGenerated: boolean }> = {};
 
     // ── 1. Create Admin User ──────────────────────────────────
+    const adminEmail = 'admin@styra.app';
     const existingAdmin = await db.user.findUnique({
-      where: { email: 'admin@styra.app' },
+      where: { email: adminEmail },
     });
+
+    let adminPasswordGenerated = false;
 
     if (existingAdmin) {
       results.admin = `Admin user already exists (${existingAdmin.email})`;
     } else {
       const password = generateRandomPassword();
       const passwordHash = await bcrypt.hash(password, 12);
-      const admin = await db.user.create({
+      await db.user.create({
         data: {
-          email: 'admin@styra.app',
+          email: adminEmail,
           password: passwordHash,
-          name: 'Admin User',
+          name: 'Styra Admin',
           role: 'ADMIN',
           isVerified: true,
         },
       });
-      results.admin = `Created admin user: ${admin.email}`;
-      createdCredentials.admin = { email: admin.email, passwordGenerated: true };
+      results.admin = `Created admin user: ${adminEmail}`;
+      adminPasswordGenerated = true;
       // Log the password to server console only (never to API response)
-      console.log('[Setup] Admin account created. Password has been set.');
+      console.log(`[Setup] Admin account created for ${adminEmail}. Password has been set.`);
+      console.log(`[Setup] Admin password: ${password}`);
+      console.log('[Setup] ⚠️ Save this password — it will not be shown again.');
     }
 
-    // ── 2. Create Demo Business Owner ─────────────────────────
-    const existingOwner = await db.user.findUnique({
-      where: { email: 'jane@styleshop.co.ke' },
-    });
+    // ── 2. Create Platform Settings ───────────────────────────
+    let settingsCreated = 0;
+    let settingsSkipped = 0;
 
-    let businessOwner;
-    if (existingOwner) {
-      businessOwner = existingOwner;
-      results.businessOwner = `Business owner already exists (${existingOwner.email})`;
+    for (const entry of DEFAULT_PLATFORM_SETTINGS) {
+      const existing = await db.platformSetting.findUnique({
+        where: { key: entry.key },
+      });
+      if (existing) {
+        settingsSkipped++;
+      } else {
+        await db.platformSetting.create({
+          data: { key: entry.key, value: entry.value },
+        });
+        settingsCreated++;
+      }
+    }
+
+    results.platformSettings = settingsCreated > 0
+      ? `Created ${settingsCreated} platform settings${settingsSkipped > 0 ? ` (${settingsSkipped} already existed)` : ''}`
+      : `All ${settingsSkipped} platform settings already exist`;
+
+    // ── 3. Create Default FAQs ────────────────────────────────
+    const faqCount = await db.fAQ.count();
+
+    if (faqCount > 0) {
+      results.faqs = `${faqCount} FAQs already exist — skipping`;
     } else {
-      const password = generateRandomPassword();
-      const passwordHash = await bcrypt.hash(password, 12);
-      businessOwner = await db.user.create({
-        data: {
-          email: 'jane@styleshop.co.ke',
-          password: passwordHash,
-          name: 'Jane Wanjiku',
-          phone: '+254723456789',
-          role: 'BUSINESS_OWNER',
-          isVerified: true,
-        },
+      await db.fAQ.createMany({
+        data: DEFAULT_FAQS,
       });
-      results.businessOwner = `Created business owner: ${businessOwner.email}`;
-      createdCredentials.businessOwner = { email: businessOwner.email, passwordGenerated: true };
-      console.log('[Setup] Business owner account created. Password has been set.');
+      results.faqs = `Created ${DEFAULT_FAQS.length} default FAQs`;
     }
 
-    // ── 3. Create Demo Customer ───────────────────────────────
-    const existingCustomer = await db.user.findUnique({
-      where: { email: 'john@example.com' },
-    });
-
-    let customer;
-    if (existingCustomer) {
-      customer = existingCustomer;
-      results.customer = `Customer already exists (${existingCustomer.email})`;
-    } else {
-      const password = generateRandomPassword();
-      const passwordHash = await bcrypt.hash(password, 12);
-      customer = await db.user.create({
-        data: {
-          email: 'john@example.com',
-          password: passwordHash,
-          name: 'John Mwangi',
-          phone: '+254712345678',
-          role: 'CUSTOMER',
-          isVerified: true,
-        },
-      });
-      results.customer = `Created customer: ${customer.email}`;
-      createdCredentials.customer = { email: customer.email, passwordGenerated: true };
-      console.log('[Setup] Customer account created. Password has been set.');
-    }
-
-    // ── 4. Create Demo Businesses ────────────────────────────
-    const businessCount = await db.business.count();
-    if (businessCount > 0) {
-      results.businesses = `${businessCount} businesses already exist — skipping demo business creation`;
-    } else {
-      const b1 = await db.business.create({
-        data: {
-          ownerId: businessOwner!.id,
-          name: 'Nairobi Style Hub',
-          description: 'Premium barbershop offering classic and modern grooming services in the heart of Nairobi.',
-          category: 'Barber Services',
-          address: '123 Kenyatta Ave',
-          city: 'Nairobi',
-          country: 'Kenya',
-          phone: '+254720000001',
-          email: 'info@nairobistylehub.co.ke',
-          rating: 4.8,
-          reviewCount: 24,
-          isVerified: true,
-          isActive: true,
-        },
-      });
-
-      const b2 = await db.business.create({
-        data: {
-          ownerId: businessOwner!.id,
-          name: 'Glamour Studio',
-          description: "Full-service salon specializing in women's haircuts, blowouts, and color treatments.",
-          category: 'Haircuts & Styling',
-          address: '456 Moi Avenue',
-          city: 'Nairobi',
-          country: 'Kenya',
-          phone: '+254720000002',
-          email: 'info@glamourstudio.co.ke',
-          rating: 4.6,
-          reviewCount: 18,
-          isVerified: true,
-          isActive: true,
-        },
-      });
-
-      const b3 = await db.business.create({
-        data: {
-          ownerId: businessOwner!.id,
-          name: 'The Grooming Lounge',
-          description: 'Luxury grooming experience with premium products and skilled barbers.',
-          category: 'Haircuts & Styling',
-          address: '789 Uhuru Gardens',
-          city: 'Nairobi',
-          country: 'Kenya',
-          phone: '+254720000003',
-          email: 'info@thegroominglounge.co.ke',
-          rating: 4.9,
-          reviewCount: 31,
-          isVerified: true,
-          isActive: true,
-        },
-      });
-
-      // Create services for each business
-      await db.service.createMany({
-        data: [
-          { businessId: b1.id, name: 'Classic Cut', description: 'Traditional barber cut with styling', price: 500, duration: 30, category: 'Haircuts' },
-          { businessId: b1.id, name: 'Beard Trim', description: 'Professional beard shaping and trimming', price: 300, duration: 20, category: 'Beard' },
-          { businessId: b1.id, name: 'Full Grooming', description: 'Complete grooming package: haircut, beard trim, and facial', price: 800, duration: 60, category: 'Packages' },
-          { businessId: b2.id, name: "Women's Cut", description: "Professional women's haircut and styling", price: 700, duration: 45, category: 'Haircuts' },
-          { businessId: b2.id, name: 'Blowout', description: 'Professional blowout and styling', price: 500, duration: 30, category: 'Styling' },
-          { businessId: b2.id, name: 'Color Treatment', description: 'Full hair color treatment with premium products', price: 2000, duration: 90, category: 'Color' },
-          { businessId: b3.id, name: 'Premium Cut', description: 'Luxury haircut with premium products and consultation', price: 1000, duration: 45, category: 'Haircuts' },
-          { businessId: b3.id, name: 'Hot Towel Shave', description: 'Traditional hot towel straight razor shave', price: 600, duration: 30, category: 'Shaves' },
-          { businessId: b3.id, name: 'Hair Treatment', description: 'Deep conditioning hair treatment for healthy hair', price: 1500, duration: 60, category: 'Treatments' },
-        ],
-      });
-
-      // Create staff for each business
-      await db.staff.createMany({
-        data: [
-          { businessId: b1.id, name: 'James Otieno', role: 'Senior Barber', phone: '+254730000001', bio: "10+ years of experience in men's grooming" },
-          { businessId: b1.id, name: 'Peter Kamau', role: 'Barber', phone: '+254730000002', bio: 'Specializes in fades and modern cuts' },
-          { businessId: b2.id, name: 'Mary Akinyi', role: 'Senior Stylist', phone: '+254730000003', bio: "Expert in women's haircuts and color" },
-          { businessId: b2.id, name: 'Grace Wambui', role: 'Stylist', phone: '+254730000004', bio: 'Blowout and styling specialist' },
-          { businessId: b3.id, name: 'David Mwangi', role: 'Master Barber', phone: '+254730000005', bio: 'Award-winning barber with 15 years experience' },
-          { businessId: b3.id, name: 'Samuel Kiprop', role: 'Barber', phone: '+254730000006', bio: 'Specialist in hot towel shaves and treatments' },
-        ],
-      });
-
-      results.businesses = 'Created 3 demo businesses with 9 services and 6 staff members';
-    }
-
+    // ── Response ──────────────────────────────────────────────
     return NextResponse.json({
       success: true,
-      message: 'Production setup complete!',
-      // SECURITY: Passwords are NEVER included in the API response.
-      // They are logged to the server console only.
-      credentials: createdCredentials,
+      message: adminPasswordGenerated
+        ? 'Setup complete! Admin account created.'
+        : 'Setup complete! Admin account already existed.',
+      admin: {
+        email: adminEmail,
+        passwordGenerated: adminPasswordGenerated,
+      },
       instructions: {
-        step1: 'Check the server console for generated passwords',
+        step1: 'Check the server console for the generated admin password',
         step2: 'Go to the Sign In page',
-        step3: 'Enter the email and generated password',
-        step4: 'Click Sign In — you will be automatically redirected to the Admin Dashboard',
-        note: 'You can change passwords after first login from the Admin Dashboard settings. Passwords are only shown once in the server logs.',
+        step3: `Sign in with email: ${adminEmail}`,
+        step4: 'Enter the password from the server console',
+        step5: 'You will be redirected to the Admin Dashboard',
+        note: 'You can change the password after first login from the Admin Dashboard settings. The password is only shown once in the server logs.',
       },
       details: results,
     });
   } catch (error) {
     console.error('Setup error:', error);
     return NextResponse.json(
-      { 
-        error: 'Setup failed', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
+      {
+        error: 'Setup failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );
@@ -261,8 +195,8 @@ export async function POST(request: NextRequest) {
 // Also support GET for easy browser testing
 export async function GET() {
   return NextResponse.json({
-    message: 'POST to /api/setup to seed admin user and demo data',
+    message: 'POST to /api/setup to create the admin user and platform configuration',
     usage: 'Send a POST request to this endpoint to run the setup',
-    warning: 'This creates accounts with randomly generated passwords (shown in server logs only)',
+    note: 'No demo/fake data is created. Only the admin account, platform settings, and default FAQs are seeded.',
   });
 }

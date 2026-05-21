@@ -6,14 +6,13 @@ import {
   Newspaper,
   Mail,
   Download,
-  ExternalLink,
-  Quote,
   TrendingUp,
   Award,
   Users,
   Globe,
   AlertCircle,
   RefreshCw,
+  MessageSquare,
 } from 'lucide-react';
 import {
   GlassCard,
@@ -61,29 +60,6 @@ const SETTINGS_DEFAULTS: SiteSettings = {
   phone: '+254 712 345 678',
   address: 'Nairobi, Kenya',
 };
-
-// ── Press mentions (hardcoded — brand-defining historical data) ─
-
-const pressMentions = [
-  {
-    source: 'TechCrunch Africa',
-    quote:
-      'Styra is revolutionizing how Kenyans find and book grooming services, bringing trust and transparency to an industry that needed it.',
-    date: 'December 2024',
-  },
-  {
-    source: 'Business Daily',
-    quote:
-      'With over 10,000 verified providers, Styra has become the go-to platform for personal grooming services across Kenya.',
-    date: 'November 2024',
-  },
-  {
-    source: 'Nairobi Tech Week',
-    quote:
-      "Styra's innovative approach to the grooming marketplace earned them the Best Consumer App award at this year's showcase.",
-    date: 'October 2024',
-  },
-];
 
 // ── Skeleton loaders ─────────────────────────────────────────
 
@@ -192,14 +168,7 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
       ]
     : [];
 
-  const fallbackStats = [
-    { icon: Users, value: '10K+', label: 'Active Providers' },
-    { icon: Globe, value: '25+', label: 'Cities in Kenya' },
-    { icon: TrendingUp, value: '50K+', label: 'Bookings Monthly' },
-    { icon: Award, value: '4.9', label: 'Avg. Rating' },
-  ];
-
-  const displayStats = statsCards.length > 0 ? statsCards : fallbackStats;
+  const hasRealStats = statsCards.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -298,9 +267,9 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
           <h2 className="text-2xl font-bold mb-6">Quick Facts</h2>
           {loading ? (
             <StatsSkeleton />
-          ) : (
+          ) : hasRealStats ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-              {displayStats.map((stat, i) => (
+              {statsCards.map((stat, i) => (
                 <motion.div
                   key={stat.label}
                   initial={{ opacity: 0, y: 20 }}
@@ -315,6 +284,19 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
                 </motion.div>
               ))}
             </div>
+          ) : (
+            <GlassCard className="p-6 mb-12 text-center">
+              <MessageSquare className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-muted-foreground mb-2">
+                Platform statistics are not available at this time.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Contact us for platform statistics at{' '}
+                <a href={`mailto:${pressEmail}`} className="text-primary font-medium hover:underline">
+                  {pressEmail}
+                </a>
+              </p>
+            </GlassCard>
           )}
         </FadeIn>
 
@@ -330,9 +312,9 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
               reviewing grooming services.
             </p>
             <p className="text-muted-foreground leading-relaxed mb-4">
-              From haircuts and beard grooming to skincare and spa treatments,{companyName}{' '}
-              offers a comprehensive range of services through a network of over 10,000
-              verified service providers across more than 25 cities in Kenya.
+              From haircuts and beard grooming to skincare and spa treatments, {companyName}{' '}
+              offers a comprehensive range of services through a growing network of
+              verified service providers across Kenya.
             </p>
             <p className="text-muted-foreground leading-relaxed">
               Our platform features real-time booking, secure payments, verified reviews,
@@ -397,33 +379,25 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
           </div>
         </FadeIn>
 
-        {/* ── In the Press (hardcoded — brand-defining) ──────── */}
+        {/* ── Press Inquiries ───────────────────────────────── */}
         <FadeIn delay={0.3}>
           <h2 className="text-2xl font-bold mb-6">In the Press</h2>
-          <div className="space-y-6 mb-12">
-            {pressMentions.map((item, i) => (
-              <motion.div
-                key={item.source}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 + i * 0.05 }}
-              >
-                <GlassCard className="p-6">
-                  <Quote className="h-8 w-8 text-primary/20 mb-3" />
-                  <p className="text-muted-foreground italic mb-4 leading-relaxed">
-                    &ldquo;{item.quote}&rdquo;
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{item.source}</p>
-                      <p className="text-sm text-muted-foreground">{item.date}</p>
-                    </div>
-                    <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </GlassCard>
-              </motion.div>
-            ))}
-          </div>
+          <GlassCard className="p-6 md:p-8 mb-12 text-center">
+            <Newspaper className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground mb-2">
+              Contact our press team for media inquiries, interview requests, and press coverage.
+            </p>
+            <div className="flex items-center justify-center gap-2 text-primary mb-4">
+              <Mail className="h-4 w-4" />
+              <a href={`mailto:${pressEmail}`} className="font-medium hover:underline">
+                {pressEmail}
+              </a>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              We welcome media outreach and are happy to provide quotes, data, and insights
+              for stories about the grooming industry and technology in Africa.
+            </p>
+          </GlassCard>
         </FadeIn>
 
         {/* ── Press Kit Download ─────────────────────────────── */}

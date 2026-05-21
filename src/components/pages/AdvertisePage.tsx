@@ -25,7 +25,6 @@ import {
   Crown,
   Rocket,
   Eye,
-  MousePointer,
   ShoppingCart,
   AlertCircle,
   RefreshCw,
@@ -131,7 +130,7 @@ const adOptions = [
       'Basic analytics dashboard',
       'Email support',
     ],
-    highlighted_feature: '3x more profile views',
+    highlighted_feature: 'Top placement in your category',
     popular: false,
   },
   {
@@ -152,7 +151,7 @@ const adOptions = [
       'Dedicated account manager',
       'Priority support',
     ],
-    highlighted_feature: '5x average ROI',
+    highlighted_feature: 'Full-suite advertising with dedicated support',
     popular: true,
   },
   {
@@ -173,7 +172,7 @@ const adOptions = [
       'Marketing consultation',
       'Multi-location support',
     ],
-    highlighted_feature: 'Unlimited potential',
+    highlighted_feature: 'Custom campaigns tailored to your brand',
     popular: false,
   },
 ];
@@ -183,56 +182,39 @@ const advertisingFormats = [
     icon: BarChart3,
     title: 'Search Ads',
     description: 'Appear when customers search for services you offer',
-    stats: '15% avg. CTR',
+    stats: 'Top of search results',
     color: '#6C4EFF',
   },
   {
     icon: Eye,
     title: 'Profile Boost',
     description: 'Enhanced visibility for your business profile',
-    stats: '3x more views',
+    stats: 'Prominent profile placement',
     color: '#3ABEFF',
   },
   {
     icon: Zap,
     title: 'Sponsored Content',
     description: 'Featured articles and blog posts about your services',
-    stats: '8% engagement',
+    stats: 'Featured content placement',
     color: '#10b981',
   },
   {
     icon: Star,
     title: 'Promoted Reviews',
     description: 'Highlight your best reviews to attract customers',
-    stats: '25% more bookings',
+    stats: 'Showcase your best reviews',
     color: '#f59e0b',
   },
 ];
 
-const roiStats = [
-  { label: 'Avg. Return on Investment', value: '3x', icon: DollarSign },
-  { label: 'Average Click Rate', value: '15%', icon: MousePointer },
-  { label: 'Conversion Rate', value: '8%', icon: ShoppingCart },
+const platformBenefits = [
+  { label: 'Audience Targeting', value: 'Local', icon: Target },
+  { label: 'Performance Tracking', value: 'Live', icon: TrendingUp },
+  { label: 'Campaign Support', value: 'Included', icon: Users },
 ];
 
-const successStories = [
-  {
-    business: 'Elite Cuts & Style',
-    quote: 'Our bookings increased by 280% after switching to the Premium Package. Best investment we\'ve made!',
-    owner: 'Marcus Williams',
-    increase: '280%',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face',
-    plan: 'Premium',
-  },
-  {
-    business: 'Serenity Spa',
-    quote: 'The ROI is incredible. We reached customers we never could have found on our own.',
-    owner: 'Jennifer Chen',
-    increase: '195%',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=50&h=50&fit=crop&crop=face',
-    plan: 'Featured',
-  },
-];
+
 
 /* ── Helper: format numbers with commas ── */
 const formatNumber = (n: number): string => {
@@ -340,10 +322,10 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
         },
       ]
     : [
-        { value: '500K+', label: 'Monthly Active Users', icon: Users },
-        { value: '50K+', label: 'Daily Bookings', icon: ShoppingCart },
-        { value: '25-45', label: 'Primary Age Group', icon: Target },
-        { value: '85%', label: 'Mobile Users', icon: Globe },
+        { value: 'Growing', label: 'Active Community', icon: Users },
+        { value: 'Local', label: 'Neighborhood Reach', icon: MapPin },
+        { value: 'Verified', label: 'Customer Reviews', icon: Star },
+        { value: 'Mobile', label: 'On-the-Go Access', icon: Globe },
       ];
 
   /* ── Fetch user's business (needed for promotion API) ── */
@@ -721,9 +703,9 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
                       <DollarSign className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <h3 className="font-medium">High ROI</h3>
+                      <h3 className="font-medium">Measurable Results</h3>
                       <p className="text-sm text-muted-foreground">
-                        Average advertisers see 3x return on their investment within 90 days
+                        Track your campaign performance and optimize based on real data
                       </p>
                     </div>
                   </div>
@@ -742,17 +724,17 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
               </div>
               <div className="flex items-center justify-center">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-                  {roiStats.map((stat, index) => (
+                  {platformBenefits.map((benefit, index) => (
                     <motion.div
-                      key={stat.label}
+                      key={benefit.label}
                       className="glass-card rounded-xl p-4 text-center hover:bg-[var(--glass-bg-hover)] transition-all duration-300"
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.1 }}
                     >
-                      <stat.icon className="h-8 w-8 mx-auto mb-2 text-primary" />
-                      <div className="text-3xl font-bold gradient-text">{stat.value}</div>
-                      <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
+                      <benefit.icon className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <div className="text-3xl font-bold gradient-text">{benefit.value}</div>
+                      <p className="text-xs text-muted-foreground mt-1">{benefit.label}</p>
                     </motion.div>
                   ))}
                 </div>
@@ -761,37 +743,52 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
           </GlassCard>
         </FadeIn>
 
-        {/* Success Stories */}
+        {/* How It Works */}
         <FadeIn delay={0.45}>
-          <h2 className="text-2xl font-bold mb-6 text-center">Success Stories</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-            {successStories.map((story, index) => (
+          <h2 className="text-2xl font-bold mb-6 text-center">How It Works</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {[
+              {
+                step: '1',
+                title: 'Choose Your Package',
+                description: 'Select the advertising package that fits your business goals and budget.',
+                icon: Star,
+                color: '#6C4EFF',
+              },
+              {
+                step: '2',
+                title: 'Set Up Your Campaign',
+                description: 'Our team helps you create compelling ads targeted to your local audience.',
+                icon: Target,
+                color: '#3ABEFF',
+              },
+              {
+                step: '3',
+                title: 'Track & Optimize',
+                description: 'Monitor your campaign performance in real-time and adjust as needed.',
+                icon: TrendingUp,
+                color: '#10b981',
+              },
+            ].map((item, index) => (
               <motion.div
-                key={story.business}
+                key={item.step}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <GlassCard hover className="relative overflow-hidden group">
+                <GlassCard hover className="relative overflow-hidden group h-full">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                  <div className="relative z-10">
-                    <div className="absolute top-4 right-4 flex items-center gap-2">
-                      <GlassBadge variant="success" className="text-sm">+{story.increase} bookings</GlassBadge>
+                  <div className="relative z-10 text-center">
+                    <div
+                      className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4 transition-transform group-hover:scale-110"
+                      style={{ backgroundColor: `${item.color}20` }}
+                    >
+                      <item.icon className="h-7 w-7" style={{ color: item.color }} />
                     </div>
-                    <div className="flex items-start gap-4 mb-4 pr-24">
-                      <img
-                        src={story.avatar}
-                        alt={story.owner}
-                        className="w-14 h-14 rounded-full object-cover ring-2 ring-primary/20"
-                      />
-                      <div>
-                        <h3 className="font-semibold">{story.business}</h3>
-                        <p className="text-sm text-muted-foreground">{story.owner}</p>
-                        <GlassBadge variant="primary" className="mt-1 text-xs">{story.plan} Plan</GlassBadge>
-                      </div>
-                    </div>
-                    <p className="text-muted-foreground italic relative">&ldquo;{story.quote}&rdquo;</p>
+                    <div className="text-xs font-bold text-primary mb-1">STEP {item.step}</div>
+                    <h3 className="font-semibold mb-2">{item.title}</h3>
+                    <p className="text-sm text-muted-foreground">{item.description}</p>
                   </div>
                 </GlassCard>
               </motion.div>

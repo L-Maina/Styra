@@ -77,14 +77,12 @@ interface ProviderLocationPickerProps {
   onBack?: () => void;
 }
 
-// Sample locations for autocomplete
-const sampleAddresses = [
-  { address: '123 Main St, New York, NY 10001', lat: 40.7128, lng: -74.006 },
-  { address: '456 Oak Ave, Los Angeles, CA 90001', lat: 34.0522, lng: -118.2437 },
-  { address: '789 Pine Rd, Chicago, IL 60601', lat: 41.8781, lng: -87.6298 },
-  { address: '321 Elm St, Houston, TX 77001', lat: 29.7604, lng: -95.3698 },
-  { address: '555 Market St, San Francisco, CA 94102', lat: 37.7749, lng: -122.4194 },
-];
+// Address suggestion type
+interface AddressSuggestion {
+  address: string;
+  lat: number;
+  lng: number;
+}
 
 export const ProviderLocationPicker: React.FC<ProviderLocationPickerProps> = ({
   initialLocation,
@@ -97,7 +95,7 @@ export const ProviderLocationPicker: React.FC<ProviderLocationPickerProps> = ({
   
   // Location state
   const [searchQuery, setSearchQuery] = useState(initialLocation?.address || '');
-  const [suggestions, setSuggestions] = useState<typeof sampleAddresses>([]);
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -146,21 +144,29 @@ export const ProviderLocationPicker: React.FC<ProviderLocationPickerProps> = ({
 
     if (query.length > 2) {
       setIsLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        const filtered = sampleAddresses.filter(addr =>
-          addr.address.toLowerCase().includes(query.toLowerCase())
-        );
-        setSuggestions(filtered);
-        setIsLoading(false);
-      }, 300);
+      // Use Nominatim geocoding API for real address suggestions
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=ke`)
+        .then(res => res.json())
+        .then((results: Array<{ display_name: string; lat: string; lon: string }>) => {
+          const mapped: AddressSuggestion[] = results.map(r => ({
+            address: r.display_name,
+            lat: parseFloat(r.lat),
+            lng: parseFloat(r.lon),
+          }));
+          setSuggestions(mapped);
+          setIsLoading(false);
+        })
+        .catch(() => {
+          setSuggestions([]);
+          setIsLoading(false);
+        });
     } else {
       setSuggestions([]);
     }
   };
 
   // Handle address selection
-  const handleSelectAddress = (suggestion: typeof sampleAddresses[0]) => {
+  const handleSelectAddress = (suggestion: AddressSuggestion) => {
     setSearchQuery(suggestion.address);
     setPinPosition({ lat: suggestion.lat, lng: suggestion.lng });
     setShowSuggestions(false);

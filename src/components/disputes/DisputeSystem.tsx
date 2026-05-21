@@ -331,8 +331,25 @@ const DisputeCreationForm: React.FC<DisputeFormProps> = ({ onSubmit, onCancel })
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const res = await fetch('/api/disputes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          bookingId,
+          type: disputeType,
+          description,
+          evidence: files,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        console.error('Dispute creation failed:', data.error);
+      }
+    } catch (err) {
+      console.error('Dispute submission error:', err);
+    }
     
     onSubmit({
       bookingId,

@@ -652,12 +652,12 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
     }
   };
 
-  // Stats for overview
+  // Stats for overview — no fabricated change percentages, show real data only
   const stats = [
-    { label: 'Total Bookings', value: totalBookings.toString(), change: '+12%', icon: Calendar, color: 'from-blue-500 to-cyan-500' },
-    { label: 'Revenue', value: `$${totalRevenue.toLocaleString()}`, change: '+23%', icon: DollarSign, color: 'from-green-500 to-emerald-500' },
-    { label: 'Active Services', value: services.filter(s => s.isActive).length.toString(), change: '+2', icon: Scissors, color: 'from-purple-500 to-pink-500' },
-    { label: 'Rating', value: averageRating.toString(), change: '+0.2', icon: Star, color: 'from-yellow-500 to-orange-500' },
+    { label: 'Total Bookings', value: totalBookings.toString(), change: undefined as string | undefined, icon: Calendar, color: 'from-blue-500 to-cyan-500' },
+    { label: 'Revenue', value: `$${totalRevenue.toLocaleString()}`, change: undefined as string | undefined, icon: DollarSign, color: 'from-green-500 to-emerald-500' },
+    { label: 'Active Services', value: services.filter(s => s.isActive).length.toString(), change: undefined as string | undefined, icon: Scissors, color: 'from-purple-500 to-pink-500' },
+    { label: 'Rating', value: averageRating.toString(), change: undefined as string | undefined, icon: Star, color: 'from-yellow-500 to-orange-500' },
   ];
 
   // Redirect if not authenticated or not a business owner
@@ -855,7 +855,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                           <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
                             <stat.icon className="h-5 w-5 text-white" />
                           </div>
-                          <span className="text-xs text-green-600 font-medium">{stat.change}</span>
+                          {stat.change && <span className="text-xs text-green-600 font-medium">{stat.change}</span>}
                         </div>
                         <div className="text-xl sm:text-2xl font-bold">{stat.value}</div>
                         <div className="text-xs sm:text-sm text-muted-foreground truncate">{stat.label}</div>
