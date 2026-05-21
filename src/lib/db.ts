@@ -3,17 +3,14 @@ import { PrismaClient } from '@prisma/client';
 /**
  * Prisma singleton for Supabase PostgreSQL on Vercel serverless.
  *
- * Key issues on Vercel:
- * 1. Each API route is a separate function — without caching, every request
- *    opens a new DB connection, exhausting the Supabase pooler quickly.
- * 2. Cold starts create fresh instances — the singleton must use globalThis
- *    to survive across invocations of the same warm function.
- * 3. Long-lived idle connections get dropped by the pooler — we need to
- *    detect stale connections and reconnect.
- * 4. DATABASE_URL may not be available at module-load time (build phase,
- *    cold-start races). We use a lazy Proxy so the client is only created
- *    on first actual query — inside route handlers where errors can be
- *    caught by handleApiError and returned as proper HTTP responses.
+ * IMPORTANT: This module must NOT import or require any Node.js-only
+ * modules ('fs', 'path', etc.) because it is indirectly referenced by
+ * client-side code. Turbopack traces require() calls too.
+ *
+ * In production (Vercel), DATABASE_URL is set directly in environment variables.
+ * In development, Next.js auto-loads .env files into process.env.
+ * If DATABASE_URL is a SQLite override (sandbox), we fall back to
+ * SUPABASE_DATABASE_URL env var.
  */
 
 const globalForPrisma = globalThis as unknown as {
@@ -25,9 +22,9 @@ function buildDatabaseUrl(url: string): string {
 
   const params: string[] = [];
   if (!url.includes('pgbouncer=')) params.push('pgbouncer=true');
-  if (!url.includes('connection_limit=')) params.push('connection_limit=1');
-  if (!url.includes('pool_timeout=')) params.push('pool_timeout=15');
-  if (!url.includes('connect_timeout=')) params.push('connect_timeout=10');
+  if (!url.includes('connection_limit=')) params.push('connection_limit=5');
+  if (!url.includes('pool_timeout=')) params.push('pool_timeout=30');
+  if (!url.includes('connect_timeout=')) params.push('connect_timeout=15');
   if (!url.includes('sslmode=')) params.push('sslmode=require');
 
   if (params.length === 0) return url;
@@ -41,25 +38,66 @@ function safeLogUrl(url: string): string {
 }
 
 /**
+ * Resolve DATABASE_URL from process.env.
+ * Handles common cases:
+ * - PostgreSQL URL → use directly
+ * - SQLite file: URL → try SUPABASE_DATABASE_URL fallback
+ * - Missing → try SUPABASE_DATABASE_URL
+ *
+ * In production (Vercel), DATABASE_URL is set via environment variables.
+ * In development, Next.js auto-loads .env files into process.env.
+ * The SUPABASE_DATABASE_URL fallback handles sandbox environments
+ * where DATABASE_URL might be overridden to a SQLite URL.
+ */
+function resolveDatabaseUrl(): string | undefined {
+  const envUrl = process.env.DATABASE_URL;
+
+  // If DATABASE_URL is a PostgreSQL URL, use it directly
+  if (envUrl && (envUrl.startsWith('postgresql://') || envUrl.startsWith('postgres://'))) {
+    return envUrl;
+  }
+
+  // If DATABASE_URL is a SQLite file: URL (sandbox override), try fallback
+  if (envUrl && envUrl.startsWith('file:')) {
+    const supabaseUrl = process.env.SUPABASE_DATABASE_URL;
+    if (supabaseUrl && supabaseUrl.startsWith('postgresql://')) {
+      console.log('[DB] Using SUPABASE_DATABASE_URL (DATABASE_URL was SQLite override).');
+      return supabaseUrl;
+    }
+
+    console.warn(
+      `[DB] DATABASE_URL is SQLite ("${envUrl}") but no PostgreSQL fallback found. ` +
+      'Set SUPABASE_DATABASE_URL or ensure DATABASE_URL is a PostgreSQL URL.'
+    );
+    return envUrl;
+  }
+
+  // No DATABASE_URL — try SUPABASE_DATABASE_URL
+  if (!envUrl) {
+    const supabaseUrl = process.env.SUPABASE_DATABASE_URL;
+    if (supabaseUrl && supabaseUrl.startsWith('postgresql://')) {
+      console.log('[DB] Using SUPABASE_DATABASE_URL (DATABASE_URL was not set).');
+      return supabaseUrl;
+    }
+  }
+
+  return envUrl;
+}
+
+/**
  * Build a PrismaClient. Never throws — if DATABASE_URL is missing,
- * a client is still returned. Prisma itself will throw a
- * PrismaClientInitializationError on the first query, which is caught
- * by handleApiError in route handlers and returned as a 503 response.
+ * a client is still returned. Prisma itself will throw on the first
+ * query, caught by handleApiError in route handlers.
  */
 function createPrismaClient(): PrismaClient {
-  const rawUrl = process.env.DATABASE_URL;
+  const rawUrl = resolveDatabaseUrl();
 
   if (!rawUrl) {
     console.error(
       '[DB] DATABASE_URL is not set. Queries will fail with PrismaClientInitializationError. ' +
       'Fix: set DATABASE_URL in Vercel Dashboard → Settings → Environment Variables.'
     );
-    // Return a minimal client — it will throw on first query, but that error
-    // is caught inside API route handlers by handleApiError and returned as
-    // a proper 503 JSON response instead of crashing the function.
-    return new PrismaClient({
-      log: ['error'],
-    });
+    return new PrismaClient({ log: ['error'] });
   }
 
   const databaseUrl = buildDatabaseUrl(rawUrl);
@@ -70,7 +108,6 @@ function createPrismaClient(): PrismaClient {
     log: process.env.NODE_ENV === 'production' ? ['error'] : ['warn', 'error'],
   });
 
-  // Soft-close on app termination — lets in-flight queries finish
   process.on('beforeExit', async () => {
     try { await client.$disconnect(); } catch { /* ignore */ }
   });
@@ -78,58 +115,27 @@ function createPrismaClient(): PrismaClient {
   return client;
 }
 
-/**
- * Get or create the Prisma singleton.
- *
- * Uses globalThis so the same client is reused across requests
- * within the same Vercel function instance (warm starts).
- */
 function getPrisma(): PrismaClient {
   if (globalForPrisma.prisma) {
     return globalForPrisma.prisma;
   }
-
   globalForPrisma.prisma = createPrismaClient();
   return globalForPrisma.prisma;
 }
 
-/**
- * Reset the Prisma singleton (used when connection is stale).
- */
 async function resetPrisma(): Promise<PrismaClient> {
-  try {
-    await globalForPrisma.prisma?.$disconnect();
-  } catch {
-    /* ignore disconnect errors */
-  }
+  try { await globalForPrisma.prisma?.$disconnect(); } catch { /* ignore */ }
   globalForPrisma.prisma = undefined;
   return getPrisma();
 }
 
-/**
- * Database wrapper that auto-reconnects on connection errors.
- *
- * Prisma connection errors have codes like:
- *   P1001 - Can't reach database
- *   P1008 - Operation timed out
- *   P2024 - Timed out fetching a new connection from the pool
- *
- * On these errors we disconnect the stale client and create a fresh one.
- */
 async function withRetry<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();
   } catch (error: unknown) {
     const code = (error as { code?: string }).code;
-
-    // Only auto-retry on connection-related Prisma errors
-    const isConnectionError =
-      code === 'P1001' ||
-      code === 'P1008' ||
-      code === 'P2024';
-
+    const isConnectionError = code === 'P1001' || code === 'P1008' || code === 'P2024';
     if (!isConnectionError) throw error;
-
     console.warn(`[DB] Connection error (${code}), reconnecting...`);
     const freshClient = await resetPrisma();
     return await operation.call(freshClient);
@@ -145,7 +151,7 @@ async function withRetry<T>(operation: () => Promise<T>): Promise<T> {
  * when you call db.business.findMany(...)). This prevents the module from
  * crashing at import time if DATABASE_URL is temporarily unavailable.
  *
- * Usage is identical to before: db.user.findMany(...), db.business.create(...)
+ * Usage: db.user.findMany(...), db.business.create(...)
  */
 export const db = new Proxy({} as PrismaClient, {
   get(_target, prop, _receiver) {
@@ -159,6 +165,4 @@ export const db = new Proxy({} as PrismaClient, {
 });
 
 export default db;
-
-// Re-export reset for manual use if needed
 export { resetPrisma, withRetry };

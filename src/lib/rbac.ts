@@ -5,30 +5,19 @@
  * for the Styra platform. Bridges the gap between DB-lowercase roles
  * and frontend-uppercase UserRole types.
  *
+ * IMPORTANT: This module is imported by client-side code (store/index.ts).
+ * Do NOT import any server-only modules (db, fs, etc.) here.
+ *
  * Usage:
- *   - Server-side: import directly, use `hasPermission()` / `logUnauthorizedAccess()`
+ *   - Server-side: import `logUnauthorizedAccess` from '@/lib/rbac-server'
  *   - Client-side: import `normalizeRole`, `normalizeUserFromAPI` for store hydration
  */
 
-import { db } from './db';
 import type { UserRole, UserMode, User } from '@/types';
 
 // ============================================
 // ROLE NORMALIZATION
 // ============================================
-
-/**
- * Maps database lowercase role strings to frontend uppercase UserRole values.
- */
-const ROLE_MAP: Record<string, UserRole> = {
-  admin: 'ADMIN',
-  business: 'BUSINESS_OWNER',
-  customer: 'CUSTOMER',
-  // Also handle already-normalized uppercase (idempotent)
-  admin_upper: 'ADMIN',
-  business_owner: 'BUSINESS_OWNER',
-  businessowner: 'BUSINESS_OWNER',
-};
 
 /**
  * Normalize a single role string to the standard uppercase UserRole.
@@ -196,72 +185,51 @@ export type Permission =
  */
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ADMIN: [
-    // Full admin access
     'admin:full_access',
     'admin:manage_users',
     'admin:manage_businesses',
-    // Dashboard
     'dashboard:admin',
-    // Profile
     'profile:view',
     'profile:edit',
-    // Dispute management
     'dispute:create',
     'dispute:manage',
-    // Chat (read-only for admin monitoring)
     'chat:view',
   ],
   BUSINESS_OWNER: [
-    // Business management
     'business:create',
     'business:edit',
     'business:delete',
     'business:manage',
-    // Service management
     'service:create',
     'service:edit',
     'service:delete',
-    // Staff management
     'staff:create',
     'staff:edit',
     'staff:delete',
-    // Dashboard
     'dashboard:business',
-    // Booking management (as provider)
     'booking:view',
     'booking:manage',
-    // Payment visibility
     'payment:view',
-    // Chat
     'chat:send',
     'chat:view',
-    // Disputes
     'dispute:create',
     'dispute:manage',
-    // Profile
     'profile:view',
     'profile:edit',
   ],
   CUSTOMER: [
-    // Booking (as customer)
     'booking:create',
     'booking:cancel',
     'booking:review',
     'booking:view',
-    // Payment
     'payment:create',
     'payment:view',
-    // Favorites
     'favorite:add',
     'favorite:remove',
-    // Dashboard
     'dashboard:customer',
-    // Chat
     'chat:send',
     'chat:view',
-    // Disputes
     'dispute:create',
-    // Profile
     'profile:view',
     'profile:edit',
   ],
@@ -269,11 +237,6 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
 /**
  * Get the full set of permissions for a given role.
- * This does NOT consider the active mode — it returns all permissions
- * the role is capable of having.
- *
- * @param role - A normalized UserRole
- * @returns Array of all permissions for this role
  */
 export function getPermissionsForRole(role: UserRole): Permission[] {
   return ROLE_PERMISSIONS[role] || [];
@@ -281,31 +244,15 @@ export function getPermissionsForRole(role: UserRole): Permission[] {
 
 /**
  * Get the effective permissions for a user based on their current active mode.
- * This is the main permission check function that considers mode context.
- *
- * Mode-based permission logic:
- * - ADMIN mode → only admin permissions (NO booking, payment, favorite)
- * - PROVIDER mode → business owner permissions (NO booking as customer)
- * - CLIENT mode → customer permissions
- *
- * @param user - Normalized User object with activeMode
- * @returns Array of effective permissions for the user's current mode
  */
 export function getPermissionsForMode(user: User): Permission[] {
   switch (user.activeMode) {
     case 'ADMIN':
-      // Admin mode: only admin-level permissions
-      // Intentionally no booking, payment, or favorite permissions
       return ROLE_PERMISSIONS.ADMIN;
-
     case 'PROVIDER':
-      // Provider mode: business management permissions
-      // Intentionally no booking:create, booking:cancel (those are customer actions)
       return ROLE_PERMISSIONS.BUSINESS_OWNER;
-
     case 'CLIENT':
     default:
-      // Client mode: customer permissions (booking, favorites, etc.)
       return ROLE_PERMISSIONS.CUSTOMER;
   }
 }
@@ -316,10 +263,6 @@ export function getPermissionsForMode(user: User): Permission[] {
 
 /**
  * Check if a user has a specific permission based on their current active mode.
- *
- * @param user - Normalized User object
- * @param permission - The permission to check
- * @returns true if the user has the permission in their current mode
  */
 export function hasPermission(user: User, permission: Permission): boolean {
   const permissions = getPermissionsForMode(user);
@@ -328,116 +271,46 @@ export function hasPermission(user: User, permission: Permission): boolean {
 
 /**
  * More flexible permission check that supports wildcard patterns.
- * e.g., 'booking:*' matches all booking permissions.
- *
- * @param user - Normalized User object
- * @param action - Action string, can include wildcards (e.g., 'service:*')
- * @returns true if the user can perform the action
  */
 export function canPerformAction(user: User, action: string): boolean {
   const permissions = getPermissionsForMode(user);
 
-  // Exact match
-  if (permissions.includes(action as Permission)) {
-    return true;
-  }
+  if (permissions.includes(action as Permission)) return true;
 
-  // Wildcard match: 'service:*' matches 'service:create', 'service:edit', etc.
   if (action.endsWith(':*')) {
-    const prefix = action.slice(0, -1); // Remove the '*' but keep the ':'
+    const prefix = action.slice(0, -1);
     return permissions.some(p => p.startsWith(prefix));
   }
 
-  // Check for admin:full_access (admin can do anything)
-  if (permissions.includes('admin:full_access') && user.activeMode === 'ADMIN') {
-    return true;
-  }
+  if (permissions.includes('admin:full_access') && user.activeMode === 'ADMIN') return true;
 
   return false;
-}
-
-// ============================================
-// AUDIT LOGGING
-// ============================================
-
-/**
- * Log an unauthorized access attempt to the audit log.
- * Creates an AuditLog entry in the database for security monitoring.
- *
- * This is a server-side function — it directly accesses the database.
- * Do NOT call this from client-side code.
- *
- * @param userId - The ID of the user who attempted unauthorized access
- * @param action - The action they attempted (e.g., 'booking:create')
- * @param resource - Optional resource identifier (e.g., business ID, booking ID)
- */
-export async function logUnauthorizedAccess(
-  userId: string,
-  action: string,
-  resource?: string
-): Promise<void> {
-  try {
-    await db.auditLog.create({
-      data: {
-        userId,
-        action: `UNAUTHORIZED:${action}`,
-        resource: resource || null,
-        details: JSON.stringify({
-          timestamp: new Date().toISOString(),
-          action,
-          resource,
-        }),
-        ipAddress: 'unknown',
-      },
-    });
-  } catch (error) {
-    // Fail silently — audit logging should never break the application
-    console.error('[RBAC] Failed to log unauthorized access:', error);
-  }
 }
 
 // ============================================
 // UTILITY: Quick role checks
 // ============================================
 
-/**
- * Check if a user has the ADMIN role.
- */
 export function isAdmin(user: User): boolean {
   return user.roles.includes('ADMIN');
 }
 
-/**
- * Check if a user has the BUSINESS_OWNER role.
- */
 export function isBusinessOwner(user: User): boolean {
   return user.roles.includes('BUSINESS_OWNER');
 }
 
-/**
- * Check if a user has the CUSTOMER role.
- */
 export function isCustomer(user: User): boolean {
   return user.roles.includes('CUSTOMER');
 }
 
-/**
- * Check if a user is currently in ADMIN mode.
- */
 export function isInAdminMode(user: User): boolean {
   return user.activeMode === 'ADMIN';
 }
 
-/**
- * Check if a user is currently in PROVIDER mode.
- */
 export function isInProviderMode(user: User): boolean {
   return user.activeMode === 'PROVIDER';
 }
 
-/**
- * Check if a user is currently in CLIENT mode.
- */
 export function isInClientMode(user: User): boolean {
   return user.activeMode === 'CLIENT';
 }
