@@ -39,6 +39,18 @@ Stack: Next.js 16 (App Router), React 19, Tailwind + shadcn/Radix, Prisma 6 on P
 - The release job is `GET /api/cron/release-escrow` (daily, see `vercel.json`). It needs
   `CRON_SECRET`.
 
+## Web screens that touch bookings and money
+
+- Show booking status with `BookingStatusBadge` / `bookingStatusMeta` and test it with `isStatus`,
+  `isUpcoming`, `isDone` (all in `src/lib/booking-status.ts`, safe to import in client components).
+- The bookings API returns the database names `time` and `totalPrice` plus `payments[]` and
+  `reviews[]` arrays. `useBookings` maps them to `startTime` / `totalAmount` once; don't map again.
+- Customer confirm, report-a-problem and cancel live in `src/components/booking/BookingEscrowActions.tsx`;
+  admin escrow is `src/components/admin/EscrowPanel.tsx`. Call the API through `api` from
+  `src/lib/api-client.ts` (it adds the CSRF header and already shows error toasts, so don't toast twice).
+- After an action, call the dashboard's `onBookingsChanged` (a silent refresh) rather than `refetch`,
+  which flips the screen back to its skeleton.
+
 ## Don't
 
 - Don't add booking status literals, or write to `Wallet` outside `escrow.ts`.
