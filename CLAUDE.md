@@ -1,0 +1,46 @@
+# Styra
+
+Grooming marketplace. Customers book services from businesses; the payment is held in escrow
+until the customer confirms the service (or 24 hours pass).
+
+Stack: Next.js 16 (App Router), React 19, Tailwind + shadcn/Radix, Prisma 6 on PostgreSQL
+(Supabase), Stripe / PayPal / Paystack / M-Pesa, deployed on Vercel.
+
+## Commands
+
+- `bun test` — escrow and verification tests (fake in-memory database, no network)
+- `bun run build` — `prisma generate` then `next build` (type errors fail the build)
+- `bun run lint`
+- Schema changes are applied by hand as SQL files in `prisma/`; update `schema.prisma` too.
+
+## Money rules (read before touching payments)
+
+- The ledger is the `PlatformTransaction` row with `type: 'ESCROW_HELD'`. Its `escrowStatus` is the
+  truth: HELD → RELEASED, HELD → DISPUTED → RELEASED / REFUNDED, RELEASED → REFUNDED.
+- Provider `Wallet.pendingBalance` holds money in escrow, `balance` holds released money.
+- Only `src/lib/escrow.ts` moves money. Use `holdInEscrow`, `releaseFromEscrow`, `refundFromEscrow`,
+  or the `*InTx` versions inside your own transaction. Never update wallets or escrow rows directly.
+- Booking status changes that involve money live in `src/lib/verification.ts`
+  (`markBookingCompleted`, `customerConfirm`, `raiseDispute`, `resolveDispute`,
+  `cancelBookingWithRefund`, `adminSettleEscrow`, `autoVerifyExpiredBookings`).
+  They change the status and move the money in one transaction.
+- Refunds update the ledger only. Nothing sends money back through Stripe/Paystack/PayPal/M-Pesa;
+  admins get a notification with the payment reference.
+- Money columns are `Float`. Round to 2 decimals with the helpers in `escrow.ts`.
+
+## Conventions
+
+- Booking status is UPPERCASE (`PENDING`, `CONFIRMED`, `IN_PROGRESS`, `COMPLETED`, `VERIFIED`,
+  `DISPUTED`, `CANCELLED`). Older rows may be lowercase. Compare with `isStatus()` and filter with
+  `statusVariants()` from `src/lib/booking-status.ts`. Never compare with a string literal.
+- Throw `AppError(message, status)` for errors that are safe to show; `handleApiError` returns them
+  as-is. Any other error becomes a generic message in production.
+- API routes: `successResponse` / `errorResponse` / `handleApiError` from `src/lib/api-utils.ts`.
+- The release job is `GET /api/cron/release-escrow` (daily, see `vercel.json`). It needs
+  `CRON_SECRET`.
+
+## Don't
+
+- Don't add booking status literals, or write to `Wallet` outside `escrow.ts`.
+- Don't commit images over ~500 KB; resize them first.
+- Don't commit `.env*`, logs, `.pid`, or database files.

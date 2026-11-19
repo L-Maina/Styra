@@ -57,3 +57,13 @@ server.log
 /upload/*
 .config
 .env*.local
+
+# runtime leftovers (were committed by accident)
+.accesslog
+.stats
+*.pid
+server.log
+
+# mobile app
+/apps/mobile/node_modules
+/apps/mobile/.expo
