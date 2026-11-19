@@ -5,6 +5,7 @@ import { createBookingSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
 import { parseSort } from '@/lib/query-optimization';
 import { sanitizeResponse } from '@/lib/response-sanitizer';
+import { BookingStatus, statusVariants } from '@/lib/booking-status';
 
 // List bookings
 export async function GET(request: NextRequest) {
@@ -144,7 +145,9 @@ export async function POST(request: NextRequest) {
         where: {
           serviceId: validated.serviceId,
           date: validated.date,
-          status: { in: ['pending', 'confirmed', 'in_progress'] },
+          status: {
+            in: statusVariants(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS),
+          },
           OR: [
             {
               time: { lt: validated.endTime },
@@ -169,7 +172,7 @@ export async function POST(request: NextRequest) {
           endTime: validated.endTime || null,
           notes: validated.notes || null,
           totalPrice: service.price,
-          status: 'pending',
+          status: BookingStatus.PENDING,
         },
         include: {
           business: true,

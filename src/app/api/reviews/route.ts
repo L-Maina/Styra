@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { requireAuth, blockRole } from '@/lib/auth';
 import { createReviewSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
+import { BookingStatus, isStatus } from '@/lib/booking-status';
 
 // List reviews
 export async function GET(request: NextRequest) {
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
         throw new Error('NOT_OWNER');
       }
 
-      if (booking.status !== 'completed') {
+      if (!isStatus(booking.status, BookingStatus.COMPLETED, BookingStatus.VERIFIED)) {
         throw new Error('BOOKING_NOT_COMPLETED');
       }
 

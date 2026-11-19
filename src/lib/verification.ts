@@ -1,40 +1,78 @@
 /**
- * Service Verification System
+ * Service verification and disputes
  *
- * A) Customer Confirmation: Customer confirms service was completed
- * B) Auto Timeout: CRON job checks after 24h — auto-verifies unconfirmed bookings
- * C) Dispute Handling: Customer raises a dispute → funds held until resolution
+ * Booking path (provider marks done, customer confirms or the clock runs out):
  *
- * Booking states:
- *   COMPLETED → VERIFIED → (payout eligible)
- *   COMPLETED → DISPUTED → (resolved by admin → VERIFIED or REFUNDED)
+ *   IN_PROGRESS ──markBookingCompleted──▶ COMPLETED ──customerConfirm / auto-verify──▶ VERIFIED
+ *   COMPLETED | VERIFIED ──raiseDispute──▶ DISPUTED ──resolveDispute──▶ VERIFIED | CANCELLED
  *
- * Verification Window: 24 hours after booking marked COMPLETED.
- * If no customer action within 24h, the system auto-verifies.
+ * Every step that touches money runs in ONE database transaction together with the booking
+ * status change (see escrow.ts), so a booking can never read VERIFIED while its payment is
+ * still held, and two requests cannot both settle the same booking.
+ *
+ * Verification window: 24 hours from Booking.completedAt. If the customer does nothing in that
+ * time, the cron job verifies the booking and releases the payment.
  */
 
 import { db } from '@/lib/db';
-import { releaseFromEscrow, refundFromEscrow } from '@/lib/escrow';
-import { holdForDispute as walletHoldForDispute, releaseDisputeHold as walletReleaseDisputeHold } from '@/lib/wallet';
+import { AppError } from '@/lib/app-error';
+import { BookingStatus, isStatus, statusLabel, statusVariants } from '@/lib/booking-status';
+import {
+  ESCROW_STATUS,
+  EscrowError,
+  TX_OPTIONS,
+  afterRefund,
+  afterRelease,
+  disputeInTx,
+  formatMoney,
+  notifyUser,
+  refundInTx,
+  releaseInTx,
+  type EscrowSettlement,
+  type Tx,
+} from '@/lib/escrow';
 import { logTransaction } from '@/lib/transaction-log';
 import type { Booking, Dispute } from '@prisma/client';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
 /** Verification window in milliseconds (24 hours) */
-const VERIFICATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const VERIFICATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Bookings handled per cron run, so one run stays well inside the function time limit. */
+const AUTO_VERIFY_BATCH = 100;
+const REPAIR_BATCH = 200;
+
+const OPEN_DISPUTE_STATUSES = ['OPEN', 'IN_PROGRESS'];
+
+export const DISPUTE_RESOLUTIONS = ['RELEASE_TO_PROVIDER', 'FULL_REFUND', 'PARTIAL_REFUND'] as const;
+export type DisputeResolution = (typeof DISPUTE_RESOLUTIONS)[number];
+
+const short = (id: string): string => id.slice(0, 8);
 
 // ── Types ──────────────────────────────────────────────────────────────────
+
+export interface MarkCompletedResult {
+  booking: Booking;
+  /** False when the booking was already completed or verified. */
+  changed: boolean;
+  /** When the customer's 24 hour window ends. */
+  deadline: Date;
+}
 
 export interface CustomerConfirmResult {
   success: boolean;
   booking: Booking;
   message?: string;
+  /** Provider's share that moved to their available balance. 0 if nothing moved. */
+  releasedAmount: number;
 }
 
 export interface AutoVerifyResult {
   verifiedCount: number;
   skippedCount: number;
+  /** Verified bookings whose payment was still held and has now been released. */
+  repairedCount: number;
   errors: string[];
 }
 
@@ -44,10 +82,25 @@ export interface DisputeResult {
   booking: Booking;
 }
 
+export interface ResolveDisputeOptions {
+  /** The admin's written explanation. Stored with the resolution. */
+  notes?: string;
+  /** PARTIAL_REFUND only: how much the customer gets back. Defaults to half of the payment. */
+  customerRefundAmount?: number;
+}
+
 export interface ResolveDisputeResult {
   success: boolean;
   dispute: Dispute;
   message: string;
+  /** Gross amount owed back to the customer. It still has to be sent through the payment provider. */
+  refundAmount: number;
+}
+
+export interface AdminSettleResult {
+  action: 'released' | 'refunded';
+  amount: number;
+  transactionId: string;
 }
 
 export interface VerificationStatusInfo {
@@ -63,223 +116,329 @@ export interface VerificationStatusInfo {
   escrowStatus: string | null;
 }
 
-// ── Internal Helpers ───────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-/**
- * Send notification (fire-and-forget).
- */
-async function sendNotification(
-  userId: string,
-  title: string,
-  message: string,
-  data?: Record<string, unknown>,
-): Promise<void> {
-  try {
-    await db.notification.create({
-      data: {
-        userId,
-        title,
-        message,
-        type: 'SYSTEM_ALERT',
-      },
-    });
-  } catch {
-    // Never block on notification failure
-  }
+/** The 24 hour window starts at completedAt. Older rows without it fall back to updatedAt. */
+function deadlineFor(booking: { completedAt: Date | null; updatedAt: Date }): Date {
+  const start = booking.completedAt ?? booking.updatedAt;
+  return new Date(start.getTime() + VERIFICATION_WINDOW_MS);
 }
 
-// ── Exported Functions ─────────────────────────────────────────────────────
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : 'unknown error';
+}
+
+// ── Provider marks the service done ────────────────────────────────────────
 
 /**
- * Customer confirms that a service was completed satisfactorily.
- * This triggers escrow release to the provider's wallet.
+ * IN_PROGRESS → COMPLETED. Starts the customer's 24 hour verification window and asks the
+ * customer to confirm. Authorisation (is this the business owner?) is the caller's job.
+ */
+export async function markBookingCompleted(bookingId: string): Promise<MarkCompletedResult> {
+  const claimed = await db.booking.updateMany({
+    where: { id: bookingId, status: { in: statusVariants(BookingStatus.IN_PROGRESS) } },
+    data: { status: BookingStatus.COMPLETED, completedAt: new Date() },
+  });
+
+  const booking = await db.booking.findUnique({
+    where: { id: bookingId },
+    include: { business: { select: { name: true } }, service: { select: { name: true } } },
+  });
+  if (!booking) throw new AppError('Booking not found', 404);
+
+  const deadline = deadlineFor(booking);
+
+  if (claimed.count === 1) {
+    await notifyUser(
+      booking.customerId,
+      'Service Completed',
+      `Your ${booking.service?.name || 'service'} at ${booking.business.name} has been marked as completed. Please confirm the service within 24 hours to release payment to the provider.`,
+      {
+        bookingId,
+        businessName: booking.business.name,
+        serviceName: booking.service?.name,
+        verificationDeadline: deadline.toISOString(),
+      },
+      'VERIFICATION_UPDATE',
+    );
+    return { booking, changed: true, deadline };
+  }
+
+  if (isStatus(booking.status, BookingStatus.COMPLETED, BookingStatus.VERIFIED)) {
+    return { booking, changed: false, deadline };
+  }
+
+  throw new AppError(
+    `Cannot complete a booking that is ${statusLabel(booking.status)}. Only in-progress bookings can be completed.`,
+    409,
+  );
+}
+
+// ── Cancellation ───────────────────────────────────────────────────────────
+
+/**
+ * Cancels a booking that has not been completed and reverses any payment held for it, in one
+ * transaction. If the refund cannot be recorded, the booking stays as it was.
  *
- * Preconditions:
- *   1. Booking exists
- *   2. User is the customer who made the booking
- *   3. Booking status is COMPLETED (not already VERIFIED or DISPUTED)
+ * Who may cancel, and the 24 hour rule before the appointment, are the caller's job.
+ * The refund is recorded in the ledger only; admins are alerted to send the money back
+ * through the payment provider.
+ */
+export async function cancelBookingWithRefund(
+  bookingId: string,
+  reason: string,
+): Promise<{ booking: Booking; refundAmount: number }> {
+  const outcome = await db.$transaction(async (tx) => {
+    const claimed = await tx.booking.updateMany({
+      where: {
+        id: bookingId,
+        status: {
+          in: statusVariants(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS),
+        },
+      },
+      data: { status: BookingStatus.CANCELLED, cancelledAt: new Date(), cancellationReason: reason },
+    });
+    if (claimed.count !== 1) {
+      throw new AppError('This booking can no longer be cancelled.', 409);
+    }
+
+    // null when nothing was ever paid for this booking
+    const settlement = await refundInTx(tx, bookingId, reason);
+    const booking = await tx.booking.findUnique({ where: { id: bookingId } });
+    return { settlement, booking };
+  }, TX_OPTIONS);
+
+  if (!outcome.booking) throw new AppError('Booking not found', 404);
+
+  if (outcome.settlement) await afterRefund(bookingId, reason, outcome.settlement);
+
+  const refunded = outcome.settlement && !outcome.settlement.alreadySettled;
+  return { booking: outcome.booking, refundAmount: refunded ? outcome.settlement!.refundAmount : 0 };
+}
+
+// ── Verification (customer confirm, auto-verify) ───────────────────────────
+
+interface VerifyOutcome {
+  changed: boolean;
+  booking: Booking | null;
+  settlement: EscrowSettlement | null;
+}
+
+/**
+ * COMPLETED → VERIFIED and escrow release, in the caller's transaction.
+ *
+ * The status update is a compare-and-swap (it only matches a COMPLETED booking), which also
+ * locks the booking row: a dispute or a second confirm running at the same time waits, then
+ * sees the new status. If the release fails, the status change is rolled back with it.
+ */
+async function verifyInTx(tx: Tx, bookingId: string, reason: string): Promise<VerifyOutcome> {
+  const claimed = await tx.booking.updateMany({
+    where: { id: bookingId, status: { in: statusVariants(BookingStatus.COMPLETED) } },
+    data: { status: BookingStatus.VERIFIED },
+  });
+  if (claimed.count !== 1) return { changed: false, booking: null, settlement: null };
+
+  const settlement = await releaseInTx(tx, bookingId, reason);
+  const booking = await tx.booking.findUnique({ where: { id: bookingId } });
+  return { changed: true, booking, settlement };
+}
+
+/**
+ * Customer confirms that the service was done. Releases the payment to the provider.
  *
  * @param bookingId - The booking ID
- * @param userId    - The customer's user ID (for authorization)
+ * @param userId    - The customer's user ID (for authorisation)
  */
 export async function customerConfirm(
   bookingId: string,
   userId: string,
 ): Promise<CustomerConfirmResult> {
-  // 1. Fetch booking with relations
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
-    include: {
-      business: { select: { ownerId: true, name: true } },
-      payments: { select: { id: true, status: true } },
-    },
+    include: { business: { select: { ownerId: true, name: true } } },
   });
 
-  if (!booking) {
-    throw new Error(`Booking not found: ${bookingId}`);
-  }
-
-  // 2. Verify caller is the customer
+  if (!booking) throw new AppError('Booking not found', 404);
   if (booking.customerId !== userId) {
-    throw new Error('Only the customer who made this booking can confirm it');
+    throw new AppError('Only the customer who made this booking can confirm it', 403);
   }
 
-  // 3. Verify booking is in COMPLETED status
-  if (booking.status !== 'COMPLETED') {
-    if (booking.status === 'VERIFIED') {
-      return {
-        success: true,
-        booking,
-        message: 'Booking already verified',
-      };
-    }
-    if (booking.status === 'DISPUTED') {
-      throw new Error('Cannot confirm a disputed booking. Wait for dispute resolution.');
-    }
-    throw new Error(`Booking cannot be confirmed (current status: ${booking.status})`);
+  if (isStatus(booking.status, BookingStatus.VERIFIED)) {
+    return { success: true, booking, message: 'Booking already verified', releasedAmount: 0 };
+  }
+  if (isStatus(booking.status, BookingStatus.DISPUTED)) {
+    throw new AppError('Cannot confirm a disputed booking. Wait for the dispute to be resolved.', 409);
+  }
+  if (!isStatus(booking.status, BookingStatus.COMPLETED)) {
+    throw new AppError(
+      `This booking cannot be confirmed yet (status: ${statusLabel(booking.status)}).`,
+      409,
+    );
   }
 
-  // 4. Update booking status to VERIFIED
-  const updatedBooking = await db.booking.update({
-    where: { id: bookingId },
-    data: { status: 'VERIFIED' },
-  });
+  const reason = 'Customer confirmed service completion';
+  const outcome = await db.$transaction((tx) => verifyInTx(tx, bookingId, reason), TX_OPTIONS);
 
-  // 5. Release escrow funds to provider (fire-and-forget — uses its own transactions)
-  try {
-    await releaseFromEscrow(bookingId, 'Customer confirmed service completion');
-  } catch (escrowError) {
-    // Log the error but don't fail the confirmation
-    if (process.env.NODE_ENV === 'development') {
-      console.error(
-        `[Verification] Escrow release failed for ${bookingId.slice(0, 8)}:`,
-        escrowError instanceof Error ? escrowError.message : 'unknown',
-      );
+  if (!outcome.changed || !outcome.booking) {
+    // The auto-verify job or a double click got there first. Report where it ended up.
+    const current = await db.booking.findUnique({ where: { id: bookingId } });
+    if (current && isStatus(current.status, BookingStatus.VERIFIED)) {
+      return { success: true, booking: current, message: 'Booking already verified', releasedAmount: 0 };
     }
+    throw new AppError('This booking was just updated. Please refresh and try again.', 409);
   }
 
-  // 6. Notify provider (fire-and-forget)
-  await sendNotification(
-    booking.business.ownerId,
-    'Booking Verified',
-    `Customer has confirmed service for booking ${bookingId.slice(0, 8)}. Payment will be released to your wallet.`,
-    { bookingId, confirmedBy: userId },
-  );
+  const moved = outcome.settlement && !outcome.settlement.alreadySettled ? outcome.settlement : null;
+  if (moved) await afterRelease(bookingId, reason, moved);
 
-  // 7. Notify customer (fire-and-forget)
-  await sendNotification(
+  const label = `booking ${short(bookingId)}`;
+  if (!moved) {
+    await notifyUser(
+      booking.business.ownerId,
+      'Booking Verified',
+      `The customer confirmed ${label}.`,
+      { bookingId },
+    );
+  }
+  await notifyUser(
     userId,
     'Confirmation Recorded',
-    `Your confirmation for booking ${bookingId.slice(0, 8)} has been recorded. Thank you!`,
+    `Your confirmation for ${label} has been recorded. Thank you!`,
     { bookingId },
   );
 
-  return {
-    success: true,
-    booking: updatedBooking,
-  };
+  return { success: true, booking: outcome.booking, releasedAmount: moved?.releasedAmount ?? 0 };
 }
 
 /**
- * Auto-verify bookings that have been COMPLETED for more than 24 hours
- * without customer action (confirmation or dispute).
+ * Cron job entry point. Does two things:
  *
- * This should be called by a CRON job (e.g., every hour).
+ *  1. Verifies bookings that have been COMPLETED for more than 24 hours with no customer action
+ *     (confirmation or dispute), and releases their payment.
+ *  2. Repairs bookings that are already VERIFIED but whose payment is still held, which can
+ *     happen when the payment arrived after the booking was verified.
  *
- * Returns the count of bookings that were auto-verified.
+ * Each booking is handled on its own, so one failure never blocks the rest. Failures are
+ * returned in `errors` and the booking is retried on the next run.
  */
-export async function autoVerifyExpiredBookings(): Promise<AutoVerifyResult> {
+export async function autoVerifyExpiredBookings(
+  limit: number = AUTO_VERIFY_BATCH,
+): Promise<AutoVerifyResult> {
   const cutoff = new Date(Date.now() - VERIFICATION_WINDOW_MS);
 
-  // Find COMPLETED bookings older than the verification window
-  const expiredBookings = await db.booking.findMany({
+  const expired = await db.booking.findMany({
     where: {
-      status: 'COMPLETED',
-      updatedAt: { lte: cutoff },
+      status: { in: statusVariants(BookingStatus.COMPLETED) },
+      OR: [
+        { completedAt: { lte: cutoff } },
+        { completedAt: null, updatedAt: { lte: cutoff } },
+      ],
     },
-    include: {
-      business: { select: { ownerId: true, name: true } },
+    select: {
+      id: true,
+      customerId: true,
+      business: { select: { ownerId: true } },
     },
     orderBy: { updatedAt: 'asc' },
+    take: limit,
   });
 
-  let verifiedCount = 0;
-  let skippedCount = 0;
-  const errors: string[] = [];
+  const result: AutoVerifyResult = { verifiedCount: 0, skippedCount: 0, repairedCount: 0, errors: [] };
+  const reason = 'Auto-verified after 24h timeout';
 
-  for (const booking of expiredBookings) {
+  for (const booking of expired) {
     try {
-      // Double-check status (another process may have verified it)
-      const freshBooking = await db.booking.findUnique({
-        where: { id: booking.id },
-        select: { status: true },
-      });
+      const outcome = await db.$transaction((tx) => verifyInTx(tx, booking.id, reason), TX_OPTIONS);
 
-      if (!freshBooking || freshBooking.status !== 'COMPLETED') {
-        skippedCount++;
+      if (!outcome.changed) {
+        // The customer confirmed or disputed while this run was going.
+        result.skippedCount++;
         continue;
       }
 
-      // Update booking to VERIFIED
-      await db.booking.update({
-        where: { id: booking.id },
-        data: { status: 'VERIFIED' },
-      });
+      const moved = outcome.settlement && !outcome.settlement.alreadySettled ? outcome.settlement : null;
+      if (moved) await afterRelease(booking.id, reason, moved);
 
-      // Release escrow (fire-and-forget)
-      try {
-        await releaseFromEscrow(booking.id, 'Auto-verified after 24h timeout');
-      } catch (escrowError) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error(
-            `[AutoVerify] Escrow release failed for ${booking.id.slice(0, 8)}:`,
-            escrowError instanceof Error ? escrowError.message : 'unknown',
-          );
-        }
-      }
-
-      // Notify provider (fire-and-forget)
-      await sendNotification(
+      await notifyUser(
         booking.business.ownerId,
         'Booking Auto-Verified',
-        `Booking ${booking.id.slice(0, 8)} was automatically verified after 24h. Payment released to your wallet.`,
+        moved
+          ? `Booking ${short(booking.id)} was verified automatically after 24 hours and your payment has been released.`
+          : `Booking ${short(booking.id)} was verified automatically after 24 hours.`,
+        { bookingId: booking.id, autoVerified: true },
+      );
+      await notifyUser(
+        booking.customerId,
+        'Booking Auto-Verified',
+        `Booking ${short(booking.id)} was verified automatically because there was no response within 24 hours.`,
         { bookingId: booking.id, autoVerified: true },
       );
 
-      // Notify customer (fire-and-forget)
-      const customerBooking = await db.booking.findUnique({
-        where: { id: booking.id },
-        select: { customerId: true },
-      });
-      if (customerBooking) {
-        await sendNotification(
-          customerBooking.customerId,
-          'Booking Auto-Verified',
-          `Booking ${booking.id.slice(0, 8)} was automatically verified since no action was taken within 24 hours.`,
-          { bookingId: booking.id, autoVerified: true },
-        );
-      }
-
-      verifiedCount++;
+      result.verifiedCount++;
     } catch (error) {
-      errors.push(
-        `${booking.id.slice(0, 8)}: ${error instanceof Error ? error.message : 'unknown'}`,
-      );
+      result.errors.push(`${short(booking.id)}: ${errorText(error)}`);
     }
   }
 
-  return { verifiedCount, skippedCount, errors };
+  await repairVerifiedBookings(result);
+  return result;
 }
 
+/** Releases payments that are still held for bookings that are already VERIFIED. */
+async function repairVerifiedBookings(result: AutoVerifyResult): Promise<void> {
+  try {
+    const verified = await db.booking.findMany({
+      where: { status: { in: statusVariants(BookingStatus.VERIFIED) } },
+      select: { id: true },
+      orderBy: { updatedAt: 'desc' },
+      take: REPAIR_BATCH,
+    });
+    if (verified.length === 0) return;
+
+    const stuck = await db.platformTransaction.findMany({
+      where: {
+        type: 'ESCROW_HELD',
+        escrowStatus: ESCROW_STATUS.HELD,
+        bookingId: { in: verified.map((booking) => booking.id) },
+      },
+      select: { bookingId: true },
+    });
+
+    const reason = 'Released by repair: booking was verified but the payment was still held';
+
+    for (const { bookingId } of stuck) {
+      if (!bookingId) continue;
+      try {
+        const settlement = await db.$transaction(async (tx) => {
+          // Lock the booking and make sure no dispute started since the list was read.
+          const stillVerified = await tx.booking.updateMany({
+            where: { id: bookingId, status: { in: statusVariants(BookingStatus.VERIFIED) } },
+            data: { status: BookingStatus.VERIFIED },
+          });
+          if (stillVerified.count !== 1) return null;
+          return releaseInTx(tx, bookingId, reason);
+        }, TX_OPTIONS);
+
+        if (settlement && !settlement.alreadySettled) {
+          await afterRelease(bookingId, reason, settlement);
+          result.repairedCount++;
+        }
+      } catch (error) {
+        result.errors.push(`repair ${short(bookingId)}: ${errorText(error)}`);
+      }
+    }
+  } catch (error) {
+    result.errors.push(`repair: ${errorText(error)}`);
+  }
+}
+
+// ── Disputes ───────────────────────────────────────────────────────────────
+
 /**
- * Customer raises a dispute for a completed booking.
- * This holds the escrow funds until the dispute is resolved.
+ * Customer raises a dispute. Freezes the payment until an admin resolves it.
  *
- * Preconditions:
- *   1. Booking exists
- *   2. User is the customer
- *   3. Booking status is COMPLETED or VERIFIED (not CANCELLED, NO_SHOW, etc.)
- *   4. No active dispute already exists
+ * Allowed while the booking is COMPLETED or VERIFIED, once per booking. If the payment was
+ * already released it is pulled back into the provider's pending balance.
  *
  * @param bookingId - The booking ID
  * @param userId    - The customer's user ID
@@ -290,402 +449,338 @@ export async function raiseDispute(
   userId: string,
   reason: string,
 ): Promise<DisputeResult> {
-  // 1. Fetch booking
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
-    include: {
-      business: { select: { ownerId: true, name: true } },
-      payments: { select: { id: true, amount: true, status: true } },
-      customer: { select: { name: true, email: true } },
-    },
+    include: { business: { select: { ownerId: true, name: true } } },
   });
 
-  if (!booking) {
-    throw new Error(`Booking not found: ${bookingId}`);
-  }
-
-  // 2. Verify caller is the customer
+  if (!booking) throw new AppError('Booking not found', 404);
   if (booking.customerId !== userId) {
-    throw new Error('Only the customer can raise a dispute');
+    throw new AppError('Only the customer who made this booking can raise a dispute', 403);
   }
 
-  // 3. Verify booking status allows dispute
-  if (!['COMPLETED', 'VERIFIED'].includes(booking.status)) {
-    if (booking.status === 'DISPUTED') {
-      throw new Error('A dispute is already active for this booking');
+  // One dispute per booking. An open one is returned as is, so a double click is harmless.
+  const earlier = await db.dispute.findFirst({
+    where: { bookingId },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (earlier) {
+    if (OPEN_DISPUTE_STATUSES.includes(earlier.status)) {
+      return { success: true, dispute: earlier, booking };
     }
-    throw new Error(`Cannot dispute booking with status: ${booking.status}`);
+    throw new AppError('A dispute for this booking has already been resolved.', 409);
   }
 
-  // 4. Check for existing active dispute
-  const existingDispute = await db.dispute.findFirst({
-    where: {
-      bookingId,
-      status: { in: ['OPEN', 'IN_PROGRESS'] },
-    },
-  });
-
-  if (existingDispute) {
-    return {
-      success: true,
-      dispute: existingDispute,
-      booking,
-    };
+  if (!isStatus(booking.status, BookingStatus.COMPLETED, BookingStatus.VERIFIED)) {
+    throw new AppError(
+      `Only completed bookings can be disputed (this one is ${statusLabel(booking.status)}).`,
+      409,
+    );
   }
 
-  // 5. Get escrow amount for dispute
-  const firstPayment = booking.payments[0];
-  const providerAmount = firstPayment
-    ? firstPayment.amount - Math.round(firstPayment.amount * 0.15 * 100) / 100
-    : booking.totalPrice;
+  const providerId = booking.business.ownerId;
 
-  // 6. Create dispute record
-  const dispute = await db.dispute.create({
-    data: {
-      bookingId,
-      customerId: userId,
-      providerId: booking.business.ownerId,
-      description: reason,
-      status: 'OPEN',
-      reason,
-    },
-  });
-
-  // 7. Update booking status to DISPUTED
-  const updatedBooking = await db.booking.update({
-    where: { id: bookingId },
-    data: { status: 'DISPUTED' },
-  });
-
-  // 8. Hold wallet balance for dispute amount (fire-and-forget)
-  try {
-    await walletHoldForDispute(booking.business.ownerId, providerAmount, bookingId);
-  } catch (holdError) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error(
-        `[Dispute] Wallet hold failed for ${bookingId.slice(0, 8)}:`,
-        holdError instanceof Error ? holdError.message : 'unknown',
-      );
-    }
-  }
-
-  // 9. Update escrow status if there's an escrow transaction
-  try {
-    const escrowTx = await db.platformTransaction.findFirst({
-      where: { bookingId, type: 'ESCROW_HELD', escrowStatus: 'HELD' },
+  const outcome = await db.$transaction(async (tx) => {
+    const claimed = await tx.booking.updateMany({
+      where: {
+        id: bookingId,
+        status: { in: statusVariants(BookingStatus.COMPLETED, BookingStatus.VERIFIED) },
+      },
+      data: { status: BookingStatus.DISPUTED, disputeReason: reason },
     });
-    if (escrowTx) {
-      await db.platformTransaction.update({
-        where: { id: escrowTx.id },
-        data: { escrowStatus: 'DISPUTED' },
-      });
+    if (claimed.count !== 1) {
+      throw new AppError('This booking was just updated. Please refresh and try again.', 409);
     }
-  } catch {
-    // Non-blocking
+
+    const escrow = await disputeInTx(tx, bookingId);
+    const dispute = await tx.dispute.create({
+      data: {
+        bookingId,
+        customerId: userId,
+        providerId,
+        description: reason,
+        reason,
+        status: 'OPEN',
+      },
+    });
+    const updated = await tx.booking.findUnique({ where: { id: bookingId } });
+    return { dispute, escrow, booking: updated ?? booking };
+  }, TX_OPTIONS);
+
+  const frozen = outcome.escrow?.transaction;
+  const label = `booking ${short(bookingId)}`;
+
+  if (frozen && outcome.escrow?.pulledBack) {
+    await logTransaction({
+      userId: providerId,
+      bookingId,
+      amount: frozen.providerAmount,
+      type: 'DISPUTE_HOLD',
+      status: 'COMPLETED',
+      referenceId: outcome.dispute.id,
+      metadata: { disputeId: outcome.dispute.id, reason, pulledBackFromBalance: true },
+    });
   }
 
-  // 10. Log the dispute (fire-and-forget)
-  await logTransaction({
-    userId: booking.business.ownerId,
-    bookingId,
-    amount: providerAmount,
-    type: 'REFUND',
-    status: 'FAILED',
-    referenceId: dispute.id,
-    metadata: { action: 'DISPUTE_HOLD', reason, disputeId: dispute.id },
-  });
-
-  // 11. Notify provider (fire-and-forget)
-  await sendNotification(
-    booking.business.ownerId,
+  await notifyUser(
+    providerId,
     'Dispute Raised',
-    `A dispute has been raised for booking ${bookingId.slice(0, 8)}. Amount held: $${providerAmount.toFixed(2)}. Reason: ${reason}`,
-    { bookingId, disputeId: dispute.id, amount: providerAmount, reason },
+    frozen
+      ? `A dispute was raised for ${label}. ${formatMoney(frozen.currency, frozen.providerAmount)} is on hold until it is resolved. Reason: ${reason}`
+      : `A dispute was raised for ${label}. Reason: ${reason}`,
+    { bookingId, disputeId: outcome.dispute.id },
   );
-
-  // 12. Notify customer (fire-and-forget)
-  await sendNotification(
+  await notifyUser(
     userId,
     'Dispute Submitted',
-    `Your dispute for booking ${bookingId.slice(0, 8)} has been submitted. Our team will review it within 48 hours.`,
-    { bookingId, disputeId: dispute.id },
+    `Your dispute for ${label} has been submitted. Our team will review it within 48 hours.`,
+    { bookingId, disputeId: outcome.dispute.id },
   );
 
-  return {
-    success: true,
-    dispute,
-    booking: updatedBooking,
-  };
+  return { success: true, dispute: outcome.dispute, booking: outcome.booking };
+}
+
+function isResolution(value: string): value is DisputeResolution {
+  return (DISPUTE_RESOLUTIONS as readonly string[]).includes(value);
 }
 
 /**
- * Admin resolves a dispute.
- * Can release funds to provider or refund to customer.
+ * Admin resolves a dispute. The status change, the money move and the booking status all
+ * happen in one transaction; if any part fails, the dispute stays open.
  *
- * Resolution types:
- *   - "RELEASE_TO_PROVIDER" — Release held funds to provider's wallet
- *   - "FULL_REFUND" — Refund full amount to customer
- *   - "PARTIAL_REFUND" — Split: partial refund to customer, rest to provider
+ *  - RELEASE_TO_PROVIDER: the provider is paid, booking becomes VERIFIED.
+ *  - FULL_REFUND: the customer gets everything back, booking becomes CANCELLED.
+ *  - PARTIAL_REFUND: the customer gets `customerRefundAmount` (default half), the provider keeps
+ *    the rest minus a proportional platform fee, booking becomes VERIFIED.
+ *
+ * Refunds are recorded in the ledger only. The money still has to be sent back through the
+ * payment provider; admins are alerted with the payment reference.
  *
  * @param disputeId  - The dispute ID
- * @param resolution - Resolution type string
+ * @param resolution - RELEASE_TO_PROVIDER, FULL_REFUND or PARTIAL_REFUND
  * @param resolvedBy - Admin user ID
  */
 export async function resolveDispute(
   disputeId: string,
   resolution: string,
   resolvedBy: string,
+  options: ResolveDisputeOptions = {},
 ): Promise<ResolveDisputeResult> {
-  // 1. Fetch dispute with booking
-  const dispute = await db.dispute.findUnique({
-    where: { id: disputeId },
-    include: {
-      booking: {
-        include: {
-          payments: { select: { amount: true } },
-        },
-      },
-    },
-  });
-
-  if (!dispute) {
-    throw new Error(`Dispute not found: ${disputeId}`);
+  if (!isResolution(resolution)) {
+    throw new AppError(
+      `Unknown resolution type: ${resolution}. Expected ${DISPUTE_RESOLUTIONS.join(', ')}.`,
+      400,
+    );
   }
 
+  const dispute = await db.dispute.findUnique({ where: { id: disputeId } });
+  if (!dispute) throw new AppError('Dispute not found', 404);
+
   if (dispute.status === 'RESOLVED') {
+    return { success: true, dispute, message: 'Dispute already resolved', refundAmount: 0 };
+  }
+  if (!OPEN_DISPUTE_STATUSES.includes(dispute.status)) {
+    throw new AppError(`Cannot resolve a dispute with status ${dispute.status}.`, 409);
+  }
+
+  const { bookingId, providerId, customerId } = dispute;
+  const admin = short(resolvedBy);
+
+  const result = await db.$transaction(async (tx) => {
+    const claimed = await tx.dispute.updateMany({
+      where: { id: disputeId, status: { in: OPEN_DISPUTE_STATUSES } },
+      data: { status: 'RESOLVED' },
+    });
+    if (claimed.count !== 1) {
+      throw new AppError('This dispute was just updated by someone else. Please refresh.', 409);
+    }
+
+    let settlement: EscrowSettlement | null;
+    if (resolution === 'RELEASE_TO_PROVIDER') {
+      settlement = await releaseInTx(tx, bookingId, `Dispute resolved in the provider's favour (admin ${admin})`);
+    } else if (resolution === 'FULL_REFUND') {
+      settlement = await refundInTx(tx, bookingId, `Dispute resolved with a full refund (admin ${admin})`);
+    } else {
+      // Older disputes may have left the payment released. Freeze it again before splitting.
+      await disputeInTx(tx, bookingId);
+      settlement = await refundInTx(
+        tx,
+        bookingId,
+        `Dispute resolved with a partial refund (admin ${admin})`,
+        options.customerRefundAmount !== undefined
+          ? { amount: options.customerRefundAmount }
+          : { fraction: 0.5 },
+      );
+    }
+
+    const cancelled = resolution === 'FULL_REFUND' || settlement?.kind === 'REFUNDED';
+    const now = new Date();
+    await tx.booking.updateMany({
+      where: { id: bookingId },
+      data: cancelled
+        ? {
+            status: BookingStatus.CANCELLED,
+            disputeResolvedAt: now,
+            cancelledAt: now,
+            cancellationReason: 'Refunded after a dispute',
+          }
+        : { status: BookingStatus.VERIFIED, disputeResolvedAt: now },
+    });
+
+    const refundAmount = settlement && !settlement.alreadySettled ? settlement.refundAmount : 0;
+    const updated = await tx.dispute.update({
+      where: { id: disputeId },
+      data: {
+        resolution: JSON.stringify({
+          type: resolution,
+          resolvedBy,
+          resolvedAt: now.toISOString(),
+          amount: settlement?.transaction.amount ?? 0,
+          refundAmount,
+          providerAmount: settlement?.releasedAmount ?? 0,
+          notes: options.notes,
+        }),
+      },
+    });
+
+    return { settlement, dispute: updated, refundAmount };
+  }, TX_OPTIONS);
+
+  const { settlement } = result;
+  const currency = settlement?.transaction.currency ?? 'KES';
+  const label = `booking ${short(bookingId)}`;
+  const reason = `Dispute ${short(disputeId)} resolved (${resolution})`;
+
+  if (settlement) {
+    if (settlement.kind !== 'REFUNDED') await afterRelease(bookingId, reason, settlement);
+    if (settlement.kind !== 'RELEASED') await afterRefund(bookingId, reason, settlement);
+  }
+
+  let message: string;
+  let providerText: string;
+  let customerText: string;
+
+  if (resolution === 'RELEASE_TO_PROVIDER') {
+    message = settlement
+      ? `Dispute resolved: ${formatMoney(currency, settlement.releasedAmount)} released to the provider.`
+      : 'Dispute resolved in the provider’s favour. No payment was on file for this booking.';
+    providerText = `The dispute for ${label} was resolved in your favour.`;
+    customerText = `The dispute for ${label} was resolved. The provider will be paid for this booking.`;
+  } else if (resolution === 'FULL_REFUND') {
+    message = settlement
+      ? `Dispute resolved: ${formatMoney(currency, result.refundAmount)} owed back to the customer. Send it through the payment provider; the payment reference is in your notifications.`
+      : 'Dispute resolved with a full refund, but no payment was on file for this booking, so no money moved.';
+    providerText = `The dispute for ${label} was resolved with a full refund to the customer.`;
+    customerText = settlement
+      ? `Your dispute for ${label} was resolved. A full refund of ${formatMoney(currency, result.refundAmount)} is being processed.`
+      : `Your dispute for ${label} was resolved with a full refund.`;
+  } else {
+    message = settlement
+      ? `Dispute resolved: ${formatMoney(currency, result.refundAmount)} owed back to the customer, ${formatMoney(currency, settlement.releasedAmount)} to the provider. Send the refund through the payment provider.`
+      : 'Dispute resolved with a partial refund, but no payment was on file for this booking, so no money moved.';
+    providerText = settlement
+      ? `The dispute for ${label} was resolved with a partial refund. ${formatMoney(currency, settlement.releasedAmount)} was released to your wallet.`
+      : `The dispute for ${label} was resolved with a partial refund.`;
+    customerText = settlement
+      ? `Your dispute for ${label} was resolved. A partial refund of ${formatMoney(currency, result.refundAmount)} is being processed.`
+      : `Your dispute for ${label} was resolved with a partial refund.`;
+  }
+
+  const link = { disputeId, bookingId, resolution };
+  await notifyUser(providerId, 'Dispute Resolved', providerText, link);
+  await notifyUser(customerId, 'Dispute Resolved', customerText, link);
+
+  return { success: true, dispute: result.dispute, message, refundAmount: result.refundAmount };
+}
+
+// ── Admin override ─────────────────────────────────────────────────────────
+
+/**
+ * Admin releases or refunds a booking's payment by hand, outside the dispute flow.
+ *
+ *  - release: the booking is verified if it was waiting for the customer, and the provider is paid.
+ *  - refund: the customer's payment is reversed and the booking is cancelled.
+ *
+ * Bookings with an open dispute are refused: resolve the dispute instead, so both parties
+ * get an outcome and the dispute is closed.
+ */
+export async function adminSettleEscrow(
+  bookingId: string,
+  action: 'release' | 'refund',
+  reason: string,
+): Promise<AdminSettleResult> {
+  const openDispute = await db.dispute.findFirst({
+    where: { bookingId, status: { in: OPEN_DISPUTE_STATUSES } },
+    select: { id: true },
+  });
+  if (openDispute) {
+    throw new AppError('This booking has an open dispute. Resolve the dispute instead.', 409);
+  }
+
+  const settlement = await db.$transaction(async (tx): Promise<EscrowSettlement> => {
+    const noEscrow = () =>
+      new EscrowError('NO_ESCROW', `No escrow found for booking ${short(bookingId)}.`);
+
+    if (action === 'release') {
+      await tx.booking.updateMany({
+        where: { id: bookingId, status: { in: statusVariants(BookingStatus.COMPLETED) } },
+        data: { status: BookingStatus.VERIFIED },
+      });
+      const released = await releaseInTx(tx, bookingId, reason);
+      if (!released) throw noEscrow(); // rolls the booking status back too
+      return released;
+    }
+
+    const refunded = await refundInTx(tx, bookingId, reason);
+    if (!refunded) throw noEscrow();
+    if (!refunded.alreadySettled) {
+      await tx.booking.updateMany({
+        where: { id: bookingId, status: { notIn: statusVariants(BookingStatus.CANCELLED) } },
+        data: {
+          status: BookingStatus.CANCELLED,
+          cancelledAt: new Date(),
+          cancellationReason: reason,
+        },
+      });
+    }
+    return refunded;
+  }, TX_OPTIONS);
+
+  if (action === 'release') {
+    await afterRelease(bookingId, reason, settlement);
     return {
-      success: true,
-      dispute,
-      message: 'Dispute already resolved',
+      action: 'released',
+      amount: settlement.releasedAmount,
+      transactionId: settlement.transaction.id,
     };
   }
 
-  if (!['OPEN', 'IN_PROGRESS'].includes(dispute.status)) {
-    throw new Error(`Cannot resolve dispute with status: ${dispute.status}`);
-  }
-
-  const bookingId = dispute.bookingId;
-  const providerId = dispute.providerId;
-  const customerId = dispute.customerId;
-  const disputedAmount = dispute.booking?.payments[0]?.amount || dispute.booking?.totalPrice || 0;
-
-  // 2. Process based on resolution type
-  let message = 'Dispute resolution processed';
-
-  switch (resolution) {
-    case 'RELEASE_TO_PROVIDER': {
-      // Release held funds back to provider
-      try {
-        if (!providerId) break;
-        await walletReleaseDisputeHold(providerId, disputedAmount, bookingId || '');
-      } catch (releaseError) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error(
-            `[Dispute] Wallet release failed:`,
-            releaseError instanceof Error ? releaseError.message : 'unknown',
-          );
-        }
-      }
-
-      // Update escrow status
-      if (bookingId) {
-        try {
-          await releaseFromEscrow(bookingId, `Dispute resolved in provider's favor (by admin ${resolvedBy.slice(0, 8)})`);
-        } catch {
-          // Non-blocking
-        }
-
-        // Update booking status to VERIFIED so payout can proceed
-        await db.booking.update({
-          where: { id: bookingId },
-          data: { status: 'VERIFIED' },
-        }).catch(() => {});
-      }
-
-      message = `Dispute resolved: $${disputedAmount.toFixed(2)} released to provider`;
-
-      // Notify both parties
-      if (providerId) {
-        await sendNotification(
-          providerId,
-          'Dispute Resolved',
-          `Dispute for ${bookingId?.slice(0, 8) || 'booking'} has been resolved in your favor. $${disputedAmount.toFixed(2)} has been released to your wallet.`,
-          { disputeId, resolution, amount: disputedAmount },
-        );
-      }
-      if (customerId) {
-        await sendNotification(
-          customerId,
-          'Dispute Resolved',
-          `Dispute for ${bookingId?.slice(0, 8) || 'booking'} has been resolved. The provider will receive the held funds.`,
-          { disputeId, resolution },
-        );
-      }
-      break;
-    }
-
-    case 'FULL_REFUND': {
-      // Refund full amount to customer
-      if (bookingId) {
-        try {
-          await refundFromEscrow(bookingId, `Full refund: dispute resolved by admin ${resolvedBy.slice(0, 8)}`);
-        } catch (refundError) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error(
-              `[Dispute] Escrow refund failed:`,
-              refundError instanceof Error ? refundError.message : 'unknown',
-            );
-          }
-        }
-
-        // Update booking status
-        await db.booking.update({
-          where: { id: bookingId },
-          data: { status: 'CANCELLED' },
-        }).catch(() => {});
-      }
-
-      // Provider balance was already deducted when dispute was raised via holdForDispute.
-      // The escrow refund handles returning funds to the customer.
-
-      message = `Dispute resolved: Full refund of $${disputedAmount.toFixed(2)} to customer`;
-
-      // Notify both parties
-      if (providerId) {
-        await sendNotification(
-          providerId,
-          'Dispute Resolved — Refund Issued',
-          `Dispute for ${bookingId?.slice(0, 8) || 'booking'} resolved with a full refund to the customer.`,
-          { disputeId, resolution, amount: disputedAmount },
-        );
-      }
-      if (customerId) {
-        await sendNotification(
-          customerId,
-          'Dispute Resolved — Refund Issued',
-          `Your dispute for ${bookingId?.slice(0, 8) || 'booking'} has been resolved. A full refund of $${disputedAmount.toFixed(2)} will be processed.`,
-          { disputeId, resolution, amount: disputedAmount },
-        );
-      }
-      break;
-    }
-
-    case 'PARTIAL_REFUND': {
-      // Default: 50/50 split
-      const providerShare = disputedAmount * 0.5;
-      const customerShare = disputedAmount * 0.5;
-
-      // Release provider's share
-      try {
-        if (!providerId) break;
-        await walletReleaseDisputeHold(providerId, providerShare, bookingId || '');
-      } catch {
-        // Non-blocking
-      }
-
-      // Refund customer's share from escrow
-      if (bookingId) {
-        try {
-          await refundFromEscrow(
-            bookingId,
-            `Partial refund: dispute resolved by admin ${resolvedBy.slice(0, 8)}`,
-          );
-        } catch {
-          // Non-blocking
-        }
-
-        // Update booking status to allow partial payout
-        await db.booking.update({
-          where: { id: bookingId },
-          data: { status: 'VERIFIED' },
-        }).catch(() => {});
-      }
-
-      message = `Dispute resolved: Partial refund $${customerShare.toFixed(2)} to customer, $${providerShare.toFixed(2)} to provider`;
-
-      // Notify both parties
-      if (providerId) {
-        await sendNotification(
-          providerId,
-          'Dispute Resolved — Partial',
-          `Dispute for ${bookingId?.slice(0, 8) || 'booking'} resolved partially. $${providerShare.toFixed(2)} released to your wallet.`,
-          { disputeId, resolution, providerShare, customerShare },
-        );
-      }
-      if (customerId) {
-        await sendNotification(
-          customerId,
-          'Dispute Resolved — Partial Refund',
-          `Your dispute for ${bookingId?.slice(0, 8) || 'booking'} has been partially resolved. A refund of $${customerShare.toFixed(2)} will be processed.`,
-          { disputeId, resolution, providerShare, customerShare },
-        );
-      }
-      break;
-    }
-
-    default:
-      throw new Error(`Unknown resolution type: ${resolution}. Expected RELEASE_TO_PROVIDER, FULL_REFUND, or PARTIAL_REFUND`);
-  }
-
-  // 3. Update dispute record
-  const updatedDispute = await db.dispute.update({
-    where: { id: disputeId },
-    data: {
-      status: 'RESOLVED',
-      resolution: JSON.stringify({
-        type: resolution,
-        resolvedBy,
-        resolvedAt: new Date().toISOString(),
-        amount: disputedAmount,
-      }),
-    },
-  });
-
-  // 4. Log resolution (fire-and-forget)
-  await logTransaction({
-    userId: providerId || customerId || '',
-    bookingId: bookingId || undefined,
-    amount: disputedAmount,
-    type: 'REFUND',
-    status: 'COMPLETED',
-    referenceId: disputeId,
-    metadata: { action: 'DISPUTE_RESOLVED', resolution, resolvedBy, disputeId },
-  });
-
+  await afterRefund(bookingId, reason, settlement);
   return {
-    success: true,
-    dispute: updatedDispute,
-    message,
+    action: 'refunded',
+    amount: settlement.refundAmount,
+    transactionId: settlement.transaction.id,
   };
 }
 
+// ── Status ─────────────────────────────────────────────────────────────────
+
 /**
- * Get the verification status and deadline for a booking.
+ * Where a booking stands in the verification flow, and what the customer can do now.
  *
  * @param bookingId - The booking ID
  */
 export async function getVerificationStatus(bookingId: string): Promise<VerificationStatusInfo> {
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
-    select: {
-      id: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
-    },
+    select: { id: true, status: true, completedAt: true, updatedAt: true },
   });
 
-  if (!booking) {
-    throw new Error(`Booking not found: ${bookingId}`);
-  }
+  if (!booking) throw new AppError('Booking not found', 404);
 
-  // Find when the booking was last set to COMPLETED (for deadline calculation)
-  // We use updatedAt since status changes update this field
-  const completedAt = booking.updatedAt;
-  const deadline = new Date(completedAt.getTime() + VERIFICATION_WINDOW_MS);
-  const isExpired = Date.now() > deadline.getTime();
+  const completedAt = booking.completedAt ?? (isStatus(booking.status, BookingStatus.COMPLETED) ? booking.updatedAt : null);
+  const deadline = completedAt ? deadlineFor({ completedAt, updatedAt: booking.updatedAt }) : null;
 
-  // Check escrow status
   let escrowStatus: string | null = null;
   try {
     const escrowTx = await db.platformTransaction.findFirst({
@@ -693,26 +788,23 @@ export async function getVerificationStatus(bookingId: string): Promise<Verifica
       select: { escrowStatus: true },
       orderBy: { createdAt: 'desc' },
     });
-    if (escrowTx) {
-      escrowStatus = escrowTx.escrowStatus;
-    }
+    escrowStatus = escrowTx?.escrowStatus ?? null;
   } catch {
-    // Non-blocking
+    // The status is still useful without the escrow state.
   }
 
-  const canConfirm = booking.status === 'COMPLETED';
-  const canDispute = ['COMPLETED', 'VERIFIED'].includes(booking.status);
+  const awaitingCustomer = isStatus(booking.status, BookingStatus.COMPLETED);
 
   return {
     bookingId,
     status: booking.status,
     completedAt,
-    verifiedAt: booking.status === 'VERIFIED' ? booking.updatedAt : null,
-    disputedAt: booking.status === 'DISPUTED' ? booking.updatedAt : null,
+    verifiedAt: isStatus(booking.status, BookingStatus.VERIFIED) ? booking.updatedAt : null,
+    disputedAt: isStatus(booking.status, BookingStatus.DISPUTED) ? booking.updatedAt : null,
     deadline,
-    isExpired,
-    canConfirm,
-    canDispute,
+    isExpired: deadline ? Date.now() > deadline.getTime() : false,
+    canConfirm: awaitingCustomer,
+    canDispute: isStatus(booking.status, BookingStatus.COMPLETED, BookingStatus.VERIFIED),
     escrowStatus,
   };
 }

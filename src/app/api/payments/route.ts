@@ -6,6 +6,8 @@ import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils'
 import { sanitizePaymentsForList } from '@/lib/response-sanitizer';
 import { env, isDev } from '@/lib/env';
 import { holdInEscrow, calculatePlatformFee } from '@/lib/escrow';
+import { AppError } from '@/lib/app-error';
+import { BookingStatus, isStatus, statusLabel, statusVariants } from '@/lib/booking-status';
 
 // List payments
 export async function GET(request: NextRequest) {
@@ -333,6 +335,11 @@ export async function POST(request: NextRequest) {
         throw new Error('NOT_OWNER');
       }
 
+      // A cancelled, completed or disputed booking must not be paid for (or brought back to life by a payment)
+      if (!isStatus(booking.status, BookingStatus.PENDING, BookingStatus.CONFIRMED)) {
+        throw new AppError(`This booking is ${statusLabel(booking.status)} and can no longer be paid for.`, 409);
+      }
+
       if (booking.payments.length > 0) {
         throw new Error('PAYMENT_EXISTS');
       }
@@ -352,11 +359,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Set booking to pending (confirmed after webhook)
-      await tx.booking.update({
-        where: { id: validated.bookingId },
-        data: { status: 'pending' },
-      });
+      // The booking keeps its status (pending or confirmed); payment webhooks confirm it
 
       return {
         payment,
@@ -459,9 +462,9 @@ export async function POST(request: NextRequest) {
 
       // Auto-complete in dev mode
       await db.$transaction(async (tx) => {
-        await tx.booking.update({
-          where: { id: validated.bookingId },
-          data: { status: 'confirmed' },
+        await tx.booking.updateMany({
+          where: { id: validated.bookingId, status: { in: statusVariants(BookingStatus.PENDING) } },
+          data: { status: BookingStatus.CONFIRMED },
         });
         await tx.notification.create({
           data: {
@@ -492,9 +495,9 @@ export async function POST(request: NextRequest) {
           data: { status: 'pending' },
         });
 
-        await db.booking.update({
-          where: { id: validated.bookingId },
-          data: { status: 'pending' },
+        await db.booking.updateMany({
+          where: { id: validated.bookingId, status: { in: statusVariants(BookingStatus.CONFIRMED) } },
+          data: { status: BookingStatus.PENDING },
         });
 
         return errorResponse('Payment processing failed — escrow could not be held. Please retry.', 503);

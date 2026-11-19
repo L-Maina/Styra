@@ -2,7 +2,10 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { requireAdmin } from '@/lib/auth';
-import { resolveDispute } from '@/lib/verification';
+import { resolveDispute, DISPUTE_RESOLUTIONS } from '@/lib/verification';
+
+/** Statuses an admin can set directly. RESOLVED goes through resolveDispute so money moves. */
+const DIRECT_STATUSES = ['OPEN', 'IN_PROGRESS'];
 
 // GET - Fetch all disputes
 export async function GET(request: NextRequest) {
@@ -83,42 +86,55 @@ export async function PUT(request: NextRequest) {
 
     // If a resolution type is provided, use the proper resolveDispute flow
     // which handles escrow release/refund, wallet balances, and TransactionLog entries
-    const validResolutionTypes = ['RELEASE_TO_PROVIDER', 'FULL_REFUND', 'PARTIAL_REFUND'];
-    if (resolution?.type && validResolutionTypes.includes(resolution.type)) {
-      try {
-        const result = await resolveDispute(
-          disputeId,
-          resolution.type,
-          adminUser.userId,
-        );
+    // Errors from resolveDispute (wrong state, nothing to refund, ...) carry a status and a
+    // message that is safe to show, and are turned into a response by handleApiError below.
+    if (resolution?.type && (DISPUTE_RESOLUTIONS as readonly string[]).includes(resolution.type)) {
+      const result = await resolveDispute(disputeId, resolution.type, adminUser.id, {
+        notes: typeof adminMessage === 'string' ? adminMessage : undefined,
+        customerRefundAmount:
+          typeof resolution.customerRefundAmount === 'number' ? resolution.customerRefundAmount : undefined,
+      });
 
-        // If adminMessage is provided, append it to the resolution JSON
-        if (adminMessage) {
-          const existing = await db.dispute.findUnique({ where: { id: disputeId } });
-          if (existing?.resolution) {
-            let existingResolution: Record<string, any> = {};
-            try { existingResolution = JSON.parse(existing.resolution); } catch { /* ignore */ }
-            existingResolution.adminMessage = adminMessage;
-            await db.dispute.update({
-              where: { id: disputeId },
-              data: { resolution: JSON.stringify(existingResolution) },
-            });
-          }
+      // If adminMessage is provided, keep it under its own key in the resolution JSON
+      if (adminMessage) {
+        const existing = await db.dispute.findUnique({ where: { id: disputeId } });
+        if (existing?.resolution) {
+          let existingResolution: Record<string, any> = {};
+          try { existingResolution = JSON.parse(existing.resolution); } catch { /* ignore */ }
+          existingResolution.adminMessage = adminMessage;
+          await db.dispute.update({
+            where: { id: disputeId },
+            data: { resolution: JSON.stringify(existingResolution) },
+          });
         }
-
-        return successResponse({ dispute: result.dispute, message: result.message });
-      } catch (resolveError) {
-        return errorResponse(
-          resolveError instanceof Error ? resolveError.message : 'Failed to resolve dispute',
-          500,
-        );
       }
+
+      return successResponse({
+        dispute: result.dispute,
+        message: result.message,
+        refundAmount: result.refundAmount,
+      });
     }
 
-    // Fallback: simple status/message update without escrow operations
+    // Fallback: status/message update without money operations. A dispute can only be moved
+    // between OPEN and IN_PROGRESS here. RESOLVED needs a resolution type, because resolving
+    // is what releases or refunds the held payment.
     const updateData: Record<string, unknown> = {};
 
     if (status) {
+      if (!DIRECT_STATUSES.includes(status)) {
+        return errorResponse(
+          'To resolve a dispute, choose a resolution: release to provider, full refund or partial refund.',
+          400,
+        );
+      }
+      const current = await db.dispute.findUnique({ where: { id: disputeId }, select: { status: true } });
+      if (!current) {
+        return errorResponse('Dispute not found', 404);
+      }
+      if (current.status === 'RESOLVED') {
+        return errorResponse('This dispute is already resolved.', 409);
+      }
       updateData.status = status;
     }
 

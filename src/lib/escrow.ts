@@ -1,20 +1,95 @@
 /**
- * Escrow Payment Flow
+ * Escrow ledger
  *
- * 1. Customer pays → Platform holds funds (escrow)
- * 2. Service delivered → Verification window opens (24h)
- * 3. Verified / Auto-verified → Funds released to provider wallet
- * 4. Disputed → Funds held pending resolution
- * 5. Resolved → Funds released or refunded
+ * One ESCROW_HELD PlatformTransaction per booking is the source of truth for where the
+ * customer's money is. Its escrowStatus moves through a small state machine:
  *
- * All state transitions are atomic (Prisma transactions).
- * Every escrow operation creates a TransactionLog entry (fire-and-forget).
+ *   HELD ──release──▶ RELEASED
+ *   HELD ──dispute──▶ DISPUTED ──release──▶ RELEASED
+ *   HELD / DISPUTED ──refund──▶ REFUNDED          (or a split: RELEASED with a trimmed amount)
+ *   RELEASED ──dispute──▶ DISPUTED                (funds are pulled back into pending)
+ *   RELEASED ──refund──▶ REFUNDED                 (clawback from the provider's balance)
+ *
+ * The provider's wallet follows the state:
+ *   HELD / DISPUTED  →  wallet.pendingBalance holds the provider's share
+ *   RELEASED         →  wallet.balance holds it (withdrawable)
+ *
+ * Every transition is ONE database transaction: a compare-and-swap on escrowStatus (so two
+ * concurrent requests cannot both win), the wallet move, and the ledger rows. Notifications
+ * and TransactionLog entries are written after the commit and never block or undo a transfer.
+ *
+ * The *InTx functions let a caller (booking verification, dispute resolution) put its own
+ * changes in the same transaction, so a booking is never marked VERIFIED while its money is
+ * still held.
+ *
+ * NOTE: refunds here update the ledger only. Nothing in this module sends money back through
+ * Stripe, Paystack, PayPal or M-Pesa; admins are alerted to do that (see afterRefund).
  */
 
 import { db } from '@/lib/db';
-import { creditPendingBalance, releaseToBalance } from '@/lib/wallet';
 import { logTransaction } from '@/lib/transaction-log';
-import type { PlatformTransaction } from '@prisma/client';
+import { AppError } from '@/lib/app-error';
+import { BookingStatus, isStatus } from '@/lib/booking-status';
+import type { Prisma, PlatformTransaction } from '@prisma/client';
+
+export type Tx = Prisma.TransactionClient;
+
+// ── Constants ──────────────────────────────────────────────────────────────
+
+export const ESCROW_STATUS = {
+  HELD: 'HELD',
+  DISPUTED: 'DISPUTED',
+  RELEASED: 'RELEASED',
+  REFUNDED: 'REFUNDED',
+} as const;
+
+/** Escrow states in which the provider's share sits in wallet.pendingBalance. */
+const OPEN_STATUSES: string[] = [ESCROW_STATUS.HELD, ESCROW_STATUS.DISPUTED];
+
+/** Options for interactive transactions (the default 5s timeout is tight on pooled connections). */
+export const TX_OPTIONS = { maxWait: 5000, timeout: 20000 };
+
+/** Half a cent: tolerance for floating point drift in wallet balances. */
+const EPSILON = 0.005;
+
+const money = (amount: number): number => Math.round(amount * 100) / 100;
+const short = (id: string): string => id.slice(0, 8);
+export const formatMoney = (currency: string, amount: number): string => `${currency} ${amount.toFixed(2)}`;
+
+// ── Errors ─────────────────────────────────────────────────────────────────
+
+export type EscrowErrorCode =
+  | 'NO_ESCROW'
+  | 'INVALID_STATE'
+  | 'CONFLICT'
+  | 'INCONSISTENT'
+  | 'INVALID_INPUT';
+
+const ERROR_STATUS: Record<EscrowErrorCode, number> = {
+  NO_ESCROW: 404,
+  INVALID_STATE: 409,
+  CONFLICT: 409,
+  INCONSISTENT: 500,
+  INVALID_INPUT: 400,
+};
+
+export class EscrowError extends AppError {
+  readonly escrowCode: EscrowErrorCode;
+
+  constructor(escrowCode: EscrowErrorCode, message: string) {
+    super(message, ERROR_STATUS[escrowCode], escrowCode);
+    this.name = 'EscrowError';
+    this.escrowCode = escrowCode;
+  }
+}
+
+function failInconsistent(bookingId: string, detail: string): never {
+  console.error(`[Escrow] Inconsistent state for booking ${bookingId}: ${detail}`);
+  throw new EscrowError(
+    'INCONSISTENT',
+    'This payment needs a manual check by support before funds can move.',
+  );
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +109,7 @@ export interface EscrowReleaseResult {
 export interface EscrowRefundResult {
   success: boolean;
   transaction: PlatformTransaction;
+  /** Gross amount that goes back to the customer. */
   refundAmount: number;
 }
 
@@ -56,19 +132,280 @@ export interface EscrowSummary {
   heldCount: number;
   releasedCount: number;
   refundedCount: number;
+  disputedCount: number;
 }
 
-// ── Exported Functions ─────────────────────────────────────────────────────
+/** What a release, refund or split did to the ledger. */
+export interface EscrowSettlement {
+  kind: 'RELEASED' | 'REFUNDED' | 'SPLIT';
+  /** True when the escrow was already in this state, so nothing moved. */
+  alreadySettled: boolean;
+  /** The escrow row after the change. */
+  transaction: PlatformTransaction;
+  providerUserId: string | null;
+  /** Provider's share that ended up in their available balance. */
+  releasedAmount: number;
+  /** Gross money owed back to the customer. It still has to be sent through the payment provider. */
+  refundAmount: number;
+  /** True when money was taken back from the provider's available balance. */
+  clawback: boolean;
+  paymentId: string | null;
+}
+
+export interface EscrowDispute {
+  transaction: PlatformTransaction;
+  alreadyDisputed: boolean;
+  /** True when released funds were pulled back into the provider's pending balance. */
+  pulledBack: boolean;
+}
+
+interface HoldTxResult {
+  created: boolean;
+  duplicatePayment: boolean;
+  /** The booking was already cancelled when the payment arrived, so nothing was credited. */
+  lateForCancelled: boolean;
+  transaction: PlatformTransaction;
+  providerUserId: string;
+}
+
+// ── Internal helpers ───────────────────────────────────────────────────────
+
+async function loadEscrow(tx: Tx, bookingId: string): Promise<PlatformTransaction | null> {
+  return tx.platformTransaction.findFirst({
+    where: { bookingId, type: 'ESCROW_HELD' },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+function providerOf(row: PlatformTransaction, bookingId: string): string {
+  if (!row.userId) failInconsistent(bookingId, 'escrow row has no provider user');
+  return row.userId as string;
+}
 
 /**
- * Hold payment in escrow after customer completes payment.
- * Creates a PlatformTransaction with ESCROW_HELD type and credits
- * the provider's wallet pending balance.
+ * Moves the escrow row out of one of the `from` states. The WHERE clause makes this a
+ * compare-and-swap: if another request already changed the row, nothing matches and we stop.
+ */
+async function claimEscrow(
+  tx: Tx,
+  row: PlatformTransaction,
+  from: string[],
+  data: {
+    escrowStatus: string;
+    status?: string;
+    amount?: number;
+    platformFee?: number;
+    providerAmount?: number;
+    description: string;
+    metadata?: string;
+  },
+): Promise<void> {
+  const claimed = await tx.platformTransaction.updateMany({
+    where: { id: row.id, escrowStatus: { in: from } },
+    data: { ...data, completedAt: new Date() },
+  });
+
+  if (claimed.count !== 1) {
+    throw new EscrowError(
+      'CONFLICT',
+      'This payment was just updated by another request. Please try again.',
+    );
+  }
+}
+
+/**
+ * Writing to the wallet row takes a row lock until the transaction ends, so escrow work for
+ * the same provider runs one transaction after the other. Also creates the wallet if missing.
+ */
+async function lockWallet(tx: Tx, userId: string): Promise<void> {
+  await tx.wallet.upsert({
+    where: { userId },
+    create: { userId },
+    update: { updatedAt: new Date() },
+  });
+}
+
+/** Pending → available balance, only if the wallet really holds the amount in pending. */
+async function pendingToBalance(
+  tx: Tx,
+  userId: string,
+  amount: number,
+  bookingId: string,
+): Promise<void> {
+  if (amount <= 0) return;
+  const moved = await tx.wallet.updateMany({
+    where: { userId, pendingBalance: { gte: amount - EPSILON } },
+    data: { pendingBalance: { decrement: amount }, balance: { increment: amount } },
+  });
+  if (moved.count !== 1) {
+    failInconsistent(bookingId, `pending balance is lower than the escrow share ${amount}`);
+  }
+}
+
+/** Takes `amount` out of pending and puts `keep` of it into the available balance. */
+async function settlePending(
+  tx: Tx,
+  userId: string,
+  amount: number,
+  keep: number,
+  bookingId: string,
+): Promise<void> {
+  if (amount <= 0) return;
+  const moved = await tx.wallet.updateMany({
+    where: { userId, pendingBalance: { gte: amount - EPSILON } },
+    data: {
+      pendingBalance: { decrement: amount },
+      ...(keep > 0 ? { balance: { increment: keep } } : {}),
+    },
+  });
+  if (moved.count !== 1) {
+    failInconsistent(bookingId, `pending balance is lower than the escrow share ${amount}`);
+  }
+}
+
+/** Writes an in-app notification. Never throws: a failed notification must not undo a money move. */
+export async function notifyUser(
+  userId: string,
+  title: string,
+  message: string,
+  link?: Record<string, unknown>,
+  type: string = 'SYSTEM_ALERT',
+): Promise<void> {
+  try {
+    await db.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type,
+        link: link ? JSON.stringify(link) : undefined,
+      },
+    });
+  } catch (error) {
+    console.error('[Escrow] Notification failed:', error instanceof Error ? error.message : error);
+  }
+}
+
+/**
+ * Keeps the legacy Payment row in step with the escrow ledger. Payment.escrowStatus defaults
+ * to "held" and nothing used to update it, so every paid booking looked held forever.
+ * A missing payment id or row is fine: updateMany simply matches nothing.
+ */
+async function syncPayment(
+  tx: Tx,
+  paymentId: string | null,
+  data: { escrowStatus: string; status?: string; releasedAt?: Date; refundedAt?: Date },
+): Promise<void> {
+  if (!paymentId) return;
+  await tx.payment.updateMany({ where: { id: paymentId }, data });
+}
+
+export async function alertAdmins(
+  title: string,
+  message: string,
+  link?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const admins = await db.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } });
+    await Promise.all(admins.map((admin) => notifyUser(admin.id, title, message, link)));
+  } catch (error) {
+    console.error('[Escrow] Could not alert admins:', error instanceof Error ? error.message : error);
+  }
+}
+
+// ── Hold ───────────────────────────────────────────────────────────────────
+
+async function holdTx(
+  tx: Tx,
+  input: { bookingId: string; paymentId: string; amount: number; platformFee: number; currency: string },
+): Promise<HoldTxResult> {
+  const amount = money(input.amount);
+  const platformFee = money(input.platformFee);
+  const providerAmount = money(amount - platformFee);
+
+  if (!(amount > 0)) {
+    throw new EscrowError('INVALID_INPUT', 'Payment amount must be greater than zero.');
+  }
+  if (platformFee < 0 || providerAmount < 0) {
+    throw new EscrowError('INVALID_INPUT', 'Platform fee exceeds payment amount.');
+  }
+
+  const booking = await tx.booking.findUnique({
+    where: { id: input.bookingId },
+    select: { businessId: true, status: true, business: { select: { ownerId: true } } },
+  });
+  if (!booking) {
+    throw new AppError(`Booking not found: ${input.bookingId}`, 404);
+  }
+
+  const providerUserId = booking.business.ownerId;
+
+  // Serialise concurrent holds for this provider, then check for an existing escrow row.
+  await lockWallet(tx, providerUserId);
+
+  const existing = await loadEscrow(tx, input.bookingId);
+  if (existing) {
+    return {
+      created: false,
+      // A different payment for a booking that already has escrow: the customer paid twice.
+      duplicatePayment: existing.transactionId !== input.paymentId,
+      lateForCancelled: false,
+      transaction: existing,
+      providerUserId,
+    };
+  }
+
+  // A payment that clears after the booking was cancelled cannot be held for the provider.
+  // It is recorded as refunded so the customer's money is tracked and admins can send it back.
+  const late = isStatus(booking.status, BookingStatus.CANCELLED);
+
+  const transaction = await tx.platformTransaction.create({
+    data: {
+      type: 'ESCROW_HELD',
+      bookingId: input.bookingId,
+      businessId: booking.businessId,
+      userId: providerUserId,
+      amount,
+      platformFee,
+      providerAmount,
+      currency: input.currency,
+      status: late ? 'REFUNDED' : 'COMPLETED',
+      escrowStatus: late ? ESCROW_STATUS.REFUNDED : ESCROW_STATUS.HELD,
+      transactionId: input.paymentId,
+      description: late
+        ? `Payment received after booking ${short(input.bookingId)} was cancelled: refund required`
+        : `Escrow hold for booking ${short(input.bookingId)}`,
+    },
+  });
+
+  if (late) {
+    await syncPayment(tx, input.paymentId, {
+      escrowStatus: 'refunded',
+      status: 'refunded',
+      refundedAt: new Date(),
+    });
+  } else {
+    await tx.wallet.update({
+      where: { userId: providerUserId },
+      data: { pendingBalance: { increment: providerAmount } },
+    });
+  }
+
+  return { created: true, duplicatePayment: false, lateForCancelled: late, transaction, providerUserId };
+}
+
+/**
+ * Hold a customer's payment in escrow and credit the provider's pending balance.
  *
- * @param bookingId    - The booking ID
- * @param paymentId    - The payment ID (used as reference)
- * @param amount       - Total payment amount
- * @param platformFee  - Platform's fee (already calculated)
+ * Idempotent per payment: the same paymentId (webhook retries, a webhook racing a client
+ * capture) returns the existing row and never credits twice, whatever state it is in now.
+ * A second, different payment for the same booking is NOT credited; admins are alerted
+ * so it can be refunded.
+ *
+ * @param bookingId   - The booking ID
+ * @param paymentId   - The payment ID (stored as the escrow row's transactionId)
+ * @param amount      - Total payment amount
+ * @param platformFee - Platform's fee (already calculated)
  */
 export async function holdInEscrow(
   bookingId: string,
@@ -77,386 +414,534 @@ export async function holdInEscrow(
   platformFee: number,
   currency: string = 'KES',
 ): Promise<EscrowHoldResult> {
-  const providerAmount = amount - platformFee;
+  const result = await db.$transaction(
+    (tx) => holdTx(tx, { bookingId, paymentId, amount, platformFee, currency }),
+    TX_OPTIONS,
+  );
 
-  if (providerAmount < 0) {
-    throw new Error('Platform fee exceeds payment amount');
-  }
-
-  // Idempotency: check if already held in escrow for this booking
-  const existing = await db.platformTransaction.findFirst({
-    where: {
+  if (result.created && result.lateForCancelled) {
+    await alertAdmins(
+      'Payment for a cancelled booking needs a refund',
+      `Payment ${paymentId} (${formatMoney(currency, amount)}) arrived after booking ${short(bookingId)} was cancelled. The provider was not credited. Send the refund to the customer.`,
+      { bookingId, paymentId, amount },
+    );
+  } else if (result.created) {
+    await logTransaction({
+      userId: result.providerUserId,
       bookingId,
+      amount: result.transaction.providerAmount,
       type: 'ESCROW_HELD',
-      escrowStatus: 'HELD',
-    },
-  });
-
-  if (existing) {
-    return {
-      success: true,
-      transaction: existing,
-      providerAmount: existing.providerAmount,
-      platformFee: existing.platformFee,
-    };
-  }
-
-  // Get booking to find business/provider
-  const booking = await db.booking.findUnique({
-    where: { id: bookingId },
-    select: { businessId: true, business: { select: { ownerId: true, name: true } } },
-  });
-
-  if (!booking) {
-    throw new Error(`Booking not found: ${bookingId}`);
-  }
-
-  const providerUserId = booking.business.ownerId;
-
-  const result = await db.$transaction(async (tx) => {
-    // Create PlatformTransaction record
-    const transaction = await tx.platformTransaction.create({
-      data: {
-        type: 'ESCROW_HELD',
-        bookingId,
-        businessId: booking.businessId,
-        userId: providerUserId,
-        amount,
-        platformFee,
-        providerAmount,
-        currency,
-        status: 'COMPLETED',
-        escrowStatus: 'HELD',
-        transactionId: paymentId,
-        description: `Escrow hold for booking ${bookingId.slice(0, 8)}`,
+      status: 'COMPLETED',
+      referenceId: result.transaction.id,
+      metadata: {
+        paymentId,
+        totalAmount: result.transaction.amount,
+        platformFee: result.transaction.platformFee,
+        providerAmount: result.transaction.providerAmount,
       },
     });
-
-    return transaction;
-  });
-
-  // Credit provider's pending balance (outside main tx — uses its own tx internally)
-  await creditPendingBalance(providerUserId, providerAmount, bookingId);
-
-  // Log the escrow hold (fire-and-forget)
-  await logTransaction({
-    userId: providerUserId,
-    bookingId,
-    amount: providerAmount,
-    type: 'ESCROW_HELD',
-    status: 'COMPLETED',
-    referenceId: result.id,
-    metadata: {
-      paymentId,
-      totalAmount: amount,
-      platformFee,
-      providerAmount,
-    },
-  });
+  } else if (result.duplicatePayment) {
+    await alertAdmins(
+      'Duplicate payment needs a refund',
+      `Booking ${short(bookingId)} already has escrow from another payment. Payment ${paymentId} (${formatMoney(currency, amount)}) was not credited to the provider and should be refunded to the customer.`,
+      { bookingId, paymentId, amount },
+    );
+  }
 
   return {
     success: true,
-    transaction: result,
-    providerAmount,
-    platformFee,
+    transaction: result.transaction,
+    providerAmount: result.transaction.providerAmount,
+    platformFee: result.transaction.platformFee,
   };
+}
+
+// ── Release ────────────────────────────────────────────────────────────────
+
+/**
+ * Release escrow to the provider inside the caller's transaction.
+ * Returns null when the booking has no escrow row at all.
+ * Throws when the money cannot be moved (refunded, inconsistent wallet, lost a race).
+ */
+export async function releaseInTx(
+  tx: Tx,
+  bookingId: string,
+  reason: string,
+): Promise<EscrowSettlement | null> {
+  const row = await loadEscrow(tx, bookingId);
+  if (!row) return null;
+
+  if (row.escrowStatus === ESCROW_STATUS.RELEASED) {
+    return {
+      kind: 'RELEASED',
+      alreadySettled: true,
+      transaction: row,
+      providerUserId: row.userId,
+      releasedAmount: row.providerAmount,
+      refundAmount: 0,
+      clawback: false,
+      paymentId: row.transactionId,
+    };
+  }
+
+  if (row.escrowStatus === ESCROW_STATUS.REFUNDED) {
+    throw new EscrowError(
+      'INVALID_STATE',
+      'This payment was already refunded to the customer, so it cannot be released.',
+    );
+  }
+
+  if (row.escrowStatus !== ESCROW_STATUS.HELD && row.escrowStatus !== ESCROW_STATUS.DISPUTED) {
+    failInconsistent(bookingId, `unexpected escrow status "${row.escrowStatus}"`);
+  }
+
+  const providerUserId = providerOf(row, bookingId);
+  const description = `Escrow released: ${reason}`;
+
+  await claimEscrow(tx, row, OPEN_STATUSES, { escrowStatus: ESCROW_STATUS.RELEASED, description });
+  await pendingToBalance(tx, providerUserId, row.providerAmount, bookingId);
+  await syncPayment(tx, row.transactionId, { escrowStatus: 'released', releasedAt: new Date() });
+
+  // Revenue tracking row. A re-release after a dispute must not count the same revenue twice.
+  const alreadyCounted = await tx.platformTransaction.findFirst({
+    where: { bookingId, type: 'SERVICE_COMPLETED', status: 'COMPLETED' },
+    select: { id: true },
+  });
+  if (!alreadyCounted) {
+    await tx.platformTransaction.create({
+      data: {
+        type: 'SERVICE_COMPLETED',
+        bookingId,
+        businessId: row.businessId,
+        userId: providerUserId,
+        amount: row.amount,
+        platformFee: row.platformFee,
+        providerAmount: row.providerAmount,
+        currency: row.currency,
+        status: 'COMPLETED',
+        escrowStatus: ESCROW_STATUS.RELEASED,
+        description: `Service completed: ${reason}`,
+        metadata: JSON.stringify({ escrowTransactionId: row.id, reason }),
+      },
+    });
+  }
+
+  return {
+    kind: 'RELEASED',
+    alreadySettled: false,
+    transaction: { ...row, escrowStatus: ESCROW_STATUS.RELEASED, completedAt: new Date(), description },
+    providerUserId,
+    releasedAmount: row.providerAmount,
+    refundAmount: 0,
+    clawback: false,
+    paymentId: row.transactionId,
+  };
+}
+
+/** Logs and notifies after a release has been committed. Never throws. */
+export async function afterRelease(
+  bookingId: string,
+  reason: string,
+  settlement: EscrowSettlement,
+): Promise<void> {
+  if (settlement.alreadySettled || !settlement.providerUserId) return;
+  const t = settlement.transaction;
+
+  await logTransaction({
+    userId: settlement.providerUserId,
+    bookingId,
+    amount: settlement.releasedAmount,
+    type: 'SERVICE_COMPLETED',
+    status: 'COMPLETED',
+    referenceId: t.id,
+    metadata: { reason, escrowTransactionId: t.id },
+  });
+  await logTransaction({
+    userId: settlement.providerUserId,
+    bookingId,
+    amount: t.platformFee,
+    type: 'PLATFORM_FEE',
+    status: 'COMPLETED',
+    referenceId: t.id,
+    metadata: { reason },
+  });
+  await notifyUser(
+    settlement.providerUserId,
+    'Funds Released',
+    `Payment for booking ${short(bookingId)} has been released to your wallet. Amount: ${formatMoney(t.currency, settlement.releasedAmount)}`,
+    { bookingId, amount: settlement.releasedAmount, reason, transactionId: t.id },
+  );
 }
 
 /**
  * Release escrow funds to the provider's available balance.
- * Called after booking verification (customer confirms or auto-verify).
+ * Called after verification (customer confirms, auto-verify) or by an admin.
  *
- * Moves: wallet.pendingBalance → wallet.balance
- * Updates: PlatformTransaction.escrowStatus = RELEASED
- * Creates: Notification for provider
- *
- * SECURITY: The escrow status check and update are atomic (single $transaction)
- * to prevent race conditions where concurrent requests could double-release funds.
+ * Moves wallet.pendingBalance → wallet.balance, atomically with the escrow state change.
+ * Calling it again for an already released booking is a no-op that returns the same result.
  *
  * @param bookingId - The booking ID
- * @param reason    - Why the escrow was released (e.g., "Customer confirmed", "Auto-verified")
+ * @param reason    - Why the escrow was released (e.g. "Customer confirmed")
  */
 export async function releaseFromEscrow(
   bookingId: string,
   reason: string,
 ): Promise<EscrowReleaseResult> {
-  // Atomic transaction: find escrow + update status in one go to prevent race conditions
-  const escrowTx = await db.$transaction(async (tx) => {
-    // Find the HELD escrow transaction with a row-level lock
-    const held = await tx.platformTransaction.findFirst({
-      where: {
-        bookingId,
-        type: 'ESCROW_HELD',
-        escrowStatus: 'HELD',
-      },
-    });
+  const settlement = await db.$transaction((tx) => releaseInTx(tx, bookingId, reason), TX_OPTIONS);
 
-    if (!held) {
-      return null;
-    }
-
-    // Immediately mark as RELEASED within the same transaction to prevent double-release
-    await tx.platformTransaction.update({
-      where: { id: held.id },
-      data: {
-        escrowStatus: 'RELEASED',
-        completedAt: new Date(),
-        description: `Escrow released: ${reason}`,
-      },
-    });
-
-    return held;
-  });
-
-  if (!escrowTx) {
-    // Check if already released (idempotent)
-    const releasedTx = await db.platformTransaction.findFirst({
-      where: {
-        bookingId,
-        type: 'ESCROW_HELD',
-        escrowStatus: 'RELEASED',
-      },
-    });
-
-    if (releasedTx) {
-      return {
-        success: true,
-        transaction: releasedTx,
-        releasedAmount: releasedTx.providerAmount,
-      };
-    }
-
-    throw new Error(`No held escrow found for booking: ${bookingId}`);
+  if (!settlement) {
+    throw new EscrowError('NO_ESCROW', `No escrow found for booking ${short(bookingId)}.`);
   }
 
-  if (!escrowTx.userId) {
-    throw new Error(`Escrow transaction missing userId for booking: ${bookingId}`);
-  }
-
-  const providerUserId = escrowTx.userId;
-
-  // Release pending balance → available balance (uses its own tx internally)
-  await releaseToBalance(providerUserId, escrowTx.providerAmount, bookingId);
-
-  // Get the updated transaction for return value
-  const updatedTransaction = await db.platformTransaction.findUnique({
-    where: { id: escrowTx.id },
-  });
-
-  // Create a SERVICE_COMPLETED PlatformTransaction for revenue tracking
-  await db.platformTransaction.create({
-    data: {
-      type: 'SERVICE_COMPLETED',
-      bookingId,
-      businessId: escrowTx.businessId ?? '',
-      userId: providerUserId,
-      amount: escrowTx.amount,
-      platformFee: escrowTx.platformFee,
-      providerAmount: escrowTx.providerAmount,
-      currency: escrowTx.currency,
-      status: 'COMPLETED',
-      escrowStatus: 'RELEASED',
-      description: `Service completed: ${reason}`,
-      metadata: JSON.stringify({ escrowTransactionId: escrowTx.id, reason }),
-    },
-  });
-
-  // Log the release (fire-and-forget)
-  await logTransaction({
-    userId: providerUserId,
-    bookingId,
-    amount: escrowTx.providerAmount,
-    type: 'SERVICE_COMPLETED',
-    status: 'COMPLETED',
-    referenceId: escrowTx.id,
-    metadata: { reason, escrowTransactionId: escrowTx.id },
-  });
-
-  // Log platform fee (fire-and-forget)
-  await logTransaction({
-    userId: providerUserId,
-    bookingId,
-    amount: escrowTx.platformFee,
-    type: 'PLATFORM_FEE',
-    status: 'COMPLETED',
-    referenceId: escrowTx.id,
-    metadata: { reason },
-  });
-
-  // Notify provider (fire-and-forget)
-  try {
-    await db.notification.create({
-      data: {
-        userId: providerUserId,
-        title: 'Funds Released',
-        message: `Payment for booking ${bookingId.slice(0, 8)} has been released to your wallet. Amount: ${escrowTx.currency} ${escrowTx.providerAmount.toFixed(2)}`,
-        type: 'SYSTEM_ALERT',
-        link: JSON.stringify({
-          bookingId,
-          amount: escrowTx.providerAmount,
-          reason,
-          transactionId: escrowTx.id,
-        }),
-      },
-    });
-  } catch {
-    // Notification failure should never block the release
-  }
+  await afterRelease(bookingId, reason, settlement);
 
   return {
     success: true,
-    transaction: updatedTransaction!,
-    releasedAmount: escrowTx.providerAmount,
+    transaction: settlement.transaction,
+    releasedAmount: settlement.releasedAmount,
   };
 }
 
+// ── Refund / split ─────────────────────────────────────────────────────────
+
 /**
- * Refund escrow funds back to the customer.
- * Creates a REFUND PlatformTransaction and reverses the provider's wallet credit.
+ * Refund (all or part of) the escrow to the customer inside the caller's transaction.
  *
- * SECURITY: The escrow status check and update are atomic (single $transaction)
- * to prevent race conditions where concurrent requests could double-refund funds.
+ *  - Full refund from HELD or DISPUTED: the provider's pending share is removed.
+ *  - Full refund from RELEASED: clawback from the provider's available balance, which may go
+ *    negative if they already withdrew. A negative balance blocks payouts until it is cleared.
+ *  - Partial refund (dispute split) from HELD or DISPUTED: the customer gets `customerRefund`,
+ *    the provider keeps the rest minus a proportional platform fee, and the escrow row is
+ *    trimmed to what was actually settled so totals still add up.
  *
- * @param bookingId - The booking ID
- * @param reason    - Why the refund was issued
+ * Returns null when the booking has no escrow row at all.
  */
-export async function refundFromEscrow(
+export async function refundInTx(
+  tx: Tx,
   bookingId: string,
   reason: string,
-): Promise<EscrowRefundResult> {
-  // Atomic transaction: find escrow + update status in one go to prevent race conditions
-  const escrowResult = await db.$transaction(async (tx) => {
-    // Find the escrow transaction
-    const held = await tx.platformTransaction.findFirst({
-      where: {
-        bookingId,
-        type: 'ESCROW_HELD',
-      },
-    });
+  opts: { amount?: number; fraction?: number } = {},
+): Promise<EscrowSettlement | null> {
+  const row = await loadEscrow(tx, bookingId);
+  if (!row) return null;
 
-    if (!held) {
-      return null;
-    }
-
-    // Already refunded — idempotent return
-    if (held.escrowStatus === 'REFUNDED') {
-      return { ...held, alreadyRefunded: true as const };
-    }
-
-    // Immediately mark as REFUNDED within the same transaction to prevent double-refund
-    const updated = await tx.platformTransaction.update({
-      where: { id: held.id },
-      data: {
-        escrowStatus: 'REFUNDED',
-        status: 'REFUNDED',
-        completedAt: new Date(),
-        description: `Refunded: ${reason}`,
-      },
-    });
-
-    return { ...updated, alreadyRefunded: false as const };
-  });
-
-  if (!escrowResult) {
-    throw new Error(`No escrow transaction found for booking: ${bookingId}`);
-  }
-
-  if (escrowResult.alreadyRefunded) {
+  if (row.escrowStatus === ESCROW_STATUS.REFUNDED) {
     return {
-      success: true,
-      transaction: escrowResult,
-      refundAmount: escrowResult.amount,
+      kind: 'REFUNDED',
+      alreadySettled: true,
+      transaction: row,
+      providerUserId: row.userId,
+      releasedAmount: 0,
+      refundAmount: row.amount,
+      clawback: false,
+      paymentId: row.transactionId,
     };
   }
 
-  if (!escrowResult.userId) {
-    throw new Error(`Escrow transaction missing userId for booking: ${bookingId}`);
+  const wasReleased = row.escrowStatus === ESCROW_STATUS.RELEASED;
+  if (!wasReleased && row.escrowStatus !== ESCROW_STATUS.HELD && row.escrowStatus !== ESCROW_STATUS.DISPUTED) {
+    failInconsistent(bookingId, `unexpected escrow status "${row.escrowStatus}"`);
   }
 
-  const providerUserId = escrowResult.userId;
-  const refundAmount = escrowResult.providerAmount;
+  const providerUserId = providerOf(row, bookingId);
+  const total = money(row.amount);
+  const requested =
+    opts.amount !== undefined
+      ? money(opts.amount)
+      : opts.fraction !== undefined
+        ? money(total * opts.fraction)
+        : total;
 
-  // Get the updated transaction
-  const updatedTransaction = await db.platformTransaction.findUnique({
-    where: { id: escrowResult.id },
+  if (!(requested > 0) || requested > total + EPSILON) {
+    throw new EscrowError('INVALID_INPUT', `Refund must be more than 0 and at most ${total}.`);
+  }
+
+  const isFull = requested >= total - EPSILON;
+  const refund = isFull ? total : requested;
+
+  if (!isFull && wasReleased) {
+    throw new EscrowError(
+      'INVALID_STATE',
+      'Part of an already released payment cannot be refunded. Open a dispute first.',
+    );
+  }
+
+  // What stays with the provider and the platform after a split.
+  const keepAmount = isFull ? 0 : money(total - refund);
+  const keepFee = isFull ? 0 : money(row.platformFee * (keepAmount / total));
+  const keepProvider = isFull ? 0 : money(keepAmount - keepFee);
+  const providerDeduct = isFull ? row.providerAmount : money(row.providerAmount - keepProvider);
+
+  const now = new Date();
+  let updated: PlatformTransaction;
+
+  // Revenue recorded when the payment was released no longer stands once money goes back.
+  await tx.platformTransaction.updateMany({
+    where: { bookingId, type: 'SERVICE_COMPLETED', status: 'COMPLETED' },
+    data: { status: 'REFUNDED' },
   });
 
-  // Create a REFUND PlatformTransaction
-  await db.platformTransaction.create({
+  if (wasReleased) {
+    // Clawback: the money is already in the provider's available balance.
+    const description = `Refunded: ${reason}`;
+    await claimEscrow(tx, row, [ESCROW_STATUS.RELEASED], {
+      escrowStatus: ESCROW_STATUS.REFUNDED,
+      status: 'REFUNDED',
+      description,
+    });
+    await lockWallet(tx, providerUserId);
+    await tx.wallet.update({
+      where: { userId: providerUserId },
+      data: { balance: { decrement: row.providerAmount } },
+    });
+    await syncPayment(tx, row.transactionId, { escrowStatus: 'refunded', status: 'refunded', refundedAt: now });
+    updated = { ...row, escrowStatus: ESCROW_STATUS.REFUNDED, status: 'REFUNDED', completedAt: now, description };
+  } else if (isFull) {
+    const description = `Refunded: ${reason}`;
+    await claimEscrow(tx, row, OPEN_STATUSES, {
+      escrowStatus: ESCROW_STATUS.REFUNDED,
+      status: 'REFUNDED',
+      description,
+    });
+    await settlePending(tx, providerUserId, row.providerAmount, 0, bookingId);
+    await syncPayment(tx, row.transactionId, { escrowStatus: 'refunded', status: 'refunded', refundedAt: now });
+    updated = { ...row, escrowStatus: ESCROW_STATUS.REFUNDED, status: 'REFUNDED', completedAt: now, description };
+  } else {
+    // Split: trim the escrow row to the settled part and release that part to the provider.
+    const description = `Partially refunded: ${reason}`;
+    const metadata = JSON.stringify({
+      originalAmount: total,
+      originalPlatformFee: row.platformFee,
+      originalProviderAmount: row.providerAmount,
+      customerRefund: refund,
+      reason,
+    });
+    await claimEscrow(tx, row, OPEN_STATUSES, {
+      escrowStatus: ESCROW_STATUS.RELEASED,
+      amount: keepAmount,
+      platformFee: keepFee,
+      providerAmount: keepProvider,
+      description,
+      metadata,
+    });
+    await settlePending(tx, providerUserId, row.providerAmount, keepProvider, bookingId);
+    await syncPayment(tx, row.transactionId, { escrowStatus: 'released', releasedAt: now, refundedAt: now });
+    await tx.platformTransaction.create({
+      data: {
+        type: 'SERVICE_COMPLETED',
+        bookingId,
+        businessId: row.businessId,
+        userId: providerUserId,
+        amount: keepAmount,
+        platformFee: keepFee,
+        providerAmount: keepProvider,
+        currency: row.currency,
+        status: 'COMPLETED',
+        escrowStatus: ESCROW_STATUS.RELEASED,
+        description: `Service completed (partial): ${reason}`,
+        metadata: JSON.stringify({ escrowTransactionId: row.id, reason, customerRefund: refund }),
+      },
+    });
+    updated = {
+      ...row,
+      escrowStatus: ESCROW_STATUS.RELEASED,
+      amount: keepAmount,
+      platformFee: keepFee,
+      providerAmount: keepProvider,
+      completedAt: now,
+      description,
+      metadata,
+    };
+  }
+
+  await tx.platformTransaction.create({
     data: {
       type: 'REFUND',
       bookingId,
-      businessId: escrowResult.businessId ?? '',
+      businessId: row.businessId,
       userId: providerUserId,
-      amount: escrowResult.amount,
+      amount: refund,
       platformFee: 0,
-      providerAmount: -refundAmount,
-      currency: escrowResult.currency,
+      providerAmount: -providerDeduct,
+      currency: row.currency,
       status: 'COMPLETED',
       description: `Refund to customer: ${reason}`,
       metadata: JSON.stringify({
-        escrowTransactionId: escrowResult.id,
+        escrowTransactionId: row.id,
         reason,
-        refundAmount,
+        refundAmount: refund,
+        split: !isFull,
+        clawback: wasReleased,
       }),
     },
   });
 
-  // Reverse the provider's wallet credit (atomic transaction)
-  try {
-    await db.$transaction(async (tx) => {
-      const wallet = await tx.wallet.findUnique({ where: { userId: providerUserId } });
-      if (!wallet) return;
+  return {
+    kind: isFull ? 'REFUNDED' : 'SPLIT',
+    alreadySettled: false,
+    transaction: updated,
+    providerUserId,
+    releasedAmount: keepProvider,
+    refundAmount: refund,
+    clawback: wasReleased,
+    paymentId: row.transactionId,
+  };
+}
 
-      const booking = await tx.booking.findUnique({
-        where: { id: bookingId },
-        select: { status: true },
-      });
+/**
+ * Logs and alerts after a refund has been committed. Never throws.
+ *
+ * The ledger is updated, but nothing sends the money back through the payment provider.
+ * Admins get an alert with the payment reference so the refund can be sent.
+ */
+export async function afterRefund(
+  bookingId: string,
+  reason: string,
+  settlement: EscrowSettlement,
+): Promise<void> {
+  if (settlement.alreadySettled || settlement.refundAmount <= 0) return;
+  const t = settlement.transaction;
 
-      // Determine which balance to deduct from based on booking status
-      const isVerified = booking && (booking.status === 'COMPLETED');
-
-      if (isVerified && wallet.balance >= refundAmount) {
-        // Funds are in available balance
-        await tx.wallet.update({
-          where: { id: wallet.id },
-          data: { balance: { decrement: refundAmount } },
-        });
-      } else if (wallet.balance >= refundAmount) {
-        // Fallback to available balance
-        await tx.wallet.update({
-          where: { id: wallet.id },
-          data: { balance: { decrement: refundAmount } },
-        });
-      }
-      // If insufficient funds in all balances, silently skip
-      // (this shouldn't happen in practice if the escrow flow is followed correctly)
+  if (settlement.providerUserId) {
+    await logTransaction({
+      userId: settlement.providerUserId,
+      bookingId,
+      amount: -settlement.refundAmount,
+      type: 'REFUND',
+      status: 'COMPLETED',
+      referenceId: t.id,
+      metadata: {
+        reason,
+        escrowTransactionId: t.id,
+        refundAmount: settlement.refundAmount,
+        clawback: settlement.clawback,
+        providerRefund: 'REQUIRED',
+      },
     });
-  } catch (walletError) {
-    // Wallet deduction failure logged but not propagated
-    // The PlatformTransaction is already marked as REFUNDED above
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Escrow] Wallet deduction failed during refund:', walletError);
+
+    if (settlement.clawback) {
+      await notifyUser(
+        settlement.providerUserId,
+        'Payment Reversed',
+        `A payment for booking ${short(bookingId)} was refunded to the customer after it had been released. ${formatMoney(t.currency, t.providerAmount)} was taken from your available balance.`,
+        { bookingId, reason },
+      );
     }
   }
 
-  // Log the refund (fire-and-forget)
-  await logTransaction({
-    userId: providerUserId,
-    bookingId,
-    amount: -refundAmount,
-    type: 'REFUND',
-    status: 'COMPLETED',
-    referenceId: escrowResult.id,
-    metadata: { reason, escrowTransactionId: escrowResult.id, refundAmount },
-  });
+  let paymentInfo = '';
+  if (settlement.paymentId) {
+    try {
+      const payment = await db.payment.findUnique({
+        where: { id: settlement.paymentId },
+        select: { method: true, providerRef: true, transactionRef: true },
+      });
+      if (payment) {
+        paymentInfo = ` Paid with ${payment.method}, reference ${payment.providerRef || payment.transactionRef}.`;
+      }
+    } catch {
+      // The alert is still useful without the reference.
+    }
+  }
+
+  await alertAdmins(
+    'Customer refund to send',
+    `Send ${formatMoney(t.currency, settlement.refundAmount)} back to the customer for booking ${short(bookingId)}.${paymentInfo} The escrow ledger is updated; nothing has been sent through the payment provider.`,
+    { bookingId, refundAmount: settlement.refundAmount, paymentId: settlement.paymentId },
+  );
+}
+
+/**
+ * Refund escrow funds to the customer.
+ *
+ * @param bookingId - The booking ID
+ * @param reason    - Why the refund was issued
+ * @param options   - customerRefundAmount: refund only part of the payment (dispute split)
+ */
+export async function refundFromEscrow(
+  bookingId: string,
+  reason: string,
+  options: { customerRefundAmount?: number } = {},
+): Promise<EscrowRefundResult> {
+  const settlement = await db.$transaction(
+    (tx) => refundInTx(tx, bookingId, reason, { amount: options.customerRefundAmount }),
+    TX_OPTIONS,
+  );
+
+  if (!settlement) {
+    throw new EscrowError('NO_ESCROW', `No escrow found for booking ${short(bookingId)}.`);
+  }
+
+  await afterRefund(bookingId, reason, settlement);
 
   return {
     success: true,
-    transaction: updatedTransaction!,
-    refundAmount,
+    transaction: settlement.transaction,
+    refundAmount: settlement.refundAmount,
   };
 }
+
+// ── Dispute ────────────────────────────────────────────────────────────────
+
+/**
+ * Freeze the escrow while a dispute is open, inside the caller's transaction.
+ *
+ * HELD → DISPUTED changes the status only; the money is already in pending.
+ * RELEASED → DISPUTED pulls the provider's share back from available to pending (the
+ * available balance may go negative if it was already withdrawn).
+ *
+ * Returns null when the booking has no escrow row at all.
+ */
+export async function disputeInTx(tx: Tx, bookingId: string): Promise<EscrowDispute | null> {
+  const row = await loadEscrow(tx, bookingId);
+  if (!row) return null;
+
+  if (row.escrowStatus === ESCROW_STATUS.DISPUTED) {
+    return { transaction: row, alreadyDisputed: true, pulledBack: false };
+  }
+
+  if (row.escrowStatus === ESCROW_STATUS.REFUNDED) {
+    throw new EscrowError('INVALID_STATE', 'This payment was already refunded, so it cannot be disputed.');
+  }
+
+  const fromReleased = row.escrowStatus === ESCROW_STATUS.RELEASED;
+  if (!fromReleased && row.escrowStatus !== ESCROW_STATUS.HELD) {
+    failInconsistent(bookingId, `unexpected escrow status "${row.escrowStatus}"`);
+  }
+
+  const providerUserId = providerOf(row, bookingId);
+  const description = 'Disputed: funds frozen until the dispute is resolved';
+
+  await claimEscrow(tx, row, [row.escrowStatus as string], {
+    escrowStatus: ESCROW_STATUS.DISPUTED,
+    description,
+  });
+
+  if (fromReleased) {
+    await lockWallet(tx, providerUserId);
+    await tx.wallet.update({
+      where: { userId: providerUserId },
+      data: {
+        balance: { decrement: row.providerAmount },
+        pendingBalance: { increment: row.providerAmount },
+      },
+    });
+  }
+  await syncPayment(tx, row.transactionId, { escrowStatus: 'disputed' });
+
+  return {
+    transaction: { ...row, escrowStatus: ESCROW_STATUS.DISPUTED, description },
+    alreadyDisputed: false,
+    pulledBack: fromReleased,
+  };
+}
+
+/** Freeze the escrow for a dispute. Returns null when the booking has no escrow. */
+export async function disputeEscrow(bookingId: string): Promise<EscrowDispute | null> {
+  return db.$transaction((tx) => disputeInTx(tx, bookingId), TX_OPTIONS);
+}
+
+// ── Queries ────────────────────────────────────────────────────────────────
 
 /**
  * Get the current escrow status for a booking.
@@ -500,22 +985,22 @@ export async function getEscrowStatus(bookingId: string): Promise<EscrowStatusIn
 export async function getEscrowSummary(): Promise<EscrowSummary> {
   const [held, released, refunded, disputed] = await Promise.all([
     db.platformTransaction.aggregate({
-      where: { type: 'ESCROW_HELD', escrowStatus: 'HELD' },
+      where: { type: 'ESCROW_HELD', escrowStatus: ESCROW_STATUS.HELD },
       _sum: { amount: true },
       _count: { id: true },
     }),
     db.platformTransaction.aggregate({
-      where: { type: 'ESCROW_HELD', escrowStatus: 'RELEASED' },
+      where: { type: 'ESCROW_HELD', escrowStatus: ESCROW_STATUS.RELEASED },
       _sum: { amount: true },
       _count: { id: true },
     }),
     db.platformTransaction.aggregate({
-      where: { type: 'ESCROW_HELD', escrowStatus: 'REFUNDED' },
+      where: { type: 'ESCROW_HELD', escrowStatus: ESCROW_STATUS.REFUNDED },
       _sum: { amount: true },
       _count: { id: true },
     }),
     db.platformTransaction.aggregate({
-      where: { type: 'ESCROW_HELD', escrowStatus: 'DISPUTED' },
+      where: { type: 'ESCROW_HELD', escrowStatus: ESCROW_STATUS.DISPUTED },
       _sum: { amount: true },
       _count: { id: true },
     }),
@@ -529,6 +1014,7 @@ export async function getEscrowSummary(): Promise<EscrowSummary> {
     heldCount: held._count.id || 0,
     releasedCount: released._count.id || 0,
     refundedCount: refunded._count.id || 0,
+    disputedCount: disputed._count.id || 0,
   };
 }
 
@@ -559,5 +1045,5 @@ export async function calculatePlatformFee(amount: number): Promise<number> {
   }
 
   // Round to 2 decimal places
-  return Math.round(amount * (feePercentage / 100) * 100) / 100;
+  return money(amount * (feePercentage / 100));
 }

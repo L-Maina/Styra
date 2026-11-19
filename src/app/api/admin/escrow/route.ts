@@ -1,21 +1,50 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
-import { successResponse, errorResponse } from '@/lib/api-utils';
-import {
-  getEscrowSummary,
-  getEscrowStatus,
-  releaseFromEscrow,
-  refundFromEscrow,
-} from '@/lib/escrow';
+import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { getEscrowSummary, getEscrowStatus } from '@/lib/escrow';
+import { adminSettleEscrow } from '@/lib/verification';
 import { db } from '@/lib/db';
 import { getPlatformWalletStats } from '@/lib/wallet';
+
+/** Escrow rows have no relations in the schema, so bookings and businesses are joined here. */
+async function withDetails<T extends { bookingId: string | null; businessId: string | null }>(rows: T[]) {
+  const bookingIds = Array.from(new Set(rows.map((r) => r.bookingId).filter((id): id is string => !!id)));
+  const businessIds = Array.from(new Set(rows.map((r) => r.businessId).filter((id): id is string => !!id)));
+
+  const [bookings, businesses] = await Promise.all([
+    bookingIds.length
+      ? db.booking.findMany({
+          where: { id: { in: bookingIds } },
+          select: {
+            id: true,
+            date: true,
+            time: true,
+            status: true,
+            customer: { select: { id: true, name: true, email: true } },
+          },
+        })
+      : [],
+    businessIds.length
+      ? db.business.findMany({ where: { id: { in: businessIds } }, select: { id: true, name: true } })
+      : [],
+  ]);
+
+  const bookingById = new Map(bookings.map((b) => [b.id, b]));
+  const businessById = new Map(businesses.map((b) => [b.id, b]));
+
+  return rows.map((row) => ({
+    ...row,
+    booking: (row.bookingId && bookingById.get(row.bookingId)) || null,
+    business: (row.businessId && businessById.get(row.businessId)) || null,
+  }));
+}
 
 /**
  * GET /api/admin/escrow
  * Admin views all escrow data + summary
  *
  * Query params:
- *   type: "summary" | "held" | "released" | "disputed" (default: "summary")
+ *   type: "summary" | "held" | "released" | "disputed" | "refunded" (default: "summary")
  *   bookingId: string (get specific booking's escrow status)
  */
 export async function GET(request: NextRequest) {
@@ -38,8 +67,7 @@ export async function GET(request: NextRequest) {
       getPlatformWalletStats().catch(() => null),
     ]);
 
-    let transactions: unknown[] = [];
-    const escrowFilter: Record<string, unknown> = { type: 'ESCROW_HELD' };
+    const escrowFilter: { type: string; escrowStatus?: string } = { type: 'ESCROW_HELD' };
 
     switch (type) {
       case 'held':
@@ -56,36 +84,20 @@ export async function GET(request: NextRequest) {
         break;
     }
 
-    const queryOptions: any = {
+    const rows = await db.platformTransaction.findMany({
       where: escrowFilter,
       orderBy: { createdAt: 'desc' },
       take: 50,
-      include: {
-        booking: {
-          select: {
-            id: true,
-            date: true,
-            startTime: true,
-            status: true,
-            customer: { select: { id: true, name: true, email: true } },
-          },
-        },
-        business: {
-          select: { id: true, name: true },
-        },
-      },
-    };
-    transactions = await db.platformTransaction.findMany(queryOptions) as unknown[];
+    });
 
     return successResponse({
       summary: escrowSummary,
       walletStats,
-      transactions,
+      transactions: await withDetails(rows),
       filter: type,
     });
-  } catch (error: unknown) {
-    const err = error as Error;
-    return errorResponse(err.message, err.message.includes('Unauthorized') ? 401 : 500);
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 
@@ -94,6 +106,9 @@ export async function GET(request: NextRequest) {
  * Admin manually releases or refunds an escrow
  *
  * Body: { bookingId: string, action: "release" | "refund", reason: string }
+ *
+ * A refund updates the ledger only. The money still has to be sent back through the payment
+ * provider; admins get a notification with the payment reference.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -110,30 +125,25 @@ export async function POST(request: NextRequest) {
       return errorResponse('bookingId and action are required', 400);
     }
 
-    if (!['release', 'refund'].includes(action)) {
+    if (action !== 'release' && action !== 'refund') {
       return errorResponse('action must be "release" or "refund"', 400);
     }
 
-    if (action === 'release') {
-      const result = await releaseFromEscrow(bookingId, reason || 'Admin manual release');
-      return successResponse({
-        success: true,
-        action: 'released',
-        releasedAmount: result.releasedAmount,
-        transactionId: result.transaction.id,
-      });
-    }
+    const result = await adminSettleEscrow(
+      bookingId,
+      action,
+      reason || (action === 'release' ? 'Admin manual release' : 'Admin manual refund'),
+    );
 
-    // action === 'refund'
-    const result = await refundFromEscrow(bookingId, reason || 'Admin manual refund');
     return successResponse({
       success: true,
-      action: 'refunded',
-      refundAmount: result.refundAmount,
-      transactionId: result.transaction.id,
+      action: result.action,
+      ...(result.action === 'released'
+        ? { releasedAmount: result.amount }
+        : { refundAmount: result.amount }),
+      transactionId: result.transactionId,
     });
-  } catch (error: unknown) {
-    const err = error as Error;
-    return errorResponse(err.message, 500);
+  } catch (error) {
+    return handleApiError(error);
   }
 }

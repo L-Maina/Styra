@@ -1,18 +1,17 @@
 import { NextRequest } from 'next/server';
-import { requireAuth, blockRole, canManageBusiness } from '@/lib/auth';
+import { blockRole, canManageBusiness } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { BookingStatus, isStatus } from '@/lib/booking-status';
+import { markBookingCompleted } from '@/lib/verification';
 import { db } from '@/lib/db';
-
-/** Verification deadline in milliseconds (24 hours) */
-const VERIFICATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /**
  * POST /api/bookings/[id]/complete
  *
  * Provider marks a service as completed.
- * Transitions booking: IN_PROGRESS → COMPLETED
- * Sets a verification deadline (24 hours from now).
- * Creates notification for the customer.
+ * Transitions booking: IN_PROGRESS → COMPLETED and starts the customer's 24 hour
+ * verification window (Booking.completedAt).
+ * Creates a notification for the customer.
  */
 export async function POST(
   request: NextRequest,
@@ -24,11 +23,7 @@ export async function POST(
     const { id } = await params;
     const booking = await db.booking.findUnique({
       where: { id },
-      include: {
-        business: { select: { id: true, ownerId: true, name: true } },
-        customer: { select: { id: true, name: true, email: true } },
-        service: { select: { id: true, name: true } },
-      },
+      select: { id: true, business: { select: { ownerId: true } } },
     });
 
     if (!booking) {
@@ -40,58 +35,23 @@ export async function POST(
       return errorResponse('Only the business owner can mark a booking as completed', 403);
     }
 
-    // Only IN_PROGRESS bookings can be marked as completed
-    if (booking.status !== 'IN_PROGRESS') {
-      if (booking.status === 'COMPLETED') {
-        return successResponse({ message: 'Booking already completed', booking });
-      }
-      if (booking.status === 'VERIFIED') {
-        return successResponse({ message: 'Booking already verified', booking });
-      }
-      return errorResponse(
-        `Cannot complete booking with status: ${booking.status}. Only IN_PROGRESS bookings can be completed.`,
-        400,
-      );
-    }
+    // IN_PROGRESS → COMPLETED. Already completed or verified bookings come back unchanged.
+    const result = await markBookingCompleted(id);
 
-    // Calculate verification deadline (24 hours from now)
-    const verificationDeadline = new Date(Date.now() + VERIFICATION_WINDOW_MS);
-
-    // Transition: IN_PROGRESS → COMPLETED
-    const updatedBooking = await db.booking.update({
-      where: { id },
-      data: {
-        status: 'COMPLETED',
-        notes: booking.notes
-          ? `${booking.notes}\n\n[Completed by provider at ${new Date().toISOString()}]`
-          : `Completed by provider at ${new Date().toISOString()}`,
-      },
-    });
-
-    // Notify customer about completion (fire-and-forget)
-    try {
-      await db.notification.create({
-        data: {
-          userId: booking.customerId,
-          title: 'Service Completed',
-          message: `Your ${booking.service?.name || 'service'} at ${booking.business.name} has been marked as completed. Please verify the service within 24 hours to release payment to the provider.`,
-          type: 'VERIFICATION_UPDATE',
-          link: JSON.stringify({
-            bookingId: id,
-            businessName: booking.business.name,
-            serviceName: booking.service?.name,
-            verificationDeadline: verificationDeadline.toISOString(),
-          }),
-        },
+    if (!result.changed) {
+      return successResponse({
+        message: isStatus(result.booking.status, BookingStatus.VERIFIED)
+          ? 'Booking already verified'
+          : 'Booking already completed',
+        booking: result.booking,
       });
-    } catch {
-      // Notification failure never blocks the operation
     }
 
+    // The customer was notified by markBookingCompleted.
     return successResponse({
       message: 'Booking marked as completed. Customer has 24 hours to verify.',
-      booking: updatedBooking,
-      verificationDeadline,
+      booking: result.booking,
+      verificationDeadline: result.deadline,
     });
   } catch (error) {
     return handleApiError(error);
