@@ -242,6 +242,7 @@ class _DisputesTab extends StatelessWidget {
   Future<void> _resolve(BuildContext ctx, WidgetRef ref, Dispute d, VoidCallback refresh) async {
     String action = 'RELEASE_TO_PROVIDER';
     final note = TextEditingController();
+    final refund = TextEditingController();
     final ok = await showDialog<bool>(
       context: ctx,
       builder: (c) => StatefulBuilder(
@@ -250,6 +251,8 @@ class _DisputesTab extends StatelessWidget {
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             for (final a in const {'RELEASE_TO_PROVIDER': 'Release to provider', 'FULL_REFUND': 'Full refund to customer', 'PARTIAL_REFUND': 'Partial refund'}.entries)
               RadioListTile<String>(value: a.key, groupValue: action, onChanged: (v) => set(() => action = v!), title: Text(a.value), contentPadding: EdgeInsets.zero),
+            if (action == 'PARTIAL_REFUND')
+              TextField(controller: refund, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(hintText: 'Amount to refund the customer')),
             TextField(controller: note, maxLines: 3, decoration: const InputDecoration(hintText: 'Resolution notes (min 10 characters)')),
           ]),
           actions: [
@@ -261,12 +264,23 @@ class _DisputesTab extends StatelessWidget {
     );
     if (ok != true || !ctx.mounted) return;
     if (note.text.trim().length < 10) return showError(ctx, 'Resolution notes must be at least 10 characters.');
-    await _call(ctx, () => ref.read(apiProvider).post('/disputes/${d.id}/resolve', {'action': action, 'resolution': note.text.trim()}), refresh, 'Dispute resolved');
+    final amount = double.tryParse(refund.text.trim());
+    if (action == 'PARTIAL_REFUND' && (amount == null || amount <= 0)) return showError(ctx, 'Enter the amount to refund.');
+    await _call(
+      ctx,
+      () => ref.read(apiProvider).patch('/disputes/${d.id}/resolve', {
+        'action': action,
+        'resolution': note.text.trim(),
+        if (action == 'PARTIAL_REFUND') 'customerRefundAmount': amount,
+      }),
+      refresh,
+      'Dispute resolved',
+    );
   }
 
   @override
   Widget build(BuildContext context) => _AdminListView(
-        path: '/disputes',
+        path: '/admin/disputes',
         listKey: 'disputes',
         statuses: const ['OPEN', 'IN_PROGRESS', 'RESOLVED'],
         emptyIcon: Icons.gavel_outlined,
@@ -288,7 +302,7 @@ class _DisputesTab extends StatelessWidget {
 }
 
 // ---------------- Escrow ----------------
-final _escrowProvider = FutureProvider.autoDispose<Json>((ref) async => asMap(await ref.watch(apiProvider).get('/admin/escrow', query: {'type': 'summary'})));
+final _escrowProvider = FutureProvider.autoDispose<Json>((ref) async => asMap(await ref.watch(apiProvider).get('/admin/escrow', query: {'type': 'held'})));
 
 class _EscrowTab extends ConsumerWidget {
   const _EscrowTab();
