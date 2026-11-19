@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
             select: { id: true, name: true, avatar: true, email: true, phone: true },
           },
           business: {
-            select: { id: true, name: true, address: true },
+            select: { id: true, name: true, address: true, logo: true, coverImage: true },
           },
           service: {
             select: { id: true, name: true, price: true, duration: true },

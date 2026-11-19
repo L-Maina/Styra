@@ -162,9 +162,23 @@ export interface BookingsParams {
   toDate?: string;
 }
 
+/**
+ * The bookings API returns the database names `time` and `totalPrice`; the dashboards read
+ * `startTime` and `totalAmount`. Mapping once here keeps every screen reading real values.
+ */
+function withDashboardFields(row: Booking): Booking {
+  const raw = row as Booking & { time?: string; totalPrice?: number };
+  return {
+    ...row,
+    startTime: row.startTime || raw.time || '',
+    totalAmount: row.totalAmount ?? raw.totalPrice ?? 0,
+  };
+}
+
 export function useBookings(params?: BookingsParams, isAuthenticated = false) {
   const fetchFn = useCallback(async () => {
-    return apiGet<Booking>('/bookings', params as Record<string, string | number | boolean | undefined>);
+    const rows = await apiGet<Booking>('/bookings', params as Record<string, string | number | boolean | undefined>);
+    return rows ? rows.map(withDashboardFields) : rows;
   }, [params]);
 
   return useFetch<Booking>(fetchFn, [params, isAuthenticated], isAuthenticated);
