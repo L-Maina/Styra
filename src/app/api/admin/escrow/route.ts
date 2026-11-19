@@ -29,8 +29,12 @@ async function withDetails<T extends { bookingId: string | null; businessId: str
       : [],
   ]);
 
-  const bookingById = new Map(bookings.map((b) => [b.id, b]));
-  const businessById = new Map(businesses.map((b) => [b.id, b]));
+  // Plain loops: `bookings` is a union of array types (query result | empty array), and calling
+  // `.map` on a union of arrays is the part of this that differs between TypeScript versions.
+  const bookingById = new Map<string, (typeof bookings)[number]>();
+  for (const b of bookings) bookingById.set(b.id, b);
+  const businessById = new Map<string, (typeof businesses)[number]>();
+  for (const b of businesses) businessById.set(b.id, b);
 
   return rows.map((row) => ({
     ...row,
