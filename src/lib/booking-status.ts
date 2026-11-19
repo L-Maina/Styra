@@ -44,3 +44,57 @@ export function statusVariants(...statuses: BookingStatusValue[]): string[] {
 export function statusLabel(value: string | null | undefined): string {
   return normalizeStatus(value).toLowerCase().replace(/_/g, ' ');
 }
+
+// ── Verification window and display helpers (safe to import from client components) ──────────
+
+/** Hours the customer has to confirm or report a problem after the provider marks a booking complete. */
+export const VERIFICATION_WINDOW_HOURS = 24;
+
+/** When the customer's window closes: 24 hours after completion. Older rows fall back to updatedAt. */
+export function verificationDeadline(booking: {
+  completedAt?: string | Date | null;
+  updatedAt?: string | Date | null;
+}): Date | null {
+  const start = booking.completedAt ?? booking.updatedAt;
+  if (!start) return null;
+  const startMs = new Date(start).getTime();
+  if (Number.isNaN(startMs)) return null;
+  return new Date(startMs + VERIFICATION_WINDOW_HOURS * 60 * 60 * 1000);
+}
+
+/** Booked but not finished: waiting for the appointment, or in the middle of it. */
+export function isUpcoming(value: string | null | undefined): boolean {
+  return isStatus(value, BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS);
+}
+
+/** The provider did the work: the payment is held (COMPLETED) or has been released (VERIFIED). */
+export function isDone(value: string | null | undefined): boolean {
+  return isStatus(value, BookingStatus.COMPLETED, BookingStatus.VERIFIED);
+}
+
+export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+
+export interface BookingStatusMeta {
+  /** Short text for a badge. */
+  label: string;
+  tone: StatusTone;
+}
+
+const STATUS_META: Record<BookingStatusValue, BookingStatusMeta> = {
+  [BookingStatus.PENDING]: { label: 'Pending', tone: 'warning' },
+  [BookingStatus.CONFIRMED]: { label: 'Confirmed', tone: 'success' },
+  [BookingStatus.IN_PROGRESS]: { label: 'In progress', tone: 'info' },
+  [BookingStatus.COMPLETED]: { label: 'Awaiting confirmation', tone: 'info' },
+  [BookingStatus.VERIFIED]: { label: 'Completed', tone: 'success' },
+  [BookingStatus.DISPUTED]: { label: 'Under review', tone: 'warning' },
+  [BookingStatus.CANCELLED]: { label: 'Cancelled', tone: 'neutral' },
+  [BookingStatus.NO_SHOW]: { label: 'No-show', tone: 'danger' },
+};
+
+/** Badge text and tone for any stored status, including older lowercase rows. */
+export function bookingStatusMeta(value: string | null | undefined): BookingStatusMeta {
+  const known = STATUS_META[normalizeStatus(value) as BookingStatusValue];
+  if (known) return known;
+  const text = statusLabel(value);
+  return { label: text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Unknown', tone: 'neutral' };
+}

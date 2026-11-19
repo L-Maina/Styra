@@ -20,7 +20,6 @@ import {
   Plus,
   Edit3,
   Trash2,
-  RefreshCw,
   Check,
   AlertCircle,
   Building2,
@@ -45,12 +44,22 @@ import { cn } from '@/lib/utils';
 import { useAuthStore, useCurrencyStore } from '@/store';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import type { User, Booking as ApiBooking } from '@/types';
+import { toast } from 'sonner';
+import api from '@/lib/api-client';
+import { BookingStatus, isDone, isStatus, isUpcoming, normalizeStatus } from '@/lib/booking-status';
+import {
+  BookingStatusBadge,
+  CustomerEscrowActions,
+  VerificationNotice,
+} from '@/components/booking/BookingEscrowActions';
 
 interface CustomerDashboardProps {
   user: User | null;
   onNavigate?: (page: string, tab?: string) => void;
   initialTab?: string;
   bookings?: ApiBooking[];
+  /** Called after a booking changed on the server (cancelled, confirmed, disputed), so the list can be refetched. */
+  onBookingsChanged?: () => void;
 }
 
 type DashboardSection = 'overview' | 'bookings' | 'favorites' | 'reviews' | 'payments' | 'settings';
@@ -63,10 +72,13 @@ interface Booking {
   service: string;
   date: string;
   time: string;
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+  status: ApiBooking['status'];
   price: number;
   staffName?: string;
   hasReview?: boolean;
+  /** Start of the 24 hour confirmation window (set when the provider marks the booking complete). */
+  completedAt?: string | Date | null;
+  updatedAt?: string | Date | null;
 }
 
 interface Favorite {
@@ -95,6 +107,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   onNavigate,
   initialTab = 'overview',
   bookings: apiBookings,
+  onBookingsChanged,
 }) => {
   const [activeSection, setActiveSection] = useState<DashboardSection>((initialTab as DashboardSection) || 'overview');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -129,10 +142,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       service: b.service?.name || 'Unknown Service',
       date: b.date,
       time: b.startTime,
-      status: b.status as Booking['status'],
+      status: normalizeStatus(b.status) as Booking['status'],
       price: b.totalAmount,
       staffName: b.staff?.name,
-      hasReview: !!b.review,
+      hasReview: !!(b.review || b.reviews?.length),
+      completedAt: b.completedAt,
+      updatedAt: b.updatedAt,
     }));
   }, [apiBookings]);
 
@@ -146,9 +161,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   // Stats computed from real bookings
   const stats = {
     totalBookings: bookings.length,
-    upcomingBookings: bookings.filter(b => b.status === 'PENDING' || b.status === 'CONFIRMED').length,
-    completedBookings: bookings.filter(b => b.status === 'COMPLETED').length,
-    totalSpent: bookings.filter(b => b.status === 'COMPLETED').reduce((sum, b) => sum + b.price, 0),
+    upcomingBookings: bookings.filter(b => isUpcoming(b.status)).length,
+    completedBookings: bookings.filter(b => isDone(b.status)).length,
+    totalSpent: bookings.filter(b => isDone(b.status)).reduce((sum, b) => sum + b.price, 0),
     reviewsGiven: bookings.filter(b => b.hasReview).length,
     favoritesCount: 0, // TODO: Fetch from API when favorites endpoint is ready
   };
@@ -195,31 +210,41 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     );
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED':
-        return 'success';
-      case 'PENDING':
-        return 'warning';
-      case 'COMPLETED':
-        return 'primary';
-      case 'CANCELLED':
-        return 'destructive';
-      default:
-        return 'default';
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
+
+  const handleCancelBooking = async (bookingId: string) => {
+    setIsCancelling(true);
+    try {
+      // The server cancels the booking and reverses any payment held in escrow in one step.
+      const result = await api.cancelBooking(bookingId);
+      const refund = result.data?.refundAmount ?? 0;
+      setBookings(prev => prev.map(b => (b.id === bookingId ? { ...b, status: 'CANCELLED' as const } : b)));
+      setShowCancelModal(null);
+      toast.success(
+        refund > 0
+          ? `Booking cancelled. Your refund of ${formatPrice(refund)} is being processed.`
+          : 'Booking cancelled.',
+      );
+      onBookingsChanged?.();
+    } catch {
+      // The API client already showed the reason (for example the 24 hour rule). Keep the dialog open.
+    } finally {
+      setIsCancelling(false);
     }
   };
 
-  const handleCancelBooking = (bookingId: string) => {
-    setBookings(bookings.map(b => 
-      b.id === bookingId ? { ...b, status: 'CANCELLED' as const } : b
-    ));
-    setShowCancelModal(null);
-  };
-
-  const handleSubmitReview = (bookingId: string) => {
+  const handleSubmitReview = async (bookingId: string) => {
     const booking = bookings.find(b => b.id === bookingId);
-    if (booking) {
+    if (!booking) return;
+    setIsReviewing(true);
+    try {
+      await api.createReview({
+        businessId: booking.businessId,
+        bookingId,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      });
       const newReview: Review = {
         id: `r${Date.now()}`,
         businessId: booking.businessId,
@@ -229,21 +254,26 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         date: new Date().toISOString().split('T')[0],
         service: booking.service,
       };
-      setReviews([newReview, ...reviews]);
-      setBookings(bookings.map(b => 
-        b.id === bookingId ? { ...b, hasReview: true } : b
-      ));
+      setReviews(prev => [newReview, ...prev]);
+      setBookings(prev => prev.map(b => (b.id === bookingId ? { ...b, hasReview: true } : b)));
+      setShowReviewModal(null);
+      setReviewRating(5);
+      setReviewComment('');
+      toast.success('Thanks for your review.');
+      onBookingsChanged?.();
+    } catch {
+      // Error already shown by the API client. Keep the dialog open so the text is not lost.
+    } finally {
+      setIsReviewing(false);
     }
-    setShowReviewModal(null);
-    setReviewRating(5);
-    setReviewComment('');
   };
 
   const filteredBookings = bookings.filter(b => {
     if (filterStatus === 'all') return true;
-    if (filterStatus === 'upcoming') return b.status === 'CONFIRMED' || b.status === 'PENDING';
-    if (filterStatus === 'completed') return b.status === 'COMPLETED';
-    if (filterStatus === 'cancelled') return b.status === 'CANCELLED';
+    if (filterStatus === 'upcoming') return isUpcoming(b.status);
+    if (filterStatus === 'completed') return isDone(b.status);
+    if (filterStatus === 'review') return isStatus(b.status, BookingStatus.DISPUTED);
+    if (filterStatus === 'cancelled') return isStatus(b.status, BookingStatus.CANCELLED);
     return true;
   });
 
@@ -366,7 +396,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   </button>
                 </div>
                 <div className="space-y-3">
-                  {bookings.filter(b => b.status === 'CONFIRMED' || b.status === 'PENDING').slice(0, 3).map(booking => (
+                  {bookings.filter(b => isUpcoming(b.status)).slice(0, 3).map(booking => (
                     <div key={booking.id} className="flex items-center gap-3 sm:gap-4 p-3 rounded-lg bg-muted/30">
                       <img 
                         src={booking.businessImage} 
@@ -381,9 +411,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         <p className="text-xs sm:text-sm font-medium">{booking.date}</p>
                         <p className="text-xs text-muted-foreground">{booking.time}</p>
                       </div>
-                      <GlassBadge variant={getStatusColor(booking.status) as any} className="shrink-0">
-                        {booking.status}
-                      </GlassBadge>
+                      <BookingStatusBadge status={booking.status} className="shrink-0" />
                     </div>
                   ))}
                 </div>
@@ -457,6 +485,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   <option value="all">All Bookings</option>
                   <option value="upcoming">Upcoming</option>
                   <option value="completed">Completed</option>
+                  <option value="review">Under review</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
                 <GlassButton
@@ -512,43 +541,32 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         <div className="flex items-center gap-3">
                           <div className="text-right">
                             <div className="font-bold text-lg">{formatPrice(booking.price)}</div>
-                            <GlassBadge variant={getStatusColor(booking.status) as any}>
-                              {booking.status}
-                            </GlassBadge>
+                            <BookingStatusBadge status={booking.status} />
                           </div>
                         </div>
                         <div className="flex items-center gap-2 mt-2">
-                          {(booking.status === 'CONFIRMED' || booking.status === 'PENDING') && (
-                            <>
-                              <GlassButton
-                                variant="outline"
-                                size="sm"
-                                leftIcon={<RefreshCw className="h-3 w-3" />}
-                              >
-                                Reschedule
-                              </GlassButton>
-                              <GlassButton
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:bg-destructive/10"
-                                onClick={() => setShowCancelModal(booking.id)}
-                                leftIcon={<X className="h-3 w-3" />}
-                              >
-                                Cancel
-                              </GlassButton>
-                            </>
+                          {isStatus(booking.status, BookingStatus.PENDING, BookingStatus.CONFIRMED) && (
+                            <GlassButton
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:bg-destructive/10"
+                              onClick={() => setShowCancelModal(booking.id)}
+                              leftIcon={<X className="h-3 w-3" />}
+                            >
+                              Cancel
+                            </GlassButton>
                           )}
-                          {booking.status === 'COMPLETED' && !booking.hasReview && (
+                          {isStatus(booking.status, BookingStatus.VERIFIED) && !booking.hasReview && (
                             <GlassButton
                               variant="primary"
                               size="sm"
                               onClick={() => setShowReviewModal(booking.id)}
                               leftIcon={<Star className="h-3 w-3" />}
                             >
-                              Write Review
+                              Write review
                             </GlassButton>
                           )}
-                          {booking.status === 'COMPLETED' && booking.hasReview && (
+                          {isStatus(booking.status, BookingStatus.VERIFIED) && booking.hasReview && (
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <Check className="h-3 w-3" /> Reviewed
                             </span>
@@ -556,6 +574,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         </div>
                       </div>
                     </div>
+                    <VerificationNotice
+                      booking={{ ...booking, amount: booking.price }}
+                      audience="customer"
+                      className="mt-3 border-t border-white/5 pt-3"
+                    />
+                    <CustomerEscrowActions
+                      booking={{ ...booking, amount: booking.price }}
+                      onChanged={onBookingsChanged}
+                      className="mt-3"
+                    />
                   </GlassCard>
                 </motion.div>
               ))}
@@ -759,7 +787,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 </GlassButton>
               </div>
               <div className="space-y-3">
-                {bookings.filter(b => b.status === 'COMPLETED').map((payment) => (
+                {bookings.filter(b => isDone(b.status)).map((payment) => (
                   <div key={payment.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -1068,7 +1096,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 </div>
               </div>
               <p className="text-muted-foreground mb-6">
-                Are you sure you want to cancel this booking? The business will be notified and you may need to rebook.
+                Are you sure you want to cancel this booking? The business will be notified. Cancellations are accepted until 24 hours before the appointment.
               </p>
               <div className="flex gap-3">
                 <GlassButton
@@ -1082,6 +1110,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   variant="outline"
                   className="flex-1 text-red-500 border-red-500 hover:bg-red-500/10"
                   onClick={() => handleCancelBooking(showCancelModal)}
+                  isLoading={isCancelling}
                 >
                   Cancel Booking
                 </GlassButton>
@@ -1155,6 +1184,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   variant="primary"
                   className="flex-1"
                   onClick={() => handleSubmitReview(showReviewModal)}
+                  isLoading={isReviewing}
                   disabled={!reviewComment.trim()}
                 >
                   Submit Review

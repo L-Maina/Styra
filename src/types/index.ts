@@ -24,7 +24,15 @@ export type SubscriptionPlan = 'FREE' | 'PREMIUM' | 'FEATURED';
 
 export type MediaType = 'IMAGE' | 'VIDEO';
 
-export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+export type BookingStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'VERIFIED'
+  | 'DISPUTED'
+  | 'CANCELLED'
+  | 'NO_SHOW';
 
 export type PaymentMethod = 'STRIPE' | 'PAYPAL' | 'MPESA';
 
@@ -178,6 +186,8 @@ export interface Booking {
   status: BookingStatus;
   notes?: string;
   totalAmount: number;
+  /** Set when the provider marks the booking complete; the customer's 24 hour window starts here. */
+  completedAt?: string | Date | null;
   createdAt: Date;
   updatedAt: Date;
   customer?: User;
@@ -186,6 +196,9 @@ export interface Booking {
   staff?: Staff;
   payment?: Payment;
   review?: Review;
+  /** The bookings API returns these as arrays (a booking can be paid or reviewed once). */
+  payments?: Payment[];
+  reviews?: Review[];
 }
 
 // Payment

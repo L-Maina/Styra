@@ -209,7 +209,7 @@ export default function HomePage() {
   const { data: businesses, isLoading: businessesLoading, error: businessesError, refetch: refetchBusinesses } = useBusinesses();
 
   // Fetch bookings for authenticated users
-  const { data: bookings, isLoading: bookingsLoading, refetch: refetchBookings } = useBookings(undefined, isAuthenticated);
+  const { data: bookings, isLoading: bookingsLoading, revalidate: revalidateBookings } = useBookings(undefined, isAuthenticated);
 
   // Fetch notifications for authenticated users
   const { data: notifications, refetch: refetchNotifications } = useApiNotifications(isAuthenticated);
@@ -832,6 +832,7 @@ export default function HomePage() {
             onNavigate={navigate}
             initialTab={dashboardTab as any}
             bookings={showBookingsSkeleton ? undefined : bookings}
+            onBookingsChanged={revalidateBookings}
           />
         );
 
@@ -926,6 +927,7 @@ export default function HomePage() {
             user={user}
             onNavigate={navigate}
             bookings={showBookingsSkeleton ? undefined : bookings}
+            onBookingsChanged={revalidateBookings}
           />
         );
 

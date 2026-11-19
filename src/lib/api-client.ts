@@ -330,7 +330,33 @@ class ApiClient {
   }
 
   async cancelBooking(id: string) {
-    return this.request(`/bookings/${id}`, { method: 'DELETE', noRetry: true });
+    return this.request<{ message?: string; refundAmount?: number }>(`/bookings/${id}`, {
+      method: 'DELETE',
+      noRetry: true,
+    });
+  }
+
+  /** Provider: the service is done. Starts the customer's 24 hour confirmation window. */
+  async completeBooking(id: string) {
+    return this.request(`/bookings/${id}/complete`, { method: 'POST', noRetry: true });
+  }
+
+  /** Customer: the service was done. Releases the escrowed payment; a rating is optional. */
+  async confirmBooking(id: string, data: { rating?: number; comment?: string } = {}) {
+    return this.request<{ message?: string }>(`/bookings/${id}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      noRetry: true,
+    });
+  }
+
+  /** Customer: something was wrong. Keeps the payment in escrow until an admin decides. */
+  async disputeBooking(id: string, reason: string) {
+    return this.request<{ message?: string }>(`/bookings/${id}/dispute`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+      noRetry: true,
+    });
   }
 
   // Payment endpoints

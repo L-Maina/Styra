@@ -42,25 +42,35 @@ function useFetch<T>(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
-  const refetch = useCallback(() => {
-    setIsLoading(true);
+  // Loads the list again. A silent run keeps the current data on screen and does not flip
+  // isLoading, so a dashboard does not flash back to its skeleton after an action.
+  const run = useCallback((silent: boolean) => {
+    if (!silent) setIsLoading(true);
     setError(null);
     fetchFn()
       .then((result) => {
         setRawData(result || []);
         setError(null);
       })
-      .catch((err) => setError(err.message || 'Failed to load data'))
-      .finally(() => setIsLoading(false));
+      .catch((err) => {
+        if (!silent) setError(err.message || 'Failed to load data');
+      })
+      .finally(() => {
+        if (!silent) setIsLoading(false);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const refetch = useCallback(() => run(false), [run]);
+  /** Refresh in the background after the person changed something. */
+  const revalidate = useCallback(() => run(true), [run]);
 
   // When disabled, expose empty data to prevent stale data leakage
   const data = enabled ? rawData : [];
   const safeError = enabled ? error : null;
   const safeIsLoading = enabled ? isLoading : false;
 
-  return { data, isLoading: safeIsLoading, error: safeError, refetch };
+  return { data, isLoading: safeIsLoading, error: safeError, refetch, revalidate };
 }
 
 // ─── API helper ───────────────────────────────────────────────────────

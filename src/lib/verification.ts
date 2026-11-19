@@ -16,7 +16,13 @@
 
 import { db } from '@/lib/db';
 import { AppError } from '@/lib/app-error';
-import { BookingStatus, isStatus, statusLabel, statusVariants } from '@/lib/booking-status';
+import {
+  BookingStatus,
+  VERIFICATION_WINDOW_HOURS,
+  isStatus,
+  statusLabel,
+  statusVariants,
+} from '@/lib/booking-status';
 import {
   ESCROW_STATUS,
   EscrowError,
@@ -37,7 +43,7 @@ import type { Booking, Dispute } from '@prisma/client';
 // ── Constants ──────────────────────────────────────────────────────────────
 
 /** Verification window in milliseconds (24 hours) */
-export const VERIFICATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const VERIFICATION_WINDOW_MS = VERIFICATION_WINDOW_HOURS * 60 * 60 * 1000;
 
 /** Bookings handled per cron run, so one run stays well inside the function time limit. */
 const AUTO_VERIFY_BATCH = 100;
