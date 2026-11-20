@@ -124,7 +124,11 @@
     "phoneHint": "We'll send a payment prompt to this phone.",
     "waiting": "Check your phone and enter your M-Pesa PIN.",
     "mpesaTimeout": "M-Pesa didn't confirm the payment. Check your phone for the prompt, or try again. Your slot is held for {time}.",
-    "testNotice": "Test payments are on. No money moves."
+    "testNotice": "Test payments are on. No money moves.",
+    "methodsTitle": "How do you want to pay?",
+    "redirecting": "Taking you to the secure card page.",
+    "sentPrompt": "We sent a payment prompt to {phone}.",
+    "stillWaiting": "Still waiting for M-Pesa. Keep this page open."
   },
   "detail": {
     "title": "Booking {code}",
@@ -269,7 +273,8 @@
     "NETWORK": "You seem to be offline. Check your connection and try again.",
     "phoneInvalid": "Enter a Kenyan phone number, like 0712 345 678.",
     "details": "Details: {ref}",
-    "TOO_EARLY": "You can mark this once the appointment has started."
+    "TOO_EARLY": "You can mark this once the appointment has started.",
+    "PHONE_INVALID": "Enter a Kenyan phone number, like 0712 345 678."
   },
   "notify": {
     "smsConfirmed": "Booking confirmed: {business}, {time}. Payment is held until you confirm.",

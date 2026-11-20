@@ -32,7 +32,9 @@ source of truth; this page is the readable summary.
 | `POST /bookings` | signed in | `serviceId, startAt, staffId?, notes?` | `{ booking }` 201 (PENDING, held 15 min) |
 | `GET /bookings` | signed in | | `{ items[] }` (mine as customer) |
 | `GET /bookings/:code` | customer, business, admin | | `{ booking }` |
-| `POST /bookings/:code/pay` | customer | `method (MPESA, PAYSTACK, FAKE), phone?` | `{ booking }` |
+| `POST /bookings/:code/pay` | customer | `method (MPESA, PAYSTACK, FAKE), phone? (M-Pesa)` | `{ booking, next }`: `next.kind` is `DONE`, `WAIT_FOR_PHONE` (poll the booking until CONFIRMED) or `REDIRECT` (open `next.url`) |
+| `POST /webhooks/mpesa?payment=&token=` | Safaricom | STK callback | `{ ResultCode: 0 }` |
+| `POST /webhooks/paystack` | Paystack (`x-paystack-signature`) | event | `{ received }` |
 | `POST /bookings/:code/cancel` | customer | `reason?` | `{ booking }` (refund by policy) |
 | `POST /bookings/:code/confirm` | customer | | `{ booking }` (VERIFIED, business paid) |
 | `POST /bookings/:code/dispute` | customer | `reason (10–2000), details?` | `{ booking }` (DISPUTED, payment stays held) |
@@ -53,7 +55,7 @@ Coming in M4: payment webhooks, refunds and payouts queues, disputes for admins,
 `VALIDATION` (with `fields`), `UNAUTHENTICATED`, `FORBIDDEN`, `FORBIDDEN_ORIGIN`, `NOT_FOUND`, `EMAIL_TAKEN`,
 `PHONE_TAKEN`, `INVALID_CREDENTIALS`, `ACCOUNT_SUSPENDED`, `BUSINESS_EXISTS`, `NO_BUSINESS`, `SLOT_TAKEN`,
 `SLOT_IN_PAST`, `HOLD_EXPIRED`, `INVALID_STATE`, `PAYMENT_MISMATCH`, `PROVIDER_UNAVAILABLE`, `ALREADY_REVIEWED`,
-`INSUFFICIENT_BALANCE`, `BELOW_MINIMUM`, `TOO_EARLY`, `SERVER_ERROR` (with `ref`).
+`INSUFFICIENT_BALANCE`, `BELOW_MINIMUM`, `TOO_EARLY`, `PHONE_INVALID`, `SERVER_ERROR` (with `ref`).
 
 ## Booking DTO
 

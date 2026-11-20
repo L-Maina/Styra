@@ -58,12 +58,12 @@ export function BookingFlow({
   business,
   services,
   signedIn,
-  testPayments,
+  methods,
 }: {
   business: { slug: string; name: string; category: string };
   services: Service[];
   signedIn: boolean;
-  testPayments: boolean;
+  methods: ('MPESA' | 'PAYSTACK' | 'FAKE')[];
 }) {
   const [serviceId, setServiceId] = useState(services[0]?.id ?? null);
   const [open, setOpen] = useState(false);
@@ -148,15 +148,70 @@ export function BookingFlow({
     }
   }
 
-  async function pay() {
+  const [phone, setPhone] = useState('');
+  const [waiting, setWaiting] = useState(false);
+  const [slow, setSlow] = useState(false);
+
+  // While M-Pesa asks the customer for their PIN, poll the booking until it is confirmed or the hold runs out.
+  useEffect(() => {
+    if (!waiting || !booking) return;
+    let stop = false;
+    const started = Date.now();
+    const tick = async () => {
+      if (stop) return;
+      try {
+        const { booking: b } = await api<{ booking: BookingDto }>(`/bookings/${booking.code}`);
+        if (b.status === 'CONFIRMED') {
+          setBooking(b);
+          setWaiting(false);
+          setStep('done');
+          haptic(30);
+          return;
+        }
+        if (b.status !== 'PENDING') {
+          setWaiting(false);
+          setError(t('errors.HOLD_EXPIRED'));
+          setStep('time');
+          setBooking(null);
+          return;
+        }
+      } catch {
+        /* keep polling through brief network drops */
+      }
+      if (Date.now() - started > 90_000) {
+        setWaiting(false);
+        setSlow(true);
+        return;
+      }
+      setTimeout(tick, 3000);
+    };
+    const id = setTimeout(tick, 3000);
+    return () => {
+      stop = true;
+      clearTimeout(id);
+    };
+  }, [waiting, booking]);
+
+  async function pay(method: 'MPESA' | 'PAYSTACK' | 'FAKE') {
     if (!booking) return;
     setBusy(true);
     setError(null);
+    setSlow(false);
+    haptic(10);
     try {
-      const { booking: b } = await api<{ booking: BookingDto }>(`/bookings/${booking.code}/pay`, { body: { method: 'FAKE' }, idempotencyKey: booking.id });
-      setBooking(b);
-      setStep('done');
-      haptic(30);
+      const res = await api<{ booking: BookingDto; next: { kind: 'DONE' } | { kind: 'WAIT_FOR_PHONE' } | { kind: 'REDIRECT'; url: string } }>(`/bookings/${booking.code}/pay`, {
+        body: { method, phone: method === 'MPESA' ? phone : undefined },
+        idempotencyKey: `${booking.id}:${method}:${Date.now()}`,
+      });
+      setBooking(res.booking);
+      if (res.next.kind === 'DONE') {
+        setStep('done');
+        haptic(30);
+      } else if (res.next.kind === 'WAIT_FOR_PHONE') {
+        setWaiting(true);
+      } else {
+        window.location.assign(res.next.url);
+      }
     } catch (e) {
       const f = e as ApiFailure;
       setError(f.message);
@@ -363,15 +418,57 @@ export function BookingFlow({
                         {t('checkout.payNow', { amount: formatMoney(BigInt(booking.priceMinor)) })}
                       </p>
                       {held && <p className="text-[15px] tabular-nums">{t('booking.holdTimer', { time: held })}</p>}
-                      {testPayments ? (
-                        <>
-                          <Button onClick={pay} disabled={busy} className="w-full min-h-[52px] text-[17px]">
-                            {t('actions.payTest')}
-                          </Button>
-                          <p className="text-center text-[13px]">{t('checkout.testNotice')}</p>
-                        </>
+                      {waiting ? (
+                        <p role="status" className="rounded-2xl bg-[var(--surface-1)] px-4 py-3 text-[17px]">
+                          {t('checkout.sentPrompt', { phone })} {t('checkout.waiting')}
+                        </p>
                       ) : (
-                        <p className="rounded-2xl bg-[var(--surface-1)] px-4 py-3 text-[15px]">{t('errors.PROVIDER_UNAVAILABLE')}</p>
+                        <>
+                          {slow && held && <p className="rounded-2xl bg-[var(--surface-1)] px-4 py-3 text-[15px]">{t('checkout.mpesaTimeout', { time: held })}</p>}
+                          {methods.includes('MPESA') && (
+                            <form
+                              className="space-y-2"
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                void pay('MPESA');
+                              }}
+                            >
+                              <label className="block text-[15px] font-semibold">
+                                {t('checkout.phoneLabel')}
+                                <input
+                                  value={phone}
+                                  onChange={(e) => setPhone(e.target.value)}
+                                  type="tel"
+                                  inputMode="tel"
+                                  autoComplete="tel"
+                                  required
+                                  aria-describedby="phone-hint"
+                                  className="mt-1 block h-12 w-full rounded-2xl border border-input bg-[var(--surface-1)] px-4 text-[17px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                />
+                                <span id="phone-hint" className="mt-1 block text-[13px] font-normal">
+                                  {t('checkout.phoneHint')}
+                                </span>
+                              </label>
+                              <Button type="submit" disabled={busy || !phone} className="w-full min-h-[52px] text-[17px]">
+                                {t('actions.payMpesa')}
+                              </Button>
+                            </form>
+                          )}
+                          {methods.includes('PAYSTACK') && (
+                            <Button tone={methods.includes('MPESA') ? 'secondary' : 'primary'} onClick={() => pay('PAYSTACK')} disabled={busy} className="w-full min-h-[52px] text-[17px]">
+                              {t('actions.payCard')}
+                            </Button>
+                          )}
+                          {methods.includes('FAKE') && (
+                            <>
+                              <Button tone={methods.length > 1 ? 'secondary' : 'primary'} onClick={() => pay('FAKE')} disabled={busy} className="w-full min-h-[52px] text-[17px]">
+                                {t('actions.payTest')}
+                              </Button>
+                              <p className="text-center text-[13px]">{t('checkout.testNotice')}</p>
+                            </>
+                          )}
+                          {methods.length === 0 && <p className="rounded-2xl bg-[var(--surface-1)] px-4 py-3 text-[15px]">{t('errors.PROVIDER_UNAVAILABLE')}</p>}
+                        </>
                       )}
                     </div>
                   )}

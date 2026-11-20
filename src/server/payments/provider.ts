@@ -1,4 +1,6 @@
 import { AppError } from '../../core/errors';
+import { mpesaConfigured } from './mpesa';
+import { paystackConfigured } from './paystack';
 
 export type PayMethod = 'MPESA' | 'PAYSTACK' | 'FAKE';
 
@@ -8,11 +10,15 @@ export function fakePaymentsEnabled(): boolean {
   return process.env.NODE_ENV !== 'production' && process.env.VERCEL_ENV !== 'production';
 }
 
+/** Methods this deployment can take right now. Production with none configured takes none (fail closed). */
+export function availableMethods(): PayMethod[] {
+  const out: PayMethod[] = [];
+  if (mpesaConfigured()) out.push('MPESA');
+  if (paystackConfigured()) out.push('PAYSTACK');
+  if (fakePaymentsEnabled()) out.push('FAKE');
+  return out;
+}
+
 export function assertMethodAvailable(method: PayMethod): void {
-  if (method === 'FAKE') {
-    if (!fakePaymentsEnabled()) throw new AppError('PROVIDER_UNAVAILABLE', 'test payments are off here', 503);
-    return;
-  }
-  // Real adapters (M-Pesa Daraja, Paystack) arrive in M4. Fail closed until they are configured.
-  throw new AppError('PROVIDER_UNAVAILABLE', `${method} is not set up yet`, 503);
+  if (!availableMethods().includes(method)) throw new AppError('PROVIDER_UNAVAILABLE', `${method} is not available here`, 503);
 }

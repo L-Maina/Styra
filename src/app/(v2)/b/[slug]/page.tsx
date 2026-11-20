@@ -8,7 +8,7 @@ import { Cover } from '@/components/v2/cover';
 import { Money, Section } from '@/components/v2/ui';
 import { currentUser } from '@/lib/v2/session';
 import { getDb } from '@/server/db-pool';
-import { fakePaymentsEnabled } from '@/server/payments/provider';
+import { availableMethods } from '@/server/payments/provider';
 import { getBusinessPage } from '@/server/services/discovery';
 import { BookingFlow } from './booking-flow';
 
@@ -67,7 +67,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
             business={{ slug: b.slug, name: b.name, category: b.category }}
             services={b.services}
             signedIn={Boolean(user)}
-            testPayments={fakePaymentsEnabled()}
+            methods={availableMethods()}
           />
           <Section title={t('business.reviews')}>
             {b.reviews.length ? (
