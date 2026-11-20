@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/release-escrow",
       "schedule": "17 3 * * *"
+    },
+    {
+      "path": "/api/v2/cron/tick",
+      "schedule": "23 3 * * *"
     }
   ]
 }
