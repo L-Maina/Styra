@@ -1,0 +1,3 @@
+[test]
+# Database tests create a fresh Postgres database and hash passwords; give them room on a busy machine.
+timeout = 20000

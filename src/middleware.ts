@@ -27,15 +27,19 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       return payloadSizeResponse as unknown as NextResponse;
     }
 
+    // v2 (/api/v2) has its own session and same-origin check (src/server/auth.ts) and receives payment
+    // webhooks, so the v1 content-type and CSRF rules below apply to v1 routes only.
+    const isV2 = pathname.startsWith('/api/v2/');
+
     // ── Content-Type validation ──
     // Reject requests with unsupported content types
-    const contentTypeResponse = validateContentType(request);
+    const contentTypeResponse = isV2 ? null : validateContentType(request);
     if (contentTypeResponse) {
       return contentTypeResponse as unknown as NextResponse;
     }
 
     // ── CSRF validation for state-changing API requests ──
-    const csrfResult = validateCsrf(request);
+    const csrfResult = isV2 ? null : validateCsrf(request);
     if (csrfResult) {
       return csrfResult; // Return 403 if CSRF validation fails
     }
