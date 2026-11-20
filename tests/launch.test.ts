@@ -45,4 +45,12 @@ describe('launch splash', () => {
     expect(css).toContain('html[data-launched] .launch-splash');
     expect(css).toContain('animation: launch-out var(--duration-launch)');
   });
+
+  test('sits above the navbar so it covers the whole screen', () => {
+    const navbar = readFileSync(new URL('../src/components/layout/Navbar.tsx', import.meta.url), 'utf8');
+    const navbarZ = Math.max(...[...navbar.matchAll(/z-\[(\d+)\]/g)].map((match) => Number(match[1])));
+    const rule = css.match(/\.launch-splash \{[^}]*\}/)?.[0] ?? '';
+    const splashZ = Number(rule.match(/z-index:\s*(\d+)/)?.[1]);
+    expect(splashZ).toBeGreaterThan(navbarZ);
+  });
 });
