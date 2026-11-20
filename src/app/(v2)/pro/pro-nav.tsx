@@ -2,11 +2,12 @@ import Link from 'next/link';
 import { t } from '@/core/copy';
 import { cn } from '@/lib/utils';
 
-export function ProNav({ active }: { active: 'today' | 'services' | 'hours' }) {
+export function ProNav({ active }: { active: 'today' | 'services' | 'hours' | 'earnings' }) {
   const items = [
     { key: 'today', href: '/pro', label: t('nav.dashboard') },
     { key: 'services', href: '/pro/services', label: t('pro.servicesTitle') },
     { key: 'hours', href: '/pro/hours', label: t('pro.hoursTitle') },
+    { key: 'earnings', href: '/pro/earnings', label: t('nav.earnings') },
   ] as const;
   return (
     <nav aria-label={t('nav.dashboard')} className="flex gap-2 overflow-x-auto">

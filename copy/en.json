@@ -54,7 +54,8 @@
     "saveBusiness": "Save",
     "share": "Share",
     "viewBooking": "View booking",
-    "requestPayout": "Request payout"
+    "requestPayout": "Request payout",
+    "resolve": "Save decision"
   },
   "welcome": {
     "lead": "Book grooming near you. Your payment is held until the job is done.",
@@ -230,7 +231,18 @@
     "duration": "Duration (minutes)",
     "price": "Price (KSh)",
     "opens": "{day} opens",
-    "closes": "{day} closes"
+    "closes": "{day} closes",
+    "earningsLead": "Money from confirmed services. Held money is released when the customer confirms, or 24 hours after you mark the job done.",
+    "payoutAmount": "Amount (KSh)",
+    "payoutNumber": "M-Pesa number",
+    "payoutHistory": "Payouts",
+    "noPayouts": "No payouts yet.",
+    "payoutStatus": {
+      "REQUESTED": "Payout on its way",
+      "PROCESSING": "Payout on its way",
+      "PAID": "Paid out",
+      "FAILED": "Payout failed, money returned"
+    }
   },
   "admin": {
     "title": "Admin",
@@ -246,7 +258,30 @@
       "REFUND_PENDING": "Refunds on their way",
       "PLATFORM_REVENUE": "Styra fees"
     },
-    "noPending": "No businesses are waiting for review."
+    "noPending": "No businesses are waiting for review.",
+    "refundsTitle": "Refunds to send",
+    "payoutsTitle": "Payouts to send",
+    "disputesTitle": "Problems reported",
+    "noRefunds": "No refunds waiting.",
+    "noPayoutsQueue": "No payouts waiting.",
+    "noDisputes": "No open problems.",
+    "reference": "M-Pesa or bank reference",
+    "failReason": "Why it failed",
+    "markRefunded": "Mark as refunded",
+    "markPaidOut": "Mark as paid out",
+    "markFailed": "Mark as failed",
+    "resolveRelease": "Pay the business",
+    "resolveRefund": "Refund the customer",
+    "resolveSplit": "Split",
+    "splitShare": "Customer gets back (%)",
+    "resolutionNote": "Decision note",
+    "paidWith": "Paid with {method}",
+    "refundStatus": {
+      "PENDING": "To send",
+      "SUBMITTED": "Sent, waiting",
+      "PAID": "Refunded",
+      "FAILED": "Failed"
+    }
   },
   "errors": {
     "VALIDATION": "Some details need another look.",

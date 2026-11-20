@@ -5,6 +5,8 @@ import { Section, StatusPill } from '@/components/v2/ui';
 import { currentUser } from '@/lib/v2/session';
 import { getDb } from '@/server/db-pool';
 import { ledgerOverview, listBusinessesForReview } from '@/server/services/admin';
+import { adminDisputes, adminPayouts, adminRefunds } from '@/server/services/money';
+import { DisputeRow, PayoutRow, RefundRow } from './queues';
 import { ApproveButton } from './approve-button';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +16,10 @@ export default async function Admin() {
   if (!user) redirect('/signin?next=/admin');
   if (user.role !== 'ADMIN') redirect('/');
   const db = getDb();
-  const [pending, ledger] = await Promise.all([listBusinessesForReview(db), ledgerOverview(db)]);
+  const [pending, ledger, refunds, payouts, disputes] = await Promise.all([listBusinessesForReview(db), ledgerOverview(db), adminRefunds(db), adminPayouts(db), adminDisputes(db)]);
+  const openDisputes = disputes.filter((d) => d.status === 'OPEN');
+  const openRefunds = refunds.filter((r) => r.status === 'PENDING' || r.status === 'SUBMITTED');
+  const openPayouts = payouts.filter((p) => p.status === 'REQUESTED' || p.status === 'PROCESSING');
   return (
     <div className="space-y-10">
       <h1 className="font-sans text-[28px] font-bold normal-case">{t('admin.title')}</h1>
@@ -36,6 +41,15 @@ export default async function Admin() {
         ) : (
           <p className="text-[15px] text-muted-foreground">{t('admin.noPending')}</p>
         )}
+      </Section>
+      <Section title={t('admin.disputesTitle')}>
+        {openDisputes.length ? <ul className="space-y-3">{openDisputes.map((d) => <DisputeRow key={d.id} d={d} />)}</ul> : <p className="text-[15px] text-muted-foreground">{t('admin.noDisputes')}</p>}
+      </Section>
+      <Section title={t('admin.refundsTitle')}>
+        {openRefunds.length ? <ul className="space-y-3">{openRefunds.map((r) => <RefundRow key={r.id} r={r} />)}</ul> : <p className="text-[15px] text-muted-foreground">{t('admin.noRefunds')}</p>}
+      </Section>
+      <Section title={t('admin.payoutsTitle')}>
+        {openPayouts.length ? <ul className="space-y-3">{openPayouts.map((p) => <PayoutRow key={p.id} p={p} />)}</ul> : <p className="text-[15px] text-muted-foreground">{t('admin.noPayoutsQueue')}</p>}
       </Section>
       <Section title={t('admin.ledgerTitle')} action={<StatusPill tone={ledger.balanced ? 'good' : 'warning'}>{ledger.balanced ? t('admin.balanced') : t('admin.unbalanced')}</StatusPill>}>
         <table className="w-full overflow-hidden rounded-3xl border border-[var(--hairline)] bg-[var(--surface-1)] text-[15px]">
