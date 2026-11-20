@@ -98,10 +98,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       });
       if (grew) _toBottom();
     } catch (e) {
-      if (mounted && !silent) setState(() {
-        _loading = false;
-        _error = e;
-      });
+      if (mounted && !silent) {
+        setState(() {
+          _loading = false;
+          _error = e;
+        });
+      }
     }
   }
 

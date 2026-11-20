@@ -254,7 +254,7 @@ class _SupportState extends ConsumerState<SupportScreen> {
         appBar: AppBar(title: const Text('Help & support')),
         body: ListView(padding: const EdgeInsets.all(16), children: [
           DropdownButtonFormField<String>(
-            value: _type,
+            initialValue: _type,
             decoration: const InputDecoration(labelText: 'Topic'),
             items: const [
               DropdownMenuItem(value: 'SUPPORT', child: Text('Get help')),

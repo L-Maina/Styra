@@ -154,7 +154,7 @@ List<dynamic> asList(dynamic v) {
 
 int asInt(dynamic v, [int fallback = 0]) => v is num ? v.toInt() : int.tryParse('$v') ?? fallback;
 double asDouble(dynamic v, [double fallback = 0]) => v is num ? v.toDouble() : double.tryParse('$v') ?? fallback;
-String? asStr(dynamic v) => v == null ? null : v.toString();
+String? asStr(dynamic v) => v?.toString();
 bool asBool(dynamic v) => v == true || v == 'true' || v == 1;
 DateTime? asDate(dynamic v) => v == null ? null : DateTime.tryParse(v.toString())?.toLocal();
 

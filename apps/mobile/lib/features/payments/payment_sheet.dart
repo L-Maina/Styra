@@ -61,10 +61,12 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
       if (paymentId == null) throw ApiException('Payment could not be started.');
       await _poll(paymentId);
     } catch (e) {
-      if (mounted) setState(() {
-        _phase = 'failed';
-        _error = e.toString();
-      });
+      if (mounted) {
+        setState(() {
+          _phase = 'failed';
+          _error = e.toString();
+        });
+      }
     }
   }
 
@@ -117,18 +119,22 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
           ]),
           const SizedBox(height: 16),
           if (_phase == 'choose') ...[
-            for (final m in PayMethod.values)
-              Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: RadioListTile<PayMethod>(
-                  value: m,
-                  groupValue: _method,
-                  onChanged: (v) => setState(() => _method = v!),
-                  title: Text(m.label),
-                  secondary: Icon(m.icon),
-                  subtitle: m == PayMethod.mpesa ? const Text('You\'ll get a prompt on your phone') : null,
-                ),
-              ),
+            RadioGroup<PayMethod>(
+              groupValue: _method,
+              onChanged: (v) => setState(() => _method = v!),
+              child: Column(children: [
+                for (final m in PayMethod.values)
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: RadioListTile<PayMethod>(
+                      value: m,
+                      title: Text(m.label),
+                      secondary: Icon(m.icon),
+                      subtitle: m == PayMethod.mpesa ? const Text('You\'ll get a prompt on your phone') : null,
+                    ),
+                  ),
+              ]),
+            ),
             const SizedBox(height: 8),
             FilledButton(onPressed: _pay, child: Text('Pay ${money(b.totalPrice)}')),
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),

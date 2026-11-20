@@ -92,7 +92,7 @@ class _OnboardingState extends ConsumerState<BusinessOnboardingScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: DropdownButtonFormField<String>(
-                value: _category,
+                initialValue: _category,
                 decoration: const InputDecoration(labelText: 'Category'),
                 items: [for (final e in categories.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
                 onChanged: (v) => setState(() => _category = v!),

@@ -249,8 +249,14 @@ class _DisputesTab extends StatelessWidget {
         builder: (c, set) => AlertDialog(
           title: const Text('Resolve dispute'),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
-            for (final a in const {'RELEASE_TO_PROVIDER': 'Release to provider', 'FULL_REFUND': 'Full refund to customer', 'PARTIAL_REFUND': 'Partial refund'}.entries)
-              RadioListTile<String>(value: a.key, groupValue: action, onChanged: (v) => set(() => action = v!), title: Text(a.value), contentPadding: EdgeInsets.zero),
+            RadioGroup<String>(
+              groupValue: action,
+              onChanged: (v) => set(() => action = v!),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                for (final a in const {'RELEASE_TO_PROVIDER': 'Release to provider', 'FULL_REFUND': 'Full refund to customer', 'PARTIAL_REFUND': 'Partial refund'}.entries)
+                  RadioListTile<String>(value: a.key, title: Text(a.value), contentPadding: EdgeInsets.zero),
+              ]),
+            ),
             if (action == 'PARTIAL_REFUND')
               TextField(controller: refund, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(hintText: 'Amount to refund the customer')),
             TextField(controller: note, maxLines: 3, decoration: const InputDecoration(hintText: 'Resolution notes (min 10 characters)')),

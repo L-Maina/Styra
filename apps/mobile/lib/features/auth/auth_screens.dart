@@ -224,7 +224,7 @@ class _ForgotState extends ConsumerState<ForgotPasswordScreen> {
                         if (err != null) return showError(context, err);
                         _run(() async {
                           await api.post('/auth/reset-password', {'token': _token.text.trim(), 'password': _pw.text});
-                          if (mounted) {
+                          if (context.mounted) {
                             showOk(context, 'Password updated. Please sign in.');
                             context.go('/login');
                           }

@@ -102,18 +102,22 @@ class _BookingFlowState extends ConsumerState<BookingFlowScreen> {
             ListTile(leading: NetImage(b.logo, width: 44, height: 44), title: Text(b.name), subtitle: Text(b.locationLabel)),
             const SectionHeader('1. Choose a service'),
             if (services.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('This business has no bookable services yet.')),
-            for (final s in services)
-              RadioListTile<String>(
-                value: s.id,
-                groupValue: _service?.id,
-                onChanged: (_) => setState(() {
-                  _service = s;
-                  _time = null;
-                }),
-                title: Text(s.name),
-                subtitle: Text(duration(s.duration)),
-                secondary: Text(money(s.price), style: const TextStyle(fontWeight: FontWeight.w700)),
-              ),
+            RadioGroup<String>(
+              groupValue: _service?.id,
+              onChanged: (id) => setState(() {
+                _service = services.firstWhere((s) => s.id == id);
+                _time = null;
+              }),
+              child: Column(children: [
+                for (final s in services)
+                  RadioListTile<String>(
+                    value: s.id,
+                    title: Text(s.name),
+                    subtitle: Text(duration(s.duration)),
+                    secondary: Text(money(s.price), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+              ]),
+            ),
             if (b.staff.isNotEmpty) ...[
               const SectionHeader('2. Choose a stylist (optional)'),
               SizedBox(

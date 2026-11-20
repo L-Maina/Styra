@@ -139,7 +139,7 @@ class _BookingDetailState extends ConsumerState<BookingDetailScreen> {
           }
 
           Widget patch(String label, String status, String ok, {bool filled = true}) {
-            final onPressed = () => _act((api) => api.patch('/bookings/${b.id}', {'status': status}), ok);
+            void onPressed() => _act((api) => api.patch('/bookings/${b.id}', {'status': status}), ok);
             return filled ? FilledButton(onPressed: onPressed, child: Text(label)) : OutlinedButton(onPressed: onPressed, child: Text(label));
           }
 
@@ -155,7 +155,7 @@ class _BookingDetailState extends ConsumerState<BookingDetailScreen> {
             if (isCustomer && s == 'COMPLETED')
               OutlinedButton.icon(
                 onPressed: () async {
-                  final reason = await promptText(context, title: 'Report a problem', hint: 'What went wrong? (at least 10 characters)', minLength: 10);
+                  final reason = await promptText(context, title: 'Report a problem', hint: 'What went wrong? (at least 10 characters)', minLength: 10, maxLength: 2000);
                   if (reason != null) await _act((api) => api.post('/bookings/${b.id}/dispute', {'reason': reason}), 'Thanks. The payment stays on hold while our team reviews this.');
                 },
                 icon: const Icon(Icons.report_gmailerrorred_outlined),
@@ -171,11 +171,12 @@ class _BookingDetailState extends ConsumerState<BookingDetailScreen> {
                   : TextButton(
                       onPressed: () async {
                         if (!await confirm(context, 'Cancel booking?', message: b.isPaid ? 'Any payment held in escrow is refunded.' : null, ok: 'Cancel booking', destructive: true)) return;
+                        if (!context.mounted) return;
                         await guard(context, () async {
                           final api = ref.read(apiProvider);
                           final r = asMap(isProvider ? await api.patch('/bookings/${b.id}', {'status': 'CANCELLED'}) : await api.delete('/bookings/${b.id}'));
                           final refund = asDouble(r['refundAmount']);
-                          if (mounted) showOk(context, refund > 0 ? 'Booking cancelled. ${money(refund)} refunded.' : 'Booking cancelled');
+                          if (context.mounted) showOk(context, refund > 0 ? 'Booking cancelled. ${money(refund)} refunded.' : 'Booking cancelled');
                           _refresh();
                         });
                       },

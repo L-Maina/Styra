@@ -243,14 +243,14 @@ class StatGrid extends StatelessWidget {
 }
 
 /// Asks for text input in a dialog. Returns null if cancelled.
-Future<String?> promptText(BuildContext context, {required String title, String? hint, String confirm = 'Submit', int minLength = 0, int maxLines = 4}) {
+Future<String?> promptText(BuildContext context, {required String title, String? hint, String confirm = 'Submit', int minLength = 0, int? maxLength, int maxLines = 4}) {
   final ctrl = TextEditingController();
   return showDialog<String>(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, set) => AlertDialog(
         title: Text(title),
-        content: TextField(controller: ctrl, maxLines: maxLines, decoration: InputDecoration(hintText: hint), onChanged: (_) => set(() {})),
+        content: TextField(controller: ctrl, maxLines: maxLines, maxLength: maxLength, decoration: InputDecoration(hintText: hint), onChanged: (_) => set(() {})),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(

@@ -34,7 +34,7 @@ class BusinessQuery {
       );
 
   @override
-  bool operator ==(Object o) => o is BusinessQuery && o.toParams().toString() == toParams().toString();
+  bool operator ==(Object other) => other is BusinessQuery && other.toParams().toString() == toParams().toString();
   @override
   int get hashCode => toParams().toString().hashCode;
 }

@@ -118,7 +118,7 @@ class _NewClaimState extends ConsumerState<NewClaimScreen> {
         body: ListView(padding: const EdgeInsets.all(16), children: [
           if (widget.bookingId != null) const Padding(padding: EdgeInsets.only(bottom: 12), child: Text('Linked to your booking.')),
           DropdownButtonFormField<String>(
-            value: _type,
+            initialValue: _type,
             decoration: const InputDecoration(labelText: 'Claim type'),
             items: [for (final e in claimTypes.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
             onChanged: (v) => setState(() => _type = v!),
