@@ -66,3 +66,14 @@ describe('reduced motion in globals.css', () => {
     expect(css).toContain(":root:not([data-motion='full'])");
   });
 });
+
+describe('skeleton', () => {
+  test('has a base and a sweep colour in both themes', () => {
+    expect((css.match(/--skeleton-base:/g) ?? []).length).toBe(2);
+    expect((css.match(/--skeleton-sweep:/g) ?? []).length).toBe(2);
+  });
+
+  test('the sweep takes 1.4 s', () => {
+    expect(cssVar('shimmer-duration')).toBe('1400ms');
+  });
+});

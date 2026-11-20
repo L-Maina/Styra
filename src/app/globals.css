@@ -47,6 +47,10 @@
   --stagger-step: 60ms;
   --shimmer-duration: 1400ms;
 
+  /* Skeletons: a quiet neutral shape and a soft sweep */
+  --skeleton-base: rgba(255, 255, 255, 0.07);
+  --skeleton-sweep: rgba(255, 255, 255, 0.09);
+
   /* Base Theme — Graphite (dark, the default) */
   --background: #101116;
   --foreground: #F5F5F7;
@@ -113,6 +117,8 @@
   --input: rgba(20, 21, 27, 0.5);
   --ring: #6C4EFF;
   --surface: #EFEAE0;
+  --skeleton-base: rgba(20, 21, 27, 0.07);
+  --skeleton-sweep: rgba(255, 255, 255, 0.7);
 
   --sidebar: rgba(255, 255, 255, 0.9);
   --sidebar-foreground: #14151B;
@@ -413,51 +419,28 @@
   animation: glow-pulse 3s ease-in-out infinite;
 }
 
-/* Skeleton Loader — premium shimmer with high visibility */
-.skeleton {
+/* Skeleton loader: a quiet neutral shape with a soft sweep every 1.4 s.
+   Static under reduced motion (the sweep ends off-screen). .shimmer adds only the sweep,
+   for the Skeleton component, which sets its own colour and radius. */
+.skeleton,
+.shimmer {
   position: relative;
   overflow: hidden;
-  background: rgba(108, 78, 255, 0.20);
+}
+
+.skeleton {
+  background: var(--skeleton-base);
   border-radius: var(--radius);
-  animation: skeleton-pulse 2s ease-in-out infinite;
 }
 
-.light .skeleton {
-  background: rgba(108, 78, 255, 0.18);
-}
-
-.skeleton::after {
+.skeleton::after,
+.shimmer::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(108, 78, 255, 0.30) 25%,
-    rgba(58, 190, 255, 0.24) 50%,
-    rgba(108, 78, 255, 0.30) 75%,
-    transparent 100%
-  );
-  animation: shimmer 1.5s ease-in-out infinite;
-}
-
-.light .skeleton::after {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(108, 78, 255, 0.22) 25%,
-    rgba(58, 190, 255, 0.18) 50%,
-    rgba(108, 78, 255, 0.22) 75%,
-    transparent 100%
-  );
-}
-
-@keyframes skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--skeleton-sweep) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: shimmer var(--shimmer-duration) linear infinite;
 }
 
 /* Shimmer animation utility class for image loading placeholders */
