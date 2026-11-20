@@ -697,6 +697,13 @@ button[class*="rounded-full"]:not(:disabled):hover {
   }
 }
 
+/* Press feedback: a pressed control scales to --press-scale. Add the class to any tappable
+   element; it relies on the element's own transition (Button has transition-all). Off under
+   reduced motion, where a pressed control only changes colour. */
+.press:active {
+  transform: scale(var(--press-scale));
+}
+
 /* ============================================
    LAUNCH SPLASH
    One calm reveal per session, at most 1.2 s. Pure CSS, so it is on screen at first paint
@@ -798,6 +805,10 @@ html[data-launched] .launch-splash {
     scroll-behavior: auto;
   }
 
+  :root:not([data-motion='full']) .press:active {
+    transform: none !important;
+  }
+
   :root:not([data-motion='full']) *,
   :root:not([data-motion='full']) *::before,
   :root:not([data-motion='full']) *::after {
@@ -813,6 +824,10 @@ html[data-launched] .launch-splash {
 
 :root[data-motion='reduce'] {
   scroll-behavior: auto;
+}
+
+:root[data-motion='reduce'] .press:active {
+  transform: none !important;
 }
 
 :root[data-motion='reduce'] *,

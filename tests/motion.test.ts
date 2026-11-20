@@ -77,3 +77,10 @@ describe('skeleton', () => {
     expect(cssVar('shimmer-duration')).toBe('1400ms');
   });
 });
+
+describe('press feedback', () => {
+  test('uses the press scale token and is off under reduced motion', () => {
+    expect(css).toContain('transform: scale(var(--press-scale))');
+    expect((css.match(/\.press:active \{\s*transform: none !important;/g) ?? []).length).toBe(2);
+  });
+});
