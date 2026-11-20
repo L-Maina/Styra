@@ -343,7 +343,7 @@ export function BookingFlow({
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="sheet-title"
-                  className="max-h-[88vh] overflow-y-auto rounded-t-[28px] px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2 md:rounded-[28px]"
+                  className="max-h-[88dvh] overflow-y-auto rounded-t-[28px] px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2 md:rounded-[28px]"
                 >
                   <div className="flex justify-center py-2">
                     <span aria-hidden className="h-1.5 w-10 rounded-full bg-foreground/35" />

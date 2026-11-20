@@ -42,7 +42,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
   return (
     <div className="pb-28">
       <div className="relative -mx-4 -mt-24 md:mx-0 md:mt-0">
-        <ParallaxCover className="h-[46vh] min-h-[300px] w-full md:h-[400px] md:rounded-[32px]">
+        <ParallaxCover className="h-[46dvh] min-h-[300px] w-full md:h-[400px] md:rounded-[32px]">
           <Cover name={b.name} category={b.category} size="hero" className="h-full w-full" />
         </ParallaxCover>
       </div>

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { t } from '@/core/copy';
-import { Button } from '@/components/v2/ui';
+import { FeedbackButton } from '@/components/v2/feedback-button';
 import { api, ApiFailure } from '@/lib/v2/api';
 
 const field = 'mt-1 block h-12 w-full rounded-2xl border border-input bg-[var(--surface-1)] px-4 text-[17px] outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -62,9 +62,9 @@ export function SetupForm() {
         {t('pro.description')}
         <textarea name="description" rows={3} maxLength={1000} className="mt-1 block w-full rounded-2xl border border-input bg-[var(--surface-1)] p-4 text-[17px] outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       </label>
-      <Button type="submit" disabled={busy} className="w-full min-h-[52px] text-[17px]">
+      <FeedbackButton type="submit" state={busy ? 'busy' : 'idle'} className="w-full min-h-[52px] text-[17px]">
         {t('actions.createBusiness')}
-      </Button>
+      </FeedbackButton>
     </form>
   );
 }

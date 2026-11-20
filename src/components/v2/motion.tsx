@@ -3,8 +3,10 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRef, type ReactNode } from 'react';
 import { distance, duration, ease, stagger } from '@/lib/motion';
 
-/** Rises into view once, when scrolled to. The first six siblings stagger (design-language section 9). */
-export function Reveal({ children, index = 0, className, as = 'div' }: { children: ReactNode; index?: number; className?: string; as?: 'div' | 'li' | 'section' }) {
+/** Rises into view once, when scrolled to. The first six siblings stagger (cards 60 ms, list rows 30 ms). */
+export const ROW_STEP = 0.03;
+
+export function Reveal({ children, index = 0, step = stagger.step, className, as = 'div' }: { children: ReactNode; index?: number; step?: number; className?: string; as?: 'div' | 'li' | 'section' }) {
   const Tag = motion[as];
   return (
     <Tag
@@ -12,7 +14,7 @@ export function Reveal({ children, index = 0, className, as = 'div' }: { childre
       initial={{ opacity: 0, y: distance.rise * 2 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '0px 0px -8% 0px' }}
-      transition={{ duration: duration.slow, ease: ease.spring, delay: Math.min(index, stagger.max) * stagger.step }}
+      transition={{ duration: duration.slow, ease: ease.spring, delay: Math.min(index, stagger.max) * step }}
     >
       {children}
     </Tag>

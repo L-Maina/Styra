@@ -1157,3 +1157,11 @@ html[data-v2-launched] .v2-splash { display: none; }
 .leaflet-container { background: var(--background); font-family: var(--font-manrope), system-ui, sans-serif; }
 .leaflet-control-attribution { background: color-mix(in oklab, var(--background) 80%, transparent) !important; color: var(--foreground) !important; }
 .leaflet-control-attribution a { color: var(--foreground) !important; }
+
+/* Craft details for v2 (the user's polish list) */
+a, button, [role='button'] { -webkit-tap-highlight-color: transparent; }
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+a { text-underline-offset: 0.22em; }
+/* iOS zooms into inputs under 16px. */
+input, select, textarea { font-size: max(16px, 1em); }

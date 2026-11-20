@@ -50,7 +50,7 @@ export function HomeSkeleton() {
 export function BusinessSkeleton() {
   return (
     <Busy>
-      <Sk className="-mx-4 -mt-24 h-[46vh] min-h-[300px] rounded-none md:mx-0 md:mt-0 md:h-[400px] md:rounded-[32px]" />
+      <Sk className="-mx-4 -mt-24 h-[46dvh] min-h-[300px] rounded-none md:mx-0 md:mt-0 md:h-[400px] md:rounded-[32px]" />
       <div className="space-y-3 pt-6">
         <Sk className="h-10 w-2/3" />
         <Sk className="h-4 w-1/2" />
