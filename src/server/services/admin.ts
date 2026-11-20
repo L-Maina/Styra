@@ -36,3 +36,12 @@ export async function ledgerOverview(db: Db) {
     })),
   };
 }
+
+export async function listBusinessesForReview(db: Db) {
+  const rows = await db.query<Record<string, unknown>>(
+    `select b.id, b.slug, b.name, b.category, b.city, b.address, b.created_at, u.name as owner_name, u.email as owner_email
+       from styra.businesses b join styra.users u on u.id = b.owner_id
+      where b.status = 'PENDING_REVIEW' order by b.created_at`,
+  );
+  return rows.map((r) => ({ id: String(r.id), slug: String(r.slug), name: String(r.name), category: String(r.category), city: String(r.city ?? ''), address: r.address == null ? null : String(r.address), ownerName: String(r.owner_name), ownerEmail: r.owner_email == null ? null : String(r.owner_email) }));
+}

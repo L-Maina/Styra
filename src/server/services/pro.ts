@@ -63,3 +63,22 @@ export async function setAvailability(db: Db, user: SessionUser, input: z.infer<
     return { staffId: staff.id, rules: input.rules };
   });
 }
+
+export async function listOwnServices(db: Db, user: SessionUser) {
+  const biz = await ownedBusiness(db, user);
+  const rows = await db.query<Record<string, unknown>>(
+    'select id, name, category, description, duration_min, price_minor, currency, active from styra.services where business_id = $1 order by position, created_at',
+    [biz.id],
+  );
+  return rows.map((s) => ({ id: String(s.id), name: String(s.name), category: String(s.category), description: s.description == null ? null : String(s.description), durationMin: n(s.duration_min), priceMinor: n(s.price_minor), currency: String(s.currency).trim(), active: Boolean(s.active) }));
+}
+
+export async function getOwnAvailability(db: Db, user: SessionUser) {
+  const biz = await ownedBusiness(db, user);
+  const [staff] = await db.query<{ id: string }>('select id from styra.staff where business_id = $1 order by created_at limit 1', [biz.id]);
+  const rules = await db.query<{ weekday: number; start: string; end: string }>(
+    `select weekday, to_char(start_time, 'HH24:MI') as start, to_char(end_time, 'HH24:MI') as end from styra.availability_rules where staff_id = $1 order by weekday, start_time`,
+    [staff.id],
+  );
+  return { staffId: staff.id, rules: rules.map((r) => ({ weekday: n(r.weekday), start: r.start, end: r.end })) };
+}

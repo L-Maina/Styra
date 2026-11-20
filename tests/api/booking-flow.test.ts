@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { dbReachable, freshDb, type TestDb } from '../db/harness';
 import { call } from './client';
 
@@ -41,12 +41,12 @@ describe.skipIf(!reachable)('scripted API run: browse, book, pay, complete, conf
       t[who] = res.data.token;
     }
     await db.sql`update styra.users set role = 'ADMIN' where email = 'admin@styra.test'`;
-  });
+  }, 30_000);
   afterAll(async () => {
     const { closeDb } = await import('../../src/server/db-pool');
     await closeDb();
     if (db) await db.drop();
-  });
+  }, 30_000);
 
   test('a customer can create a business and becomes a provider', async () => {
     const res = await call(r.proBusiness.POST, {
@@ -138,6 +138,10 @@ describe.skipIf(!reachable)('scripted API run: browse, book, pay, complete, conf
 
   test('the customer cannot complete; the provider can', async () => {
     expect((await call(r.proBookingAction.POST, { token: t.customer, body: {}, params: { id: booking.id, action: 'complete' } })).status).toBe(403);
+    const early = await call(r.proBookingAction.POST, { token: t.owner, body: {}, params: { id: booking.id, action: 'complete' } });
+    expect(early.status).toBe(409);
+    expect(early.json.error.code).toBe('TOO_EARLY');
+    setSystemTime(new Date(new Date(booking.startAt).getTime() + 35 * 60_000)); // the appointment has happened
     const list = await call(r.proBookings.GET, { token: t.owner });
     expect(list.data.items.map((b: any) => b.code)).toContain(booking.code);
     const res = await call(r.proBookingAction.POST, { token: t.owner, body: {}, params: { id: booking.id, action: 'complete' } });
@@ -179,6 +183,7 @@ describe.skipIf(!reachable)('scripted API run: browse, book, pay, complete, conf
   });
 
   test('cron tick needs the secret', async () => {
+    setSystemTime(); // back to the real clock
     expect((await call(r.tick.POST, { body: {} })).status).toBe(401);
     const ok = await call(r.tick.POST, { body: {}, headers: { authorization: 'Bearer test-cron-secret' } });
     expect(ok.status).toBe(200);

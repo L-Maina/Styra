@@ -318,6 +318,9 @@ export function createEngine(db: Db) {
     async act(bookingId: string, event: ActEvent, now: Date, opts: { actorId?: string; reason?: string } = {}) {
       return db.transaction(async (tx) => {
         const b = await lockBooking(tx, bookingId);
+        if ((event.type === 'PROVIDER_COMPLETED' || event.type === 'PROVIDER_NO_SHOW') && now.getTime() < new Date(b.start_at).getTime()) {
+          throw new AppError('TOO_EARLY', 'the appointment has not started yet', 409);
+        }
         let full: BookingEvent = event as BookingEvent;
         if (event.type === 'CUSTOMER_CANCELLED') {
           const settings = await loadSettings(tx);
