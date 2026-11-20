@@ -25,7 +25,7 @@ the blueprint's "Decision log".
 - `bun test tests/core`: pure core tests.
 - `bun test tests/db`: database tests. Needs `STYRA_TEST_DATABASE_URL` (a Postgres 16+ server where the
   test can create and drop databases), e.g. `postgres://localhost:5432/postgres`.
-- `bun test`: everything, including the v1 tests that still guard the live site.
+- `bun run test` (or `bun test --timeout 20000`): everything, including the v1 tests that still guard the live site. DB tests need the longer timeout on a busy machine.
 - `bun run build`, `bun run lint`.
 
 ## Money rules (blueprint section 5, mandatory)

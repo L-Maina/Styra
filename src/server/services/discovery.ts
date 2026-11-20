@@ -8,17 +8,27 @@ import { iso, n } from './common';
 const rating = (r: { rating_avg: unknown; rating_count: unknown }) => ({ avg: n(r.rating_avg), count: n(r.rating_count) });
 
 export async function listBusinesses(db: Db, q: z.infer<typeof businessListQuery>) {
+  const near = q.lat !== undefined && q.lng !== undefined;
+  // Great-circle distance in km (haversine), computed in SQL so sorting and the radius stay in the database.
+  const distance = `case when $6::float8 is null or $7::float8 is null or b.lat is null then null::float8 else
+      6371 * 2 * asin(sqrt(power(sin(radians((b.lat - $6::float8) / 2)), 2) + cos(radians($6::float8)) * cos(radians(b.lat)) * power(sin(radians((b.lng - $7::float8) / 2)), 2)))
+    end`;
   const rows = await db.query<Record<string, unknown>>(
-    `select b.id, b.slug, b.name, b.category, b.city, b.address, b.rating_avg, b.rating_count,
-            (select min(s.price_minor) from styra.services s where s.business_id = b.id and s.active) as from_price
-       from styra.businesses b
-      where b.status = 'ACTIVE'
-        and ($1::text is null or b.name ilike '%' || $1 || '%' or b.description ilike '%' || $1 || '%' or b.category ilike $1 || '%' or b.city ilike $1 || '%')
-        and ($2::text is null or b.category = upper($2))
-        and ($3::text is null or b.city ilike $3)
-      order by b.rating_avg desc, b.rating_count desc, b.name
-      limit $4 offset $5`,
-    [q.q || null, q.category || null, q.city || null, q.limit + 1, q.cursor],
+    `select * from (
+       select b.id, b.slug, b.name, b.category, b.city, b.address, b.rating_avg, b.rating_count, b.lat, b.lng,
+              (select min(s.price_minor) from styra.services s where s.business_id = b.id and s.active) as from_price,
+              ${distance} as distance_km
+         from styra.businesses b
+        where b.status = 'ACTIVE'
+          and ($1::text is null or b.name ilike '%' || $1 || '%' or b.description ilike '%' || $1 || '%' or b.category ilike $1 || '%' or b.city ilike $1 || '%')
+          and ($2::text is null or b.category = upper($2))
+          and ($3::text is null or b.city ilike $3)
+          ${near ? 'and b.lat is not null and b.lng is not null' : ''}
+     ) x
+     where ($8::float8 is null or x.distance_km <= $8)
+     order by ${near ? 'x.distance_km asc' : 'x.rating_avg desc, x.rating_count desc, x.name'}
+     limit $4 offset $5`,
+    [q.q || null, q.category || null, q.city || null, q.limit + 1, q.cursor, q.lat ?? null, q.lng ?? null, near ? (q.radiusKm ?? null) : null],
   );
   const items = rows.slice(0, q.limit).map((r) => ({
     id: String(r.id),
@@ -29,6 +39,8 @@ export async function listBusinesses(db: Db, q: z.infer<typeof businessListQuery
     address: r.address == null ? null : String(r.address),
     rating: rating(r as never),
     fromPriceMinor: r.from_price == null ? null : n(r.from_price),
+    location: r.lat == null || r.lng == null ? null : { lat: n(r.lat), lng: n(r.lng) },
+    distanceKm: r.distance_km == null ? null : Math.round(n(r.distance_km) * 10) / 10,
   }));
   return { items, nextCursor: rows.length > q.limit ? q.cursor + q.limit : null };
 }

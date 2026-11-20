@@ -33,6 +33,9 @@ export const businessListQuery = z.object({
   city: z.string().trim().max(60).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.coerce.number().int().min(0).default(0),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  radiusKm: z.coerce.number().positive().max(200).optional(),
 });
 
 export const slotsQuery = z.object({

@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Compass, Home, UserRound } from 'lucide-react';
+import { CalendarDays, Compass, Home, MapPin, UserRound } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { t } from '@/core/copy';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ interface ShellUser {
 const TABS = [
   { href: '/', label: t('nav.home'), icon: Home },
   { href: '/explore', label: t('nav.explore'), icon: Compass },
+  { href: '/near', label: t('nav.near'), icon: MapPin },
   { href: '/bookings', label: t('nav.bookings'), icon: CalendarDays },
 ];
 
@@ -60,7 +61,7 @@ export function Shell({ user, children }: { user: ShellUser | null; children: Re
         {children}
       </main>
       <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-4 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <Glass as="nav" aria-label={t('nav.tabs')} className="grid h-16 w-full max-w-md grid-cols-4 rounded-full px-2">
+        <Glass as="nav" aria-label={t('nav.tabs')} className="grid h-16 w-full max-w-md grid-cols-5 rounded-full px-2">
           {[...TABS, { href: account.href, label: account.label, icon: UserRound }].map((tab) => {
             const active = isActive(path, tab.href);
             return (

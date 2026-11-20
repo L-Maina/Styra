@@ -16,7 +16,8 @@
     "back": "Back",
     "skipToContent": "Skip to content",
     "main": "Main",
-    "tabs": "Tabs"
+    "tabs": "Tabs",
+    "near": "Near me"
   },
   "actions": {
     "browse": "Browse businesses",
@@ -55,7 +56,9 @@
     "share": "Share",
     "viewBooking": "View booking",
     "requestPayout": "Request payout",
-    "resolve": "Save decision"
+    "resolve": "Save decision",
+    "shareLocation": "Share my location",
+    "notNow": "Not now"
   },
   "welcome": {
     "lead": "Book grooming near you. Your payment is held until the job is done.",
@@ -329,5 +332,18 @@
     "sendingPrompt": "Sending the M-Pesa prompt",
     "confirmingPayment": "Confirming your payment",
     "openingCard": "Opening the card page"
+  },
+  "near": {
+    "title": "Near you",
+    "promptTitle": "See who's near you",
+    "promptBody": "Share your location to find barbers, salons and spas within minutes of you. We only use it while you browse.",
+    "locating": "Finding you",
+    "denied": "Location is off, so we're showing central Nairobi.",
+    "count": "{count, plural, one {# place} other {# places}} near you",
+    "away": "{km} km away",
+    "youAreHere": "You are here",
+    "all": "All",
+    "mapLabel": "Map of businesses near you",
+    "recenter": "Back to my location"
   }
 }
