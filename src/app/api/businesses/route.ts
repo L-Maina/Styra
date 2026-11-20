@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, getSession } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
 import { parseSort } from '@/lib/query-optimization';
 import { performAutoVerify } from '@/lib/auto-verify';
 import { createBusinessSchema } from '@/lib/validations';
+import { canSeePrivateBusinessFields, omitPrivateBusinessFields } from '@/lib/business-public';
 
 // Search/list businesses
 export async function GET(request: NextRequest) {
@@ -27,12 +28,16 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {};
 
-    // Filter by owner to allow users to fetch their own businesses
-    // When filtering by owner, show ALL their businesses (including pending/unapproved)
-    // Otherwise, only show active + verified/approved businesses to the public
+    // The owner (or an admin) asking for ?ownerId= sees ALL of that owner's businesses, including
+    // pending ones, with the private ID and payout columns. Everyone else only ever gets active,
+    // verified/approved businesses without those columns.
+    const session = ownerId ? await getSession().catch(() => null) : null;
+    const ownerView = !!ownerId && canSeePrivateBusinessFields(session, ownerId);
+
     if (ownerId) {
       where.ownerId = ownerId;
-    } else {
+    }
+    if (!ownerView) {
       where.isActive = true;
       where.verificationStatus = { in: ['APPROVED', 'VERIFIED', 'AUTO_VERIFIED'] };
     }
@@ -65,7 +70,7 @@ export async function GET(request: NextRequest) {
         where: { isActive: true },
         take: 5,
       },
-      ...(ownerId ? { portfolio: { take: 10 } } : {}),
+      ...(ownerView ? { portfolio: { take: 10 } } : {}),
       _count: {
         select: { reviews: true, portfolio: true },
       },
@@ -84,8 +89,7 @@ export async function GET(request: NextRequest) {
 
     // Map _count.reviews to reviewCount for frontend compatibility
     const mappedBusinesses = businesses.map((b) => {
-      const isPublicListing = !ownerId;
-      return {
+      const listing = {
         ...b,
         reviewCount: b._count.reviews,
         portfolioCount: b._count.portfolio,
@@ -93,17 +97,18 @@ export async function GET(request: NextRequest) {
         // For public listings, strip ALL large base64 data URLs to keep responses small.
         // Cover images are lazy-loaded by BusinessCard via /api/businesses/[id]/cover
         // to avoid multi-megabyte listing responses that time out.
-        ...(isPublicListing ? {
+        ...(ownerView ? {
+          // Owner's dashboard: keep coverImage for display
+          coverImage: b.coverImage || b.boothPhotoUrl || null,
+        } : {
           coverImage: null,
           logo: null,
           boothPhotoUrl: null,
           hasCoverImage: !!(b.coverImage || b.boothPhotoUrl),
           hasLogo: !!b.logo,
-        } : {
-          // Owner's dashboard: keep coverImage for display
-          coverImage: b.coverImage || b.boothPhotoUrl || null,
         }),
       };
+      return ownerView ? listing : omitPrivateBusinessFields(listing);
     });
 
     // Filter by distance if coordinates provided
