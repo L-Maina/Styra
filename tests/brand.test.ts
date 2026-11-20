@@ -138,3 +138,18 @@ describe('text on brand fills', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('fonts', () => {
+  // `@theme inline` does not emit --font-sans or --font-heading as CSS variables, so a rule that uses
+  // them is dropped and the heading falls back to the inherited font. Use the next/font variables.
+  test('font-family declarations only use variables that next/font defines', () => {
+    const defined = new Set(['font-syne', 'font-manrope']);
+    const unknown: string[] = [];
+    for (const declaration of css.matchAll(/font-family:\s*([^;]+);/g)) {
+      for (const use of declaration[1].matchAll(/var\(--([\w-]+)\)/g)) {
+        if (!defined.has(use[1])) unknown.push(use[1]);
+      }
+    }
+    expect(unknown).toEqual([]);
+  });
+});

@@ -69,8 +69,9 @@ Stack: Next.js 16 (App Router), React 19, Tailwind + shadcn/Radix, Prisma 6 on P
 - Colours, fonts and logos come from the identity kit (`brand/`, owned by the brand/mobile chat). The web
   copies are in `globals.css`; `tests/brand.test.ts` checks them against the kit and checks WCAG contrast.
   Change a colour in the kit first, then here.
-- Fonts: Syne 700 for display (`h1`, `h2`, `.text-display`, uppercase) and Manrope for everything else,
-  loaded with `next/font` in `layout.tsx`. Use `tabular-nums` for prices, times and counts.
+- Fonts: Syne 700 for `h1`, `h2` and `.text-display` (the uppercase hero line), Manrope for everything else,
+  loaded with `next/font` in `layout.tsx`. In CSS use `var(--font-syne)` and `var(--font-manrope)`: `@theme inline`
+  does not emit `--font-sans` or `--font-heading`. Use `tabular-nums` for prices, times and counts.
 - Logos: render `BrandLogo` (`src/components/ui/brand-logo.tsx`); it picks the SVG in `public/brand/logo`
   for the current theme. Never retype, redraw, recolour or add PNG logos.
 - Dark `--primary` is a light violet, so text on `bg-primary` or the gradient is `text-primary-foreground`

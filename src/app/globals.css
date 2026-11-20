@@ -366,7 +366,7 @@
 /* Display type: Syne 700, uppercase, tracked. For hero lines and brand moments. Utilities still win. */
 @layer components {
   .text-display {
-    font-family: var(--font-heading), var(--font-sans), sans-serif;
+    font-family: var(--font-syne), var(--font-manrope), sans-serif;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -660,12 +660,12 @@ button[class*="rounded-full"]:not(:disabled):hover {
 
   /* Identity kit type scale: Syne for the two display levels, Manrope below. */
   h1, h2 {
-    font-family: var(--font-heading), var(--font-sans), sans-serif;
+    font-family: var(--font-syne), var(--font-manrope), sans-serif;
     letter-spacing: 0.02em;
   }
 
   h3, h4, h5, h6 {
-    font-family: var(--font-sans), sans-serif;
+    font-family: var(--font-manrope), sans-serif;
     letter-spacing: 0;
   }
 }
