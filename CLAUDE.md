@@ -1,63 +1,51 @@
-# Styra
+# Styra v2
 
-> **v2 rebuild in progress (branch `rebuild/v2`).** Styra is being rebuilt from scratch. Read
-> `docs/v2/blueprint.md` first. For v2, its section 5 (money rules) replaces the "Money rules" and
-> "Conventions" sections below; those sections, and the v1 files they name (`escrow.ts`,
-> `verification.ts`, `booking-status.ts`, `api-utils.ts`), describe the legacy app only. The
-> "Motion and themes" and "Brand (web)" sections still apply. Never run the v1 SQL files in `prisma/`.
-> Design and wording: `docs/v2/design-language.md` is mandatory on every screen, web and mobile
-> (Liquid Glass at Apple level, the skills to use, the voice and the motto "Your Style, On Demand.").
+Grooming marketplace for Kenya. Customers book a service; the payment is held until they confirm the
+service (or 24 hours pass), then the business is paid. This branch (`rebuild/v2`) is a rebuild from
+scratch. v1 stays live on `main` until the user approves cutover.
 
-Grooming marketplace. Customers book services from businesses; the payment is held in escrow
-until the customer confirms the service (or 24 hours pass).
+Read first: `docs/v2/blueprint.md` (architecture, data model, money rules, test matrix) and
+`docs/v2/design-language.md` (Liquid Glass, wording, motto). Both are mandatory. Record design changes in
+the blueprint's "Decision log".
 
-Stack: Next.js 16 (App Router), React 19, Tailwind + shadcn/Radix, Prisma 6 on PostgreSQL
-(Supabase), Stripe / PayPal / Paystack / M-Pesa, deployed on Vercel.
+## Layout
+
+- `src/core`: pure TypeScript, no I/O: money, ledger postings, booking state machine, policies, slots.
+- `src/server`: db adapter (`pg`), services, `booking-engine.ts`, payment providers, auth, outbox.
+- `src/contracts`: zod schemas, the `/api/v2` contract shared by web and mobile.
+- `src/app`: Next.js routes (RSC first) and `/api/v2` handlers.
+- `supabase/migrations`: plain, idempotent SQL for schema `styra`. Additive only until cutover.
+- `tests/core` (pure) and `tests/db` (real Postgres; skipped when no database is reachable).
+- `apps/mobile`: the Flutter app on `/api/v2`.
+- v1 code (`src/lib/escrow.ts`, `verification.ts`, `booking-status.ts`, `api-utils.ts`, Prisma, the
+  `prisma/*.sql` files) is legacy. Don't extend it and never run the v1 SQL files.
 
 ## Commands
 
-- `bun test` — escrow and verification tests (fake in-memory database, no network)
-- `bun run build` — `prisma generate` then `next build` (type errors fail the build)
-- `bun run lint`
-- Schema changes are applied by hand as SQL files in `prisma/`; update `schema.prisma` too.
+- `bun test tests/core`: pure core tests.
+- `bun test tests/db`: database tests. Needs `STYRA_TEST_DATABASE_URL` (a Postgres 16+ server where the
+  test can create and drop databases), e.g. `postgres://localhost:5432/postgres`.
+- `bun test`: everything, including the v1 tests that still guard the live site.
+- `bun run build`, `bun run lint`.
 
-## Money rules (read before touching payments)
+## Money rules (blueprint section 5, mandatory)
 
-- The ledger is the `PlatformTransaction` row with `type: 'ESCROW_HELD'`. Its `escrowStatus` is the
-  truth: HELD → RELEASED, HELD → DISPUTED → RELEASED / REFUNDED, RELEASED → REFUNDED.
-- Provider `Wallet.pendingBalance` holds money in escrow, `balance` holds released money.
-- Only `src/lib/escrow.ts` moves money. Use `holdInEscrow`, `releaseFromEscrow`, `refundFromEscrow`,
-  or the `*InTx` versions inside your own transaction. Never update wallets or escrow rows directly.
-- Booking status changes that involve money live in `src/lib/verification.ts`
-  (`markBookingCompleted`, `customerConfirm`, `raiseDispute`, `resolveDispute`,
-  `cancelBookingWithRefund`, `adminSettleEscrow`, `autoVerifyExpiredBookings`).
-  They change the status and move the money in one transaction.
-- Refunds update the ledger only. Nothing sends money back through Stripe/Paystack/PayPal/M-Pesa;
-  admins get a notification with the payment reference.
-- Money columns are `Float`. Round to 2 decimals with the helpers in `escrow.ts`.
+- Amounts are integer minor units (`bigint` in SQL, `bigint` in TS). No floats, no `Number` money maths.
+- The database enforces the rest: balanced journals, an append-only ledger, one post per idempotency
+  key, no negative liability balances, `escrow_state` in step with the ledger, no overlapping bookings
+  per staff member, prices frozen once money is held. Don't weaken a constraint to make code pass.
+- Only `src/server/booking-engine.ts` changes a booking's status together with money, in one transaction
+  under a row lock. Everything else asks the engine.
+- Status lists are UPPERCASE and come from `src/core`; `tests/db` checks them against the SQL CHECKs.
+- Errors: `AppError(code, message, status)`; responses are `{ ok: true, data }` or
+  `{ ok: false, error: { code, message } }`.
 
-## Conventions
+## Words and design (design-language.md)
 
-- Booking status is UPPERCASE (`PENDING`, `CONFIRMED`, `IN_PROGRESS`, `COMPLETED`, `VERIFIED`,
-  `DISPUTED`, `CANCELLED`). Older rows may be lowercase. Compare with `isStatus()` and filter with
-  `statusVariants()` from `src/lib/booking-status.ts`. Never compare with a string literal.
-- Throw `AppError(message, status)` for errors that are safe to show; `handleApiError` returns them
-  as-is. Any other error becomes a generic message in production.
-- API routes: `successResponse` / `errorResponse` / `handleApiError` from `src/lib/api-utils.ts`.
-- The release job is `GET /api/cron/release-escrow` (daily, see `vercel.json`). It needs
-  `CRON_SECRET`.
-
-## Web screens that touch bookings and money
-
-- Show booking status with `BookingStatusBadge` / `bookingStatusMeta` and test it with `isStatus`,
-  `isUpcoming`, `isDone` (all in `src/lib/booking-status.ts`, safe to import in client components).
-- The bookings API returns the database names `time` and `totalPrice` plus `payments[]` and
-  `reviews[]` arrays. `useBookings` maps them to `startTime` / `totalAmount` once; don't map again.
-- Customer confirm, report-a-problem and cancel live in `src/components/booking/BookingEscrowActions.tsx`;
-  admin escrow is `src/components/admin/EscrowPanel.tsx`. Call the API through `api` from
-  `src/lib/api-client.ts` (it adds the CSRF header and already shows error toasts, so don't toast twice).
-- After an action, call the dashboard's `onBookingsChanged` (a silent refresh) rather than `refetch`,
-  which flips the screen back to its skeleton.
+- Glass only on the functional layer (bars, sheets, menus, toasts); content and money stay opaque.
+- Every user-facing string comes from `copy/en.json`. No literals in components or widgets.
+- No system words in the UI (escrow, ledger, webhook); money words follow the ledger ("on its way"
+  until money has moved). Motto: "Your Style, On Demand." exactly.
 
 ## Motion and themes (web)
 
@@ -89,6 +77,8 @@ Stack: Next.js 16 (App Router), React 19, Tailwind + shadcn/Radix, Prisma 6 on P
 
 ## Don't
 
-- Don't add booking status literals, or write to `Wallet` outside `escrow.ts`.
-- Don't commit images over ~500 KB; resize them first.
-- Don't commit `.env*`, logs, `.pid`, or database files.
+- Don't merge `rebuild/v2` into `main`, switch the live site, or drop v1 tables without the user's yes.
+- Don't delete branches, Vercel projects, or database data.
+- Don't put secrets in the repo, docs or chat. Provider keys go into Vercel env settings via the user.
+- Don't commit images over ~500 KB, `.env*`, logs, `.pid`, or database files.
+- Don't write copy that promises a dispute timeframe or an automatic refund.
