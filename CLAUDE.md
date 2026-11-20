@@ -1,5 +1,13 @@
 # Styra
 
+> **v2 rebuild in progress (branch `rebuild/v2`).** Styra is being rebuilt from scratch. Read
+> `docs/v2/blueprint.md` first. For v2, its section 5 (money rules) replaces the "Money rules" and
+> "Conventions" sections below; those sections, and the v1 files they name (`escrow.ts`,
+> `verification.ts`, `booking-status.ts`, `api-utils.ts`), describe the legacy app only. The
+> "Motion and themes" and "Brand (web)" sections still apply. Never run the v1 SQL files in `prisma/`.
+> Design and wording: `docs/v2/design-language.md` is mandatory on every screen, web and mobile
+> (Liquid Glass at Apple level, the skills to use, the voice and the motto "Your Style, On Demand.").
+
 Grooming marketplace. Customers book services from businesses; the payment is held in escrow
 until the customer confirms the service (or 24 hours pass).
 
