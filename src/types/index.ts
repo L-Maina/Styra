@@ -105,6 +105,9 @@ export interface Business {
   category?: string;
   logo?: string;
   coverImage?: string;
+  /** Set by the list endpoints: the image is too big to inline, fetch it from /api/businesses/:id/cover-image. */
+  hasCoverImage?: boolean;
+  hasLogo?: boolean;
   boothPhotoUrl?: string;
   idDocumentUrl?: string;
   phone?: string;
@@ -131,6 +134,10 @@ export interface Business {
   staff?: Staff[];
   portfolio?: PortfolioItem[];
   reviews?: Review[];
+  /** Set by the API for a signed-in user: have they saved this business? */
+  isFavorite?: boolean;
+  /** Set by GET /api/favorites: when it was saved. */
+  favoritedAt?: string | Date;
 }
 
 // Service

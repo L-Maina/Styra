@@ -13,6 +13,7 @@ import {
 import { BusinessCardSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { Skeleton } from '@/components/ui/custom/glass-components';
 import { useAuthStore } from '@/store';
+import { useFavoritesStore, useIsFavorite } from '@/store/favorites';
 import { cn } from '@/lib/utils';
 import type { Business } from '@/types';
 
@@ -155,7 +156,8 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
   isGuest = false,
   compact = false,
 }) => {
-  const [isFavorite, setIsFavorite] = React.useState(false);
+  const isFavorite = useIsFavorite(business.id);
+  const toggleFavorite = useFavoritesStore((state) => state.toggle);
   const [imgError, setImgError] = React.useState(false);
   const { user, isAuthenticated } = useAuthStore();
 
@@ -179,8 +181,8 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       // For guests, trigger the auth prompt
       onFavorite?.();
     } else {
-      // For authenticated users, toggle favorite
-      setIsFavorite(!isFavorite);
+      // For authenticated users, save or unsave it on the server
+      void toggleFavorite(business);
     }
   };
 

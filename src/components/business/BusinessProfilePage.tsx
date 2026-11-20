@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/custom/glass-components';
 import { BusinessProfileSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { useAuthStore } from '@/store';
+import { useFavoritesStore, useIsFavorite } from '@/store/favorites';
 import { cn } from '@/lib/utils';
 import type { Business, Service, Staff, Review, User } from '@/types';
 
@@ -136,7 +137,8 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
   const canPerformClientActions = !isAdmin && !isProviderMode;
   
   const [selectedTab, setSelectedTab] = useState<'services' | 'portfolio' | 'reviews' | 'about'>('services');
-  const [isFavorite, setIsFavorite] = useState(false);
+  const isFavorite = useIsFavorite(business.id);
+  const toggleFavorite = useFavoritesStore((state) => state.toggle);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [coverImgError, setCoverImgError] = useState(false);
 
@@ -224,7 +226,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                 if (isGuest) {
                   onFavorite?.();
                 } else {
-                  setIsFavorite(!isFavorite);
+                  void toggleFavorite(business);
                 }
               }}
               className="backdrop-blur-xl bg-white/15 hover:bg-white/25 border border-white/20 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_0_12px_rgba(108,78,255,0.14),0_0_24px_rgba(58,190,255,0.08)] hover:shadow-[0_0_20px_rgba(108,78,255,0.25),0_0_40px_rgba(58,190,255,0.15)] min-h-[44px] min-w-[44px] items-center justify-center"

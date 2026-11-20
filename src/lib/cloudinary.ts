@@ -1,12 +1,20 @@
 import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true,
-});
+// Configure Cloudinary. DEPLOY.md names the cloud name NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, so accept
+// that too. Values that are not set are left out, so a CLOUDINARY_URL in the environment still works.
+const credentials: { cloud_name?: string; api_key?: string; api_secret?: string } = {};
+const cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+if (cloudName) credentials.cloud_name = cloudName;
+if (process.env.CLOUDINARY_API_KEY) credentials.api_key = process.env.CLOUDINARY_API_KEY;
+if (process.env.CLOUDINARY_API_SECRET) credentials.api_secret = process.env.CLOUDINARY_API_SECRET;
+
+cloudinary.config({ ...credentials, secure: true });
+
+/** True when the cloud name, API key and API secret are all set. */
+export function isCloudinaryConfigured(): boolean {
+  const { cloud_name, api_key, api_secret } = cloudinary.config();
+  return Boolean(cloud_name && api_key && api_secret);
+}
 
 export interface UploadResult {
   public_id: string;

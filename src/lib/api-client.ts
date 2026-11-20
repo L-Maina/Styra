@@ -2,6 +2,7 @@
 // Includes CSRF token on all state-changing requests (POST, PUT, PATCH, DELETE)
 // Features: request timeout (30s), exponential backoff retry for GET, timeout error handling
 import { toast } from 'sonner';
+import type { Business } from '@/types';
 
 const API_BASE = '/api';
 
@@ -18,6 +19,8 @@ interface RequestOptions extends RequestInit {
   timeout?: number;
   retries?: number;
   noRetry?: boolean;
+  /** Skip the error toast. For background reads the person did not ask for. */
+  silent?: boolean;
 }
 
 /**
@@ -53,7 +56,7 @@ class ApiClient {
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<{ data: T; success: boolean; error?: string }> {
-    const { params, timeout = DEFAULT_TIMEOUT, retries, noRetry, ...fetchOptions } = options;
+    const { params, timeout = DEFAULT_TIMEOUT, retries, noRetry, silent, ...fetchOptions } = options;
 
     // Determine retry count: default 1 for GET, 0 for state-changing methods
     const method = (fetchOptions.method || 'GET').toUpperCase();
@@ -98,7 +101,7 @@ class ApiClient {
 
       // Safety timeout: show error after SPINNER_TIMEOUT to prevent infinite loading
       const spinnerTimer = setTimeout(() => {
-        toast.error('Request is taking longer than expected. Please try again.');
+        if (!silent) toast.error('Request is taking longer than expected. Please try again.');
       }, SPINNER_TIMEOUT);
 
       try {
@@ -116,11 +119,11 @@ class ApiClient {
 
         // Handle CSRF errors specifically
         if (response.status === 403 && data.code === 'CSRF_TOKEN_MISSING') {
-          toast.error('Session expired. Please reload the page.');
+          if (!silent) toast.error('Session expired. Please reload the page.');
           throw new Error('CSRF token missing');
         }
         if (response.status === 403 && data.code === 'CSRF_TOKEN_INVALID') {
-          toast.error('Security validation failed. Please reload the page.');
+          if (!silent) toast.error('Security validation failed. Please reload the page.');
           throw new Error('CSRF token invalid');
         }
 
@@ -128,7 +131,7 @@ class ApiClient {
           // Show details (if available) as the main message for better debugging
           const error = data.details || data.error || 'An error occurred';
           const toastMsg = data.error || error; // Toast shows the error field, not details
-          toast.error(toastMsg);
+          if (!silent) toast.error(toastMsg);
           throw new Error(error);
         }
 
@@ -152,7 +155,7 @@ class ApiClient {
         // On last attempt, throw with a clear timeout message if it was an abort
         if (attempt === maxRetries) {
           if (error instanceof DOMException && error.name === 'AbortError') {
-            toast.error('Request timed out. Please check your connection and try again.');
+            if (!silent) toast.error('Request timed out. Please check your connection and try again.');
             throw new Error(`Request timed out after ${timeout / 1000}s. Please check your connection.`);
           }
           if (error instanceof Error) {
@@ -355,6 +358,27 @@ class ApiClient {
     return this.request<{ message?: string }>(`/bookings/${id}/dispute`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
+      noRetry: true,
+    });
+  }
+
+  // Favorites
+  /** The signed-in user's saved businesses, newest first (up to 100). */
+  async getFavorites() {
+    return this.request<Business[]>('/favorites', { params: { limit: 100 }, silent: true });
+  }
+
+  async addFavorite(businessId: string) {
+    return this.request<{ businessId: string; isFavorite: boolean }>('/favorites', {
+      method: 'POST',
+      body: JSON.stringify({ businessId }),
+      noRetry: true,
+    });
+  }
+
+  async removeFavorite(businessId: string) {
+    return this.request<{ businessId: string; isFavorite: boolean }>(`/favorites/${businessId}`, {
+      method: 'DELETE',
       noRetry: true,
     });
   }

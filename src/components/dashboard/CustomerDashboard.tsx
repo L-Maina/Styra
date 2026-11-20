@@ -43,7 +43,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuthStore, useCurrencyStore } from '@/store';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import type { User, Booking as ApiBooking } from '@/types';
+import type { User, Booking as ApiBooking, Business } from '@/types';
+import { useFavoritesStore } from '@/store/favorites';
 import { toast } from 'sonner';
 import api from '@/lib/api-client';
 import { BookingStatus, isDone, isStatus, isUpcoming, normalizeStatus } from '@/lib/booking-status';
@@ -60,6 +61,8 @@ interface CustomerDashboardProps {
   bookings?: ApiBooking[];
   /** Called after a booking changed on the server (cancelled, confirmed, disputed), so the list can be refetched. */
   onBookingsChanged?: () => void;
+  /** Opens a business's page, for the View button on a saved business. */
+  onViewBusiness?: (business: Business) => void;
 }
 
 type DashboardSection = 'overview' | 'bookings' | 'favorites' | 'reviews' | 'payments' | 'settings';
@@ -81,17 +84,6 @@ interface Booking {
   updatedAt?: string | Date | null;
 }
 
-interface Favorite {
-  id: string;
-  businessId: string;
-  name: string;
-  image: string;
-  city: string;
-  rating: number;
-  reviewCount: number;
-  category: string;
-}
-
 interface Review {
   id: string;
   businessId: string;
@@ -102,12 +94,37 @@ interface Review {
   service: string;
 }
 
+/** A saved business's picture: its cover image or logo, or its first letter if it has none or it fails to load. */
+function FavoriteThumbnail({ business }: { business: Business }) {
+  const [failed, setFailed] = useState(false);
+  const src = business.coverImage || business.logo || (business.hasCoverImage ? `/api/businesses/${business.id}/cover-image` : null);
+
+  if (!src || failed) {
+    return (
+      <div className="w-16 h-16 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-2xl font-semibold shrink-0">
+        {business.name?.charAt(0)?.toUpperCase() || 'B'}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={business.name}
+      className="w-16 h-16 rounded-lg object-cover shrink-0"
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   user,
   onNavigate,
   initialTab = 'overview',
   bookings: apiBookings,
   onBookingsChanged,
+  onViewBusiness,
 }) => {
   const [activeSection, setActiveSection] = useState<DashboardSection>((initialTab as DashboardSection) || 'overview');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -158,6 +175,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     setBookings(mappedBookings);
   }, [mappedBookings]);
 
+  // Saved businesses come from the shared favorites store, loaded once after sign-in
+  const favorites = useFavoritesStore((state) => state.businesses);
+  const isFavoritesLoading = useFavoritesStore((state) => state.isLoading);
+  const toggleFavorite = useFavoritesStore((state) => state.toggle);
+
   // Stats computed from real bookings
   const stats = {
     totalBookings: bookings.length,
@@ -165,11 +187,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     completedBookings: bookings.filter(b => isDone(b.status)).length,
     totalSpent: bookings.filter(b => isDone(b.status)).reduce((sum, b) => sum + b.price, 0),
     reviewsGiven: bookings.filter(b => b.hasReview).length,
-    favoritesCount: 0, // TODO: Fetch from API when favorites endpoint is ready
+    favoritesCount: favorites.length,
   };
-
-  // TODO: Fetch from API when favorites endpoint is ready
-  const favorites: Favorite[] = [];
 
   // TODO: Fetch from API when reviews endpoint is ready
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -622,11 +641,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 <FadeIn key={business.id} delay={0.1 * (index + 1)}>
                   <GlassCard variant="default" className="p-4 group">
                     <div className="flex items-start gap-4">
-                      <img 
-                        src={business.image} 
-                        alt={business.name}
-                        className="w-16 h-16 rounded-lg object-cover"
-                      />
+                      <FavoriteThumbnail business={business} />
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold truncate">{business.name}</h3>
                         <p className="text-sm text-muted-foreground">{business.city}</p>
@@ -634,7 +649,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         <div className="flex items-center gap-2 mt-2">
                           <div className="flex items-center gap-1">
                             <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                            <span className="text-sm font-medium">{business.rating}</span>
+                            <span className="text-sm font-medium">{Number(business.rating).toFixed(1)}</span>
                           </div>
                           <span className="text-xs text-muted-foreground">
                             ({business.reviewCount} reviews)
@@ -642,7 +657,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
-                        <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+                        <button
+                          className="p-2 rounded-lg hover:bg-muted transition-colors"
+                          aria-label={`Remove ${business.name} from favorites`}
+                          onClick={() => void toggleFavorite(business)}
+                        >
                           <Heart className="h-5 w-5 fill-red-500 text-red-500" />
                         </button>
                       </div>
@@ -652,17 +671,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         variant="primary"
                         size="sm"
                         className="flex-1"
-                        onClick={() => onNavigate?.('business')}
+                        onClick={() => onViewBusiness?.(business)}
                       >
-                        View
-                      </GlassButton>
-                      <GlassButton
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => onNavigate?.('booking')}
-                      >
-                        Book Now
+                        View &amp; book
                       </GlassButton>
                     </div>
                   </GlassCard>
@@ -670,7 +681,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               ))}
             </div>
 
-            {favorites.length === 0 && (
+            {favorites.length === 0 && !isFavoritesLoading && (
               <div className="text-center py-12">
                 <Heart className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h3 className="font-medium mb-2">No favorites yet</h3>

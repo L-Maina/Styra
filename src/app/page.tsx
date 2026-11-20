@@ -45,6 +45,7 @@ import { ApiDocumentation } from '@/components/docs/ApiDocumentation';
 import { GlassButton, GlassCard } from '@/components/ui/custom/glass-components';
 import { HeroSectionSkeleton, CategoriesSectionSkeleton, CTASectionSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { useAuthStore, useAdminStore } from '@/store';
+import { useFavoritesStore } from '@/store/favorites';
 import { api } from '@/lib/api-client';
 import { useBusinesses, useBookings, useApiNotifications, useConversations } from '@/hooks/use-business-data';
 import { useMinimumLoading } from '@/hooks/use-minimum-loading';
@@ -216,6 +217,12 @@ export default function HomePage() {
 
   // Fetch conversations for authenticated users
   const { data: conversations, refetch: refetchConversations } = useConversations(isAuthenticated);
+
+  // Saved businesses: loaded once after sign-in and cleared on sign-out, so the next person starts empty
+  useEffect(() => {
+    if (isAuthenticated) void useFavoritesStore.getState().load();
+    else useFavoritesStore.getState().reset();
+  }, [isAuthenticated]);
 
   // ─── Minimum loading time for skeletons ──────────────────────────────
   // Ensures skeleton UI shows for at least 1.2s so users can perceive it
@@ -833,6 +840,7 @@ export default function HomePage() {
             initialTab={dashboardTab as any}
             bookings={showBookingsSkeleton ? undefined : bookings}
             onBookingsChanged={revalidateBookings}
+            onViewBusiness={handleSelectBusiness}
           />
         );
 
