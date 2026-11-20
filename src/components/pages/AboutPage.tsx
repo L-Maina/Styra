@@ -318,7 +318,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
                       transition={{ type: 'spring', stiffness: 200, damping: 15 }}
                       className="w-14 h-14 rounded-xl gradient-bg flex items-center justify-center mx-auto mb-3 shadow-lg"
                     >
-                      <stat.icon className="h-7 w-7 text-white" />
+                      <stat.icon className="h-7 w-7 text-primary-foreground" />
                     </motion.div>
                     <div className="text-3xl font-bold mb-1 gradient-text">{stat.value}</div>
                     <div className="text-sm text-muted-foreground">{stat.label}</div>
@@ -336,7 +336,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
           <GlassCard variant="elevated" glow className="mb-16">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                <BookOpen className="h-5 w-5 text-white" />
+                <BookOpen className="h-5 w-5 text-primary-foreground" />
               </div>
               <h2 className="text-2xl font-bold">Our Story</h2>
             </div>
@@ -377,7 +377,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
                       whileHover={{ scale: 1.1, rotate: 5 }}
                       className="w-16 h-16 rounded-2xl gradient-bg flex items-center justify-center mx-auto mb-4 shadow-lg"
                     >
-                      <ValueIcon className="h-8 w-8 text-white" />
+                      <ValueIcon className="h-8 w-8 text-primary-foreground" />
                     </motion.div>
                     <h3 className="font-semibold mb-2 text-lg">{value.title}</h3>
                     <p className="text-sm text-muted-foreground">{value.description}</p>
@@ -394,7 +394,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
             <GlassCard variant="bordered" glow className="mb-16">
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-white" />
+                  <TrendingUp className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <h2 className="text-2xl font-bold">Our Journey</h2>
               </div>
@@ -408,7 +408,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
                     className="flex gap-4"
                   >
                     <div className="flex-shrink-0 w-16">
-                      <span className="inline-block px-3 py-1 rounded-lg gradient-bg text-white text-sm font-bold">
+                      <span className="inline-block px-3 py-1 rounded-lg gradient-bg text-primary-foreground text-sm font-bold">
                         {milestone.year}
                       </span>
                     </div>
@@ -450,7 +450,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
                         />
                       ) : (
                         <div className="w-24 h-24 rounded-full mx-auto gradient-bg flex items-center justify-center ring-4 ring-primary/20">
-                          <Users className="h-10 w-10 text-white" />
+                          <Users className="h-10 w-10 text-primary-foreground" />
                         </div>
                       )}
                     </div>
@@ -481,7 +481,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
               transition={{ type: 'spring', stiffness: 200, damping: 15 }}
               className="w-20 h-20 rounded-2xl gradient-bg flex items-center justify-center mx-auto mb-6 shadow-xl"
             >
-              <TrendingUp className="h-10 w-10 text-white" />
+              <TrendingUp className="h-10 w-10 text-primary-foreground" />
             </motion.div>
             <h2 className="text-2xl font-bold mb-4">Join Our Growing Community</h2>
             <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
@@ -521,7 +521,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
                 {address && (
                   <span className="flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full gradient-bg flex items-center justify-center">
-                      <MapPin className="h-3 w-3 text-white" />
+                      <MapPin className="h-3 w-3 text-primary-foreground" />
                     </span>
                     {address}
                   </span>
@@ -530,7 +530,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
                 {phone && (
                   <a href={`tel:${phone}`} className="flex items-center gap-2 hover:text-primary transition-colors">
                     <span className="w-6 h-6 rounded-full gradient-bg flex items-center justify-center">
-                      <Phone className="h-3 w-3 text-white" />
+                      <Phone className="h-3 w-3 text-primary-foreground" />
                     </span>
                     {phone}
                   </a>
@@ -539,7 +539,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack, onNavigate }) => {
                 {supportEmail && (
                   <a href={`mailto:${supportEmail}`} className="flex items-center gap-2 hover:text-primary transition-colors">
                     <span className="w-6 h-6 rounded-full gradient-bg flex items-center justify-center">
-                      <Mail className="h-3 w-3 text-white" />
+                      <Mail className="h-3 w-3 text-primary-foreground" />
                     </span>
                     {supportEmail}
                   </a>

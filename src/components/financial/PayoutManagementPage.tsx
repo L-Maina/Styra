@@ -588,7 +588,7 @@ export const PayoutManagementPage: React.FC<PayoutManagementPageProps> = () => {
               className={cn(
                 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
                 statusFilter === status
-                  ? 'gradient-bg text-white shadow-sm'
+                  ? 'gradient-bg text-primary-foreground shadow-sm'
                   : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >

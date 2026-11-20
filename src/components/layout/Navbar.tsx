@@ -499,7 +499,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                 onClick={() => handleNavigate('home')}
                 aria-label="Styra Home"
               >
-                <BrandLogo variant="wordmark" size="navbarDesktop" hoverable />
+                <BrandLogo variant="full" size="navbarDesktop" hoverable />
               </Link>
               {showPageIndicator(currentPage) && (
                 <div className="hidden lg:flex items-center gap-2 text-sm">
@@ -737,7 +737,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                                     >
                                       <div className="flex gap-3">
                                         <div className="relative">
-                                          <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-white font-bold">
+                                          <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-bold">
                                             {avatar}
                                           </div>
                                           {hasUnread && (
@@ -791,7 +791,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                         isProfileOpen ? 'bg-muted/70' : 'hover:bg-muted/50'
                       )}
                     >
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-medium shrink-0">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-primary-foreground text-sm font-medium shrink-0">
                         {user?.name?.[0] || 'U'}
                       </div>
                       <span className="text-sm font-medium truncate hidden sm:inline max-w-[120px]">
@@ -809,7 +809,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                           >
                             <div className="px-3 py-2 border-b border-border/50 mb-2">
                               <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-medium">
+                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-primary-foreground font-medium">
                                   {user?.name?.[0] || 'U'}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -1074,7 +1074,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                 onClick={() => handleNavigate('home')}
                 aria-label="Styra Home"
               >
-                <BrandLogo variant="wordmark" size="navbarMobile" hoverable />
+                <BrandLogo variant="full" size="navbarMobile" hoverable />
               </Link>
             ) : (
               <h1 className="text-base font-semibold text-foreground">
@@ -1109,7 +1109,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                 className={cn(
                   'px-3 py-1.5 rounded-lg text-xs font-medium',
                   'bg-gradient-to-r from-primary to-secondary',
-                  'text-white',
+                  'text-primary-foreground',
                   'active:scale-95 transition-all duration-200'
                 )}
               >
@@ -1286,7 +1286,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
                 <>
                   <div className="px-6 py-4 border-b border-border/30">
                     <div className="flex items-center gap-4">
-                      <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xl font-bold">
+                      <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-primary-foreground text-xl font-bold">
                         {user?.name?.[0] || 'U'}
                       </div>
                       <div className="flex-1">
@@ -1561,7 +1561,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage = 'home', onNavigate
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center">
-                    <Settings className="h-5 w-5 text-white" />
+                    <Settings className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold">Settings</h2>

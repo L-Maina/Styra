@@ -64,6 +64,21 @@ Stack: Next.js 16 (App Router), React 19, Tailwind + shadcn/Radix, Prisma 6 on P
   control edges (3:1 contrast); `--border` is for card edges.
 - `LaunchSplash` plays once per session and is skipped under reduced motion.
 
+## Brand (web)
+
+- Colours, fonts and logos come from the identity kit (`brand/`, owned by the brand/mobile chat). The web
+  copies are in `globals.css`; `tests/brand.test.ts` checks them against the kit and checks WCAG contrast.
+  Change a colour in the kit first, then here.
+- Fonts: Syne 700 for `h1`, `h2` and `.text-display` (the uppercase hero line), Manrope for everything else,
+  loaded with `next/font` in `layout.tsx`. In CSS use `var(--font-syne)` and `var(--font-manrope)`: `@theme inline`
+  does not emit `--font-sans` or `--font-heading`. Use `tabular-nums` for prices, times and counts.
+- Logos: render `BrandLogo` (`src/components/ui/brand-logo.tsx`); it picks the SVG in `public/brand/logo`
+  for the current theme. Never retype, redraw, recolour or add PNG logos.
+- Dark `--primary` is a light violet, so text on `bg-primary` or the gradient is `text-primary-foreground`
+  (dark), never `text-white`. In the light theme, small accent text uses `text-link`, not `text-primary`.
+- Tints (80/50/20%) are for charts and backgrounds, never text. Icons take the ink or primary colour,
+  never the accent.
+
 ## Don't
 
 - Don't add booking status literals, or write to `Wallet` outside `escrow.ts`.

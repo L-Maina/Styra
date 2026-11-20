@@ -623,7 +623,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                         index < currentStepIndex
                           ? 'bg-green-500 text-white'
                           : index === currentStepIndex
-                          ? 'gradient-bg text-white shadow-glow'
+                          ? 'gradient-bg text-primary-foreground shadow-glow'
                           : 'bg-muted text-muted-foreground'
                       )}
                     >
@@ -678,7 +678,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
               {currentStep === 'welcome' && (
                 <div className="text-center py-4 sm:py-8">
                   <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full gradient-bg flex items-center justify-center mx-auto mb-4 sm:mb-6">
-                    <Building2 className="h-8 w-8 sm:h-12 sm:w-12 text-white" />
+                    <Building2 className="h-8 w-8 sm:h-12 sm:w-12 text-primary-foreground" />
                   </div>
                   <h2 className="text-2xl sm:text-3xl font-bold mb-4">Become a Service Provider</h2>
                   <p className="text-muted-foreground max-w-md mx-auto mb-8">
@@ -732,7 +732,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                      <User className="h-5 w-5 text-white" />
+                      <User className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <div>
                       <h2 className="text-lg font-semibold">Business Profile</h2>
@@ -904,7 +904,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                        <Scissors className="h-5 w-5 text-white" />
+                        <Scissors className="h-5 w-5 text-primary-foreground" />
                       </div>
                       <div>
                         <h2 className="text-lg font-semibold">Your Services</h2>
@@ -1038,7 +1038,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                      <ImageIcon className="h-5 w-5 text-white" />
+                      <ImageIcon className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <div>
                       <h2 className="text-lg font-semibold">Your Portfolio</h2>
@@ -1098,7 +1098,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                      <Calendar className="h-5 w-5 text-white" />
+                      <Calendar className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <div>
                       <h2 className="text-lg font-semibold">Working Hours</h2>
@@ -1171,7 +1171,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                      <Shield className="h-5 w-5 text-white" />
+                      <Shield className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <div>
                       <h2 className="text-lg font-semibold">Identity Verification</h2>
@@ -1323,7 +1323,7 @@ export const ProviderOnboarding: React.FC<ProviderOnboardingProps> = ({
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                      <Check className="h-5 w-5 text-white" />
+                      <Check className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <div>
                       <h2 className="text-lg font-semibold">Review & Submit</h2>

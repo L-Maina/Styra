@@ -1066,10 +1066,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
           sidebarCollapsed ? 'justify-center' : 'justify-between',
         )}>
           {!sidebarCollapsed && (
-            <div className="flex items-center gap-2">
-              <BrandLogo variant="icon" size={28} className="pointer-events-none" />
-              <BrandLogo variant="wordmark" size={20} className="pointer-events-none" />
-            </div>
+            <BrandLogo variant="full" size="dashboardExpanded" className="pointer-events-none" />
           )}
           {sidebarCollapsed && (
             <BrandLogo variant="icon" size={28} className="pointer-events-none" />
@@ -1121,7 +1118,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                     className={cn(
                       'w-full flex items-center justify-center rounded-xl py-2.5 mb-1 transition-colors',
                       hasActiveItem
-                        ? 'gradient-bg text-white shadow-glow-sm'
+                        ? 'gradient-bg text-primary-foreground shadow-glow-sm'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
                     )}
                     title={group.label}
@@ -1145,19 +1142,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                             'w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
                             sidebarCollapsed && 'justify-center px-0',
                             isActive
-                              ? 'gradient-bg text-white shadow-glow-sm'
+                              ? 'gradient-bg text-primary-foreground shadow-glow-sm'
                               : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
                           )}
                           title={sidebarCollapsed ? item.label : undefined}
                         >
-                          <item.icon className={cn('h-[18px] w-[18px] shrink-0', isActive && 'text-white')} />
+                          <item.icon className={cn('h-[18px] w-[18px] shrink-0', isActive && 'text-primary-foreground')} />
                           {!sidebarCollapsed && (
                             <>
                               <span className="flex-1 text-left">{item.label}</span>
                               {item.count !== undefined && item.count > 0 && (
                                 <span className={cn(
                                   'min-w-[20px] h-5 flex items-center justify-center rounded-full text-[11px] font-bold px-1.5',
-                                  isActive ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary',
+                                  isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/20 text-primary',
                                 )}>
                                   {item.count}
                                 </span>
@@ -1178,7 +1175,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         {!sidebarCollapsed && (
           <div className="p-4 border-t border-white/10 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full gradient-bg flex items-center justify-center text-white font-bold text-sm">
+              <div className="w-9 h-9 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-bold text-sm">
                 {user?.name?.charAt(0) || 'A'}
               </div>
               <div className="flex-1 min-w-0">
@@ -2976,7 +2973,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
           displayTeamMembers.map((member: any) => (
             <GlassCard key={member.id} className="p-5" hover={false}>
               <div className="flex items-center gap-3 mb-3">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-primary-foreground font-bold text-lg">
                   {member.name?.[0] || '?'}
                 </div>
                 <div className="flex-1 min-w-0">

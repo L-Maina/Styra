@@ -495,14 +495,14 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
                   className={cn(
                     'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm',
                     currentStepIndex >= index
-                      ? 'gradient-bg text-white'
+                      ? 'gradient-bg text-primary-foreground'
                       : 'bg-muted/50 text-muted-foreground'
                   )}
                 >
                   {currentStepIndex > index ? (
                     <Check className="h-4 w-4" />
                   ) : (
-                    <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs">
+                    <span className="w-5 h-5 rounded-full bg-primary-foreground/20 flex items-center justify-center text-xs">
                       {index + 1}
                     </span>
                   )}
@@ -545,7 +545,7 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
               >
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                    <Building2 className="h-5 w-5 text-white" />
+                    <Building2 className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold">Business Information</h2>
@@ -701,7 +701,7 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
               >
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                    <Shield className="h-5 w-5 text-white" />
+                    <Shield className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold">Identity Verification</h2>
@@ -819,7 +819,7 @@ export const BusinessOnboarding: React.FC<BusinessOnboardingProps> = ({
               >
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                    <Check className="h-5 w-5 text-white" />
+                    <Check className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold">Review & Submit</h2>

@@ -189,7 +189,7 @@ const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({ type, selected, o
           selected ? 'border-primary bg-primary' : 'border-muted-foreground'
         }`}
       >
-        {selected && <Check className="h-4 w-4 text-white" />}
+        {selected && <Check className="h-4 w-4 text-primary-foreground" />}
       </div>
     </motion.button>
   );
@@ -485,7 +485,7 @@ const TipSelector: React.FC<TipSelectorProps> = ({ servicePrice, selectedTip, on
             }}
             className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
               selectedTip === option.amount && !showCustom
-                ? 'gradient-bg text-white shadow-glow-sm'
+                ? 'gradient-bg text-primary-foreground shadow-glow-sm'
                 : 'bg-muted/50 hover:bg-muted text-foreground'
             }`}
             whileHover={{ scale: 1.02 }}
@@ -619,7 +619,7 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({ booking, payment, onDow
         transition={{ type: 'spring', stiffness: 200, damping: 15 }}
         className="w-24 h-24 rounded-full gradient-bg flex items-center justify-center mx-auto shadow-glow"
       >
-        <Check className="h-12 w-12 text-white" />
+        <Check className="h-12 w-12 text-primary-foreground" />
       </motion.div>
 
       <div>
@@ -1549,7 +1549,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         {/* Header */}
         <div className="text-center pb-4 border-b border-border">
           <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center mx-auto mb-3">
-            <Receipt className="h-6 w-6 text-white" />
+            <Receipt className="h-6 w-6 text-primary-foreground" />
           </div>
           <BrandLogo variant="wordmark" size={20} className="pointer-events-none" />
           <p className="text-sm text-muted-foreground">Payment Receipt</p>

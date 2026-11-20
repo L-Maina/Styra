@@ -490,7 +490,7 @@ const DisputeCreationForm: React.FC<DisputeFormProps> = ({ onSubmit, onCancel })
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="flex-1 gradient-bg text-white"
+            className="flex-1 gradient-bg text-primary-foreground"
           >
             {isSubmitting ? 'Submitting...' : 'Submit Dispute'}
           </Button>
@@ -1110,7 +1110,7 @@ const DisputeDetailView: React.FC<DisputeDetailProps> = ({
             >
               Cancel
             </Button>
-            <Button onClick={handleResolve} className="flex-1 gradient-bg text-white">
+            <Button onClick={handleResolve} className="flex-1 gradient-bg text-primary-foreground">
               Confirm Resolution
             </Button>
           </div>

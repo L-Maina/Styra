@@ -115,13 +115,13 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
 }) => {
   return (
     <Card className="overflow-hidden">
-      <div className="bg-gradient-to-r from-primary to-primary/80 text-white p-6">
+      <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Wallet className="h-6 w-6" />
             <span className="font-medium">Available Balance</span>
           </div>
-          <Badge className="bg-white/20 text-white border-0">
+          <Badge className="bg-primary-foreground/20 text-primary-foreground border-0">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             Verified
           </Badge>

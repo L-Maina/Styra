@@ -457,7 +457,7 @@ export const SafetyPage: React.FC<SafetyPageProps> = ({ onBack, onNavigate }) =>
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
-            <Shield className="h-10 w-10 text-white" />
+            <Shield className="h-10 w-10 text-primary-foreground" />
           </motion.div>
           <h1 className="text-4xl font-bold mb-4">
             Your Safety Is Our <GradientText>Priority</GradientText>
@@ -482,7 +482,7 @@ export const SafetyPage: React.FC<SafetyPageProps> = ({ onBack, onNavigate }) =>
                 >
                   <GlassCard hover glow className="text-center h-full">
                     <div className="w-14 h-14 rounded-xl gradient-bg flex items-center justify-center mx-auto mb-4 shadow-lg">
-                      <step.icon className="h-7 w-7 text-white" />
+                      <step.icon className="h-7 w-7 text-primary-foreground" />
                     </div>
                     <h3 className="font-semibold mb-2">{step.title}</h3>
                     <p className="text-sm text-muted-foreground">{step.description}</p>
@@ -641,7 +641,7 @@ export const SafetyPage: React.FC<SafetyPageProps> = ({ onBack, onNavigate }) =>
                     className="glass-button rounded-2xl p-6 border border-white/10 hover:border-white/15 transition-colors"
                   >
                     <div className="w-14 h-14 rounded-xl gradient-bg flex items-center justify-center mb-4">
-                      <feature.icon className="h-7 w-7 text-white" />
+                      <feature.icon className="h-7 w-7 text-primary-foreground" />
                     </div>
                     <h3 className="font-semibold text-foreground text-lg mb-2">{feature.title}</h3>
                     <p className="text-sm text-muted-foreground mb-4">{feature.description}</p>
@@ -674,7 +674,7 @@ export const SafetyPage: React.FC<SafetyPageProps> = ({ onBack, onNavigate }) =>
                       }`}
                     >
                       {plan.featured && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 gradient-bg rounded-full text-xs font-medium text-white shadow-glow-sm">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 gradient-bg rounded-full text-xs font-medium text-primary-foreground shadow-glow-sm">
                           Most Popular
                         </div>
                       )}
@@ -722,7 +722,7 @@ export const SafetyPage: React.FC<SafetyPageProps> = ({ onBack, onNavigate }) =>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             <GlassCard hover className="text-center" onClick={() => onNavigate?.('insurance-claims')}>
               <div className="w-14 h-14 rounded-xl gradient-bg flex items-center justify-center mx-auto mb-4">
-                <Clock className="h-7 w-7 text-white" />
+                <Clock className="h-7 w-7 text-primary-foreground" />
               </div>
               <h3 className="font-semibold mb-2">Quick Claim Resolution</h3>
               <p className="text-sm text-muted-foreground">
@@ -731,7 +731,7 @@ export const SafetyPage: React.FC<SafetyPageProps> = ({ onBack, onNavigate }) =>
             </GlassCard>
             <GlassCard hover className="text-center">
               <div className="w-14 h-14 rounded-xl gradient-bg flex items-center justify-center mx-auto mb-4">
-                <DollarSign className="h-7 w-7 text-white" />
+                <DollarSign className="h-7 w-7 text-primary-foreground" />
               </div>
               <h3 className="font-semibold mb-2">Refund Guarantee</h3>
               <p className="text-sm text-muted-foreground">
@@ -740,7 +740,7 @@ export const SafetyPage: React.FC<SafetyPageProps> = ({ onBack, onNavigate }) =>
             </GlassCard>
             <GlassCard hover className="text-center">
               <div className="w-14 h-14 rounded-xl gradient-bg flex items-center justify-center mx-auto mb-4">
-                <FileCheck className="h-7 w-7 text-white" />
+                <FileCheck className="h-7 w-7 text-primary-foreground" />
               </div>
               <h3 className="font-semibold mb-2">Documentation Support</h3>
               <p className="text-sm text-muted-foreground">
@@ -759,7 +759,7 @@ export const SafetyPage: React.FC<SafetyPageProps> = ({ onBack, onNavigate }) =>
                 animate={{ rotate: [0, 5, -5, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               >
-                <Shield className="h-8 w-8 text-white" />
+                <Shield className="h-8 w-8 text-primary-foreground" />
               </motion.div>
               <div className="flex-1">
                 <h2 className="text-xl font-semibold mb-2">Our Safety Promise</h2>
@@ -1186,7 +1186,7 @@ export const SafetyPage: React.FC<SafetyPageProps> = ({ onBack, onNavigate }) =>
               <div className="p-6 border-b border-border/50 flex items-center justify-between bg-gradient-to-r from-primary/5 to-secondary/5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center">
-                    <Shield className="h-5 w-5 text-white" />
+                    <Shield className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold">Upgrade Protection</h2>

@@ -102,7 +102,7 @@ export const FeaturedBusinesses: React.FC<FeaturedBusinessesProps> = ({
               </p>
               <button
                 onClick={() => onNavigate?.('marketplace')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-bg text-white font-medium hover:opacity-90 transition-opacity"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-bg text-primary-foreground font-medium hover:opacity-90 transition-opacity"
               >
                 Browse All Businesses
                 <ChevronRight className="h-4 w-4" />

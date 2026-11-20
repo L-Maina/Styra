@@ -834,7 +834,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                   className={cn(
                     'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-h-[44px]',
                     activeTab === tab.id
-                      ? 'gradient-bg text-white'
+                      ? 'gradient-bg text-primary-foreground'
                       : 'hover:bg-muted/50 text-muted-foreground'
                   )}
                 >
@@ -861,7 +861,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                     className={cn(
                       'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors min-h-[44px]',
                       activeTab === tab.id
-                        ? 'gradient-bg text-white'
+                        ? 'gradient-bg text-primary-foreground'
                         : 'hover:bg-muted/50'
                     )}
                   >
@@ -928,7 +928,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                           onClick={() => handleViewBooking(booking)}
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-medium shrink-0">
+                            <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-medium shrink-0">
                               {getCustomerInitial(booking.customerId, booking)}
                             </div>
                             <div className="min-w-0">
@@ -982,7 +982,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                     <div className="flex flex-wrap gap-3">
                       {staff.filter(s => s.isActive).map((member) => (
                         <div key={member.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
-                          <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-sm font-medium">
+                          <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-primary-foreground text-sm font-medium">
                             {member.name.split(' ').map(n => n[0]).join('')}
                           </div>
                           <div>
@@ -1098,7 +1098,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                         !member.isActive && 'opacity-60'
                       )}>
                         <div className="flex items-start gap-4">
-                          <div className="w-14 h-14 rounded-full gradient-bg flex items-center justify-center text-white font-bold text-lg shrink-0">
+                          <div className="w-14 h-14 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-bold text-lg shrink-0">
                             {member.name.split(' ').map(n => n[0]).join('')}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -1216,7 +1216,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full gradient-bg flex items-center justify-center text-white font-medium shrink-0">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-medium shrink-0">
                                 {getCustomerInitial(booking.customerId, booking)}
                               </div>
                               <div className="min-w-0">
@@ -2297,7 +2297,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
               </div>
               <div className="space-y-4">
                 <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
-                  <div className="w-14 h-14 rounded-full gradient-bg flex items-center justify-center text-white font-bold text-lg">
+                  <div className="w-14 h-14 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-bold text-lg">
                     {getCustomerInitial(selectedBooking.customerId, selectedBooking)}
                   </div>
                   <div>

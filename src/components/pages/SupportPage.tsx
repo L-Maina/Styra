@@ -144,7 +144,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({ onNavigate }) => {
             animate={{ y: [0, -5, 0] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <HelpCircle className="h-10 w-10 text-white" />
+            <HelpCircle className="h-10 w-10 text-primary-foreground" />
           </motion.div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             How Can We <span className="gradient-text">Help You?</span>
@@ -329,7 +329,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({ onNavigate }) => {
                   <GlassCard hover className="group">
                     <a href={`tel:${contactPhone.replace(/\s/g, '')}`} className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center shadow-glow-sm flex-shrink-0">
-                        <Phone className="h-6 w-6 text-white" />
+                        <Phone className="h-6 w-6 text-primary-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm">Phone Support</h3>
@@ -344,7 +344,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({ onNavigate }) => {
                   <GlassCard hover className="group">
                     <a href={`mailto:${contactEmail}`} className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center shadow-glow-sm flex-shrink-0">
-                        <Mail className="h-6 w-6 text-white" />
+                        <Mail className="h-6 w-6 text-primary-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm">Email Us</h3>
@@ -364,7 +364,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({ onNavigate }) => {
                       className="flex items-center gap-3"
                     >
                       <div className="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center shadow-glow-sm flex-shrink-0">
-                        <MapPin className="h-6 w-6 text-white" />
+                        <MapPin className="h-6 w-6 text-primary-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm">Visit Us</h3>
@@ -400,7 +400,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({ onNavigate }) => {
               {/* Form Header */}
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center">
-                  <Send className="h-5 w-5 text-white" />
+                  <Send className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold">Send Us a Message</h2>

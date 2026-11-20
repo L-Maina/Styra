@@ -273,7 +273,7 @@ export const InsuranceClaimsPage: React.FC<InsuranceClaimsPageProps> = ({ onBack
         <FadeIn className="mb-8">
           <div className="text-center">
             <div className="w-16 h-16 rounded-2xl gradient-bg flex items-center justify-center mx-auto mb-4 shadow-glow">
-              <Shield className="h-8 w-8 text-white" />
+              <Shield className="h-8 w-8 text-primary-foreground" />
             </div>
             <h1 className="text-3xl font-bold mb-2">
               <GradientText>Insurance Claims</GradientText>
@@ -753,7 +753,7 @@ export const InsuranceClaimsPage: React.FC<InsuranceClaimsPageProps> = ({ onBack
                 {isUpgradeAvailable && (
                   <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/15 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <div className="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center flex-shrink-0">
-                      <Sparkles className="h-5 w-5 text-white" />
+                      <Sparkles className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <div className="flex-1">
                       <h4 className="font-medium text-foreground text-sm">Need higher coverage?</h4>

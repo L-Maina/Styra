@@ -178,7 +178,7 @@ export const CareersPage: React.FC<{ onNavigate?: (page: string) => void }> = ({
         <FadeIn className="text-center mb-12">
           <motion.div className="w-20 h-20 rounded-2xl gradient-bg flex items-center justify-center mx-auto mb-6 shadow-glow"
             whileHover={{ scale: 1.05, rotate: 3 }} transition={{ duration: 0.3 }}>
-            <Briefcase className="h-10 w-10 text-white" />
+            <Briefcase className="h-10 w-10 text-primary-foreground" />
           </motion.div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Join <GradientText>Styra</GradientText></h1>
           <p className="text-muted-foreground max-w-2xl mx-auto text-lg">

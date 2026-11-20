@@ -89,7 +89,7 @@ export const AuthPromptModal: React.FC<AuthPromptModalProps> = ({
               {/* Content */}
               <div className="text-center mb-6">
                 <div className="w-16 h-16 rounded-full gradient-bg flex items-center justify-center mx-auto mb-4 shadow-glow">
-                  <LogIn className="h-8 w-8 text-white" />
+                  <LogIn className="h-8 w-8 text-primary-foreground" />
                 </div>
                 <h2 className="text-xl font-bold mb-2">{title}</h2>
                 <p className="text-muted-foreground">{description}</p>
