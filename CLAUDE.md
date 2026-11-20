@@ -51,6 +51,19 @@ Stack: Next.js 16 (App Router), React 19, Tailwind + shadcn/Radix, Prisma 6 on P
 - After an action, call the dashboard's `onBookingsChanged` (a silent refresh) rather than `refetch`,
   which flips the screen back to its skeleton.
 
+## Motion and themes (web)
+
+- Motion tokens exist twice: `src/lib/motion.ts` (framer-motion) and CSS variables in `src/app/globals.css`.
+  `tests/motion.test.ts` keeps them equal. Use them, not literal durations or easings. They are the same
+  tokens as the Figma file and the Flutter app (`claude/figma-design-status.md` in the Project).
+- Reduced motion is applied globally by `MotionSettings` (framer-motion, plus `<html data-motion>`) and the
+  rules at the end of `globals.css`. Don't add per-component checks. Use `.press` for press feedback and
+  `Skeleton` / `.shimmer` for loading shapes.
+- Themes are CSS variables in `globals.css`: `:root` is graphite, `.light` is ivory. Use semantic tokens
+  (`bg-background`, `text-muted-foreground`, `border-input`), not Tailwind palette classes. `--input` is for
+  control edges (3:1 contrast); `--border` is for card edges.
+- `LaunchSplash` plays once per session and is skipped under reduced motion.
+
 ## Don't
 
 - Don't add booking status literals, or write to `Wallet` outside `escrow.ts`.
