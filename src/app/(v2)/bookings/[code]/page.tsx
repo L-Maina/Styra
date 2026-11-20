@@ -63,7 +63,7 @@ export default async function BookingDetail({ params }: { params: Promise<{ code
         <div className="flex justify-between gap-4 py-3">
           <dt className="text-muted-foreground">{t('detail.total')}</dt>
           <dd>
-            <Money minor={b.priceMinor} className="text-[19px] font-bold" />
+            <Money minor={b.priceMinor} className="text-[19px] font-semibold" />
           </dd>
         </div>
         {b.refund && (

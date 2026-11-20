@@ -20,9 +20,11 @@ export function BusinessCard({ b }: { b: BusinessCardData }) {
   return (
     <Link
       href={`/b/${b.slug}`}
-      className="press group block overflow-hidden rounded-3xl border border-[var(--hairline)] bg-[var(--surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="lift press group block overflow-hidden rounded-3xl border border-[var(--hairline)] bg-[var(--surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Cover name={b.name} category={b.category} className="aspect-[16/10] w-full" />
+      <div className="overflow-hidden">
+        <Cover name={b.name} category={b.category} className="lift-art aspect-[16/10] w-full" />
+      </div>
       <div className="space-y-1 p-4">
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-[17px] font-semibold leading-snug">{b.name}</h3>

@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ReducedMotionProvider } from "@/components/ui/reduced-motion-provider";
 import { MotionSettings } from "@/components/theme/MotionSettings";
-import { LaunchSplash } from "@/components/brand/LaunchSplash";
 import { launchGuardScript } from "@/lib/launch";
 
 // Identity kit type: Syne for display, Manrope for text and UI. Both are OFL fonts from Google Fonts.
@@ -76,7 +75,6 @@ export default function RootLayout({
       <body
         className={`${syne.variable} ${manrope.variable} font-sans antialiased bg-background text-foreground`}
       >
-        <LaunchSplash />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

@@ -6,7 +6,7 @@ import type { ComponentProps, ComponentPropsWithoutRef, ReactNode } from 'react'
 type Tone = 'primary' | 'secondary' | 'quiet' | 'danger';
 const tones: Record<Tone, string> = {
   // The gradient is the brand's one loud colour: primary actions only.
-  primary: 'bg-[image:var(--styra-gradient)] text-primary-foreground shadow-[0_6px_20px_-6px_rgb(108_78_255/0.55)]',
+  primary: 'sheen bg-[image:var(--styra-gradient)] text-primary-foreground shadow-[0_8px_20px_-12px_rgb(0_0_0/0.6)]',
   secondary: 'bg-foreground/[0.07] text-foreground border border-input hover:bg-foreground/[0.1]',
   quiet: 'bg-transparent text-foreground hover:bg-foreground/[0.06]',
   danger: 'bg-transparent text-destructive border border-destructive/50 hover:bg-destructive/10',
@@ -31,7 +31,7 @@ export function Section({ title, action, children, className }: { title: string;
   return (
     <section className={cn('space-y-4', className)}>
       <div className="flex items-end justify-between gap-4">
-        <h2 className="font-sans text-[22px] font-bold tracking-[-0.01em] normal-case">{title}</h2>
+        <h2 className="font-sans text-[22px] font-semibold tracking-[-0.01em] normal-case">{title}</h2>
         {action}
       </div>
       {children}

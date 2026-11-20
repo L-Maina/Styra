@@ -54,7 +54,8 @@
     "saveBusiness": "Save",
     "share": "Share",
     "viewBooking": "View booking",
-    "requestPayout": "Request payout"
+    "requestPayout": "Request payout",
+    "resolve": "Save decision"
   },
   "welcome": {
     "lead": "Book grooming near you. Your payment is held until the job is done.",
@@ -124,7 +125,11 @@
     "phoneHint": "We'll send a payment prompt to this phone.",
     "waiting": "Check your phone and enter your M-Pesa PIN.",
     "mpesaTimeout": "M-Pesa didn't confirm the payment. Check your phone for the prompt, or try again. Your slot is held for {time}.",
-    "testNotice": "Test payments are on. No money moves."
+    "testNotice": "Test payments are on. No money moves.",
+    "methodsTitle": "How do you want to pay?",
+    "redirecting": "Taking you to the secure card page.",
+    "sentPrompt": "We sent a payment prompt to {phone}.",
+    "stillWaiting": "Still waiting for M-Pesa. Keep this page open."
   },
   "detail": {
     "title": "Booking {code}",
@@ -226,7 +231,18 @@
     "duration": "Duration (minutes)",
     "price": "Price (KSh)",
     "opens": "{day} opens",
-    "closes": "{day} closes"
+    "closes": "{day} closes",
+    "earningsLead": "Money from confirmed services. Held money is released when the customer confirms, or 24 hours after you mark the job done.",
+    "payoutAmount": "Amount (KSh)",
+    "payoutNumber": "M-Pesa number",
+    "payoutHistory": "Payouts",
+    "noPayouts": "No payouts yet.",
+    "payoutStatus": {
+      "REQUESTED": "Payout on its way",
+      "PROCESSING": "Payout on its way",
+      "PAID": "Paid out",
+      "FAILED": "Payout failed, money returned"
+    }
   },
   "admin": {
     "title": "Admin",
@@ -242,7 +258,30 @@
       "REFUND_PENDING": "Refunds on their way",
       "PLATFORM_REVENUE": "Styra fees"
     },
-    "noPending": "No businesses are waiting for review."
+    "noPending": "No businesses are waiting for review.",
+    "refundsTitle": "Refunds to send",
+    "payoutsTitle": "Payouts to send",
+    "disputesTitle": "Problems reported",
+    "noRefunds": "No refunds waiting.",
+    "noPayoutsQueue": "No payouts waiting.",
+    "noDisputes": "No open problems.",
+    "reference": "M-Pesa or bank reference",
+    "failReason": "Why it failed",
+    "markRefunded": "Mark as refunded",
+    "markPaidOut": "Mark as paid out",
+    "markFailed": "Mark as failed",
+    "resolveRelease": "Pay the business",
+    "resolveRefund": "Refund the customer",
+    "resolveSplit": "Split",
+    "splitShare": "Customer gets back (%)",
+    "resolutionNote": "Decision note",
+    "paidWith": "Paid with {method}",
+    "refundStatus": {
+      "PENDING": "To send",
+      "SUBMITTED": "Sent, waiting",
+      "PAID": "Refunded",
+      "FAILED": "Failed"
+    }
   },
   "errors": {
     "VALIDATION": "Some details need another look.",
@@ -269,7 +308,8 @@
     "NETWORK": "You seem to be offline. Check your connection and try again.",
     "phoneInvalid": "Enter a Kenyan phone number, like 0712 345 678.",
     "details": "Details: {ref}",
-    "TOO_EARLY": "You can mark this once the appointment has started."
+    "TOO_EARLY": "You can mark this once the appointment has started.",
+    "PHONE_INVALID": "Enter a Kenyan phone number, like 0712 345 678."
   },
   "notify": {
     "smsConfirmed": "Booking confirmed: {business}, {time}. Payment is held until you confirm.",
@@ -281,5 +321,13 @@
     "notFoundBody": "Your Style, On Demand. Let's find you something that is.",
     "loading": "Loading",
     "offline": "You're offline"
+  },
+  "progress": {
+    "checkingTime": "Checking your time",
+    "holdingSlot": "Holding your slot",
+    "preparingPayment": "Preparing payment",
+    "sendingPrompt": "Sending the M-Pesa prompt",
+    "confirmingPayment": "Confirming your payment",
+    "openingCard": "Opening the card page"
   }
 }

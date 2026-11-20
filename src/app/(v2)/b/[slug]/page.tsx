@@ -5,10 +5,11 @@ import { t } from '@/core/copy';
 import { formatDuration, formatPhone, formatRating } from '@/core/format';
 import { AppError } from '@/core/errors';
 import { Cover } from '@/components/v2/cover';
+import { FadeUp, ParallaxCover } from '@/components/v2/motion';
 import { Money, Section } from '@/components/v2/ui';
 import { currentUser } from '@/lib/v2/session';
 import { getDb } from '@/server/db-pool';
-import { fakePaymentsEnabled } from '@/server/payments/provider';
+import { availableMethods } from '@/server/payments/provider';
 import { getBusinessPage } from '@/server/services/discovery';
 import { BookingFlow } from './booking-flow';
 
@@ -41,8 +42,11 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
   return (
     <div className="pb-28">
       <div className="relative -mx-4 -mt-24 md:mx-0 md:mt-0">
-        <Cover name={b.name} category={b.category} size="hero" className="h-[42vh] min-h-[280px] w-full md:h-[360px] md:rounded-[32px]" />
+        <ParallaxCover className="h-[46vh] min-h-[300px] w-full md:h-[400px] md:rounded-[32px]">
+          <Cover name={b.name} category={b.category} size="hero" className="h-full w-full" />
+        </ParallaxCover>
       </div>
+      <FadeUp delay={0.1}>
       <header className="space-y-2 pt-6">
         <h1 className="font-[family-name:var(--font-syne)] text-[34px] font-bold uppercase leading-none tracking-[-0.015em] md:text-[48px]">{b.name}</h1>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px]">
@@ -60,6 +64,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
         </p>
         {b.description && <p className="max-w-2xl pt-2 text-[17px] leading-relaxed">{b.description}</p>}
       </header>
+      </FadeUp>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_320px]">
         <div className="space-y-10">
@@ -67,7 +72,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
             business={{ slug: b.slug, name: b.name, category: b.category }}
             services={b.services}
             signedIn={Boolean(user)}
-            testPayments={fakePaymentsEnabled()}
+            methods={availableMethods()}
           />
           <Section title={t('business.reviews')}>
             {b.reviews.length ? (

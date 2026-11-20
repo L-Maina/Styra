@@ -11,5 +11,5 @@ export const POST = route<Ctx>(async (req, { params }) => {
   const db = getDb();
   const user = await requireUser(db, req);
   const input = await readJson(req, payInput);
-  return ok({ booking: await payForBooking(db, user, code, input, req.headers.get('idempotency-key'), new Date()) });
+  return ok(await payForBooking(db, user, code, input, req.headers.get('idempotency-key'), new Date()));
 });

@@ -5,7 +5,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   const { next } = await searchParams;
   return (
     <div className="mx-auto max-w-md space-y-6 pt-8">
-      <h1 className="text-[28px] font-bold tracking-[-0.01em] normal-case font-sans">{t('auth.signUpTitle')}</h1>
+      <h1 className="text-[28px] font-semibold tracking-[-0.01em] normal-case font-sans">{t('auth.signUpTitle')}</h1>
       <AuthForm mode="signup" next={next && next.startsWith('/') ? next : '/'} />
     </div>
   );

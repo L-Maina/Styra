@@ -315,6 +315,11 @@ export function createEngine(db: Db) {
       if (parked) throw new AppError('PAYMENT_MISMATCH', 'captured amount does not match the booking', 409);
     },
 
+    /** A payment the provider reports as failed or cancelled. No money moved, so the booking keeps its hold. */
+    async failPayment(paymentId: string, reason: string, _now: Date) {
+      await db.query(`update styra.payments set status = 'FAILED', failure_reason = $2 where id = $1 and status not in ('SUCCEEDED', 'FAILED')`, [paymentId, reason.slice(0, 500)]);
+    },
+
     async act(bookingId: string, event: ActEvent, now: Date, opts: { actorId?: string; reason?: string } = {}) {
       return db.transaction(async (tx) => {
         const b = await lockBooking(tx, bookingId);

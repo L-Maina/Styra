@@ -16,7 +16,7 @@ export default async function ProHours() {
   return (
     <div className="space-y-8">
       <div className="space-y-3">
-        <h1 className="font-sans text-[28px] font-bold normal-case">{t('pro.hoursTitle')}</h1>
+        <h1 className="font-sans text-[28px] font-semibold normal-case">{t('pro.hoursTitle')}</h1>
         <ProNav active="hours" />
       </div>
       <HoursEditor initial={rules} />

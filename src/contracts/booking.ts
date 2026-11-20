@@ -79,3 +79,16 @@ export interface BookingDto {
   hasReview: boolean;
   actions: BookingAction[];
 }
+
+export const payoutInput = z.object({
+  amountMinor: z.number().int().positive().max(100_000_000_00),
+  method: z.enum(['MPESA', 'BANK']),
+  destination: z.string().trim().min(4).max(60),
+});
+export const payoutActionInput = z.object({ providerRef: z.string().trim().max(80).optional(), reason: z.string().trim().max(300).optional() });
+export const refundPaidInput = z.object({ providerRef: z.string().trim().min(1).max(80) });
+export const resolveDisputeInput = z.object({
+  outcome: z.enum(['RELEASE', 'REFUND', 'SPLIT']),
+  refundBps: z.number().int().min(0).max(10000).optional(),
+  note: z.string().trim().min(2).max(2000),
+});
