@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
+import { BookingStatus, statusVariants } from '@/lib/booking-status';
 import { successResponse, errorResponse } from '@/lib/api-utils';
 import {
   recordReceivedEvent,
@@ -252,9 +253,10 @@ async function handlePaymentSucceeded(
       },
     });
 
-    await tx.booking.update({
-      where: { id: payment.bookingId },
-      data: { status: 'CONFIRMED' },
+    // Only a pending booking is confirmed by a payment. A cancelled one stays cancelled.
+    await tx.booking.updateMany({
+      where: { id: payment.bookingId, status: { in: statusVariants(BookingStatus.PENDING) } },
+      data: { status: BookingStatus.CONFIRMED },
     });
 
     await tx.notification.create({
@@ -369,9 +371,10 @@ async function handleCheckoutCompleted(
       },
     });
 
-    await tx.booking.update({
-      where: { id: payment.bookingId },
-      data: { status: 'CONFIRMED' },
+    // Only a pending booking is confirmed by a payment. A cancelled one stays cancelled.
+    await tx.booking.updateMany({
+      where: { id: payment.bookingId, status: { in: statusVariants(BookingStatus.PENDING) } },
+      data: { status: BookingStatus.CONFIRMED },
     });
 
     await tx.notification.create({

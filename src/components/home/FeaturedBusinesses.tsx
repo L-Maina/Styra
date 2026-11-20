@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star, MapPin, Clock, Heart, ChevronRight } from 'lucide-react';
+import { Star, MapPin, Scissors, Heart, ChevronRight } from 'lucide-react';
+import { pluralize } from '@/lib/format';
 import { 
   GlassCard, 
   GlassBadge, 
@@ -13,6 +14,7 @@ import {
 import { BusinessCardSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { Skeleton } from '@/components/ui/custom/glass-components';
 import { useAuthStore } from '@/store';
+import { useFavoritesStore, useIsFavorite } from '@/store/favorites';
 import { cn } from '@/lib/utils';
 import type { Business } from '@/types';
 
@@ -155,7 +157,8 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
   isGuest = false,
   compact = false,
 }) => {
-  const [isFavorite, setIsFavorite] = React.useState(false);
+  const isFavorite = useIsFavorite(business.id);
+  const toggleFavorite = useFavoritesStore((state) => state.toggle);
   const [imgError, setImgError] = React.useState(false);
   const { user, isAuthenticated } = useAuthStore();
 
@@ -179,8 +182,8 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       // For guests, trigger the auth prompt
       onFavorite?.();
     } else {
-      // For authenticated users, toggle favorite
-      setIsFavorite(!isFavorite);
+      // For authenticated users, save or unsave it on the server
+      void toggleFavorite(business);
     }
   };
 
@@ -213,7 +216,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
           </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-4xl opacity-50">💇</span>
+            <Scissors className="h-10 w-10 text-primary/40" aria-hidden="true" />
           </div>
         )}
 
@@ -277,10 +280,10 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
               <span className="truncate">{business.city}</span>
             </div>
           )}
-          {business.services?.length && (
+          {business.services && business.services.length > 0 && (
             <div className="flex items-center gap-1 flex-shrink-0">
-              <Clock className="h-4 w-4" />
-              <span className="whitespace-nowrap">{business.services.length} services</span>
+              <Scissors className="h-4 w-4" />
+              <span className="whitespace-nowrap">{pluralize(business.services.length, 'service')}</span>
             </div>
           )}
         </div>

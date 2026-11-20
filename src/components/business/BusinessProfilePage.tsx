@@ -39,8 +39,10 @@ import {
 } from '@/components/ui/custom/glass-components';
 import { BusinessProfileSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { useAuthStore } from '@/store';
+import { useFavoritesStore, useIsFavorite } from '@/store/favorites';
 import { cn } from '@/lib/utils';
 import type { Business, Service, Staff, Review, User } from '@/types';
+import { formatRating, pluralize } from '@/lib/format';
 
 interface BusinessProfilePageProps {
   business: Business;
@@ -136,7 +138,8 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
   const canPerformClientActions = !isAdmin && !isProviderMode;
   
   const [selectedTab, setSelectedTab] = useState<'services' | 'portfolio' | 'reviews' | 'about'>('services');
-  const [isFavorite, setIsFavorite] = useState(false);
+  const isFavorite = useIsFavorite(business.id);
+  const toggleFavorite = useFavoritesStore((state) => state.toggle);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [coverImgError, setCoverImgError] = useState(false);
 
@@ -224,7 +227,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                 if (isGuest) {
                   onFavorite?.();
                 } else {
-                  setIsFavorite(!isFavorite);
+                  void toggleFavorite(business);
                 }
               }}
               className="backdrop-blur-xl bg-white/15 hover:bg-white/25 border border-white/20 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_0_12px_rgba(108,78,255,0.14),0_0_24px_rgba(58,190,255,0.08)] hover:shadow-[0_0_20px_rgba(108,78,255,0.25),0_0_40px_rgba(58,190,255,0.15)] min-h-[44px] min-w-[44px] items-center justify-center"
@@ -274,7 +277,8 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
         </div>
 
         {/* Badges */}
-        <div className="absolute bottom-4 left-4 flex gap-2">
+        {/* The header card below overlaps the bottom 4rem of the cover, so the badges sit above it */}
+        <div className="absolute bottom-20 left-4 flex gap-2">
           {business.subscriptionPlan === 'FEATURED' && (
             <GlassBadge variant="primary">Featured</GlassBadge>
           )}
@@ -303,7 +307,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                 {business.logo ? (
                   <img src={business.logo} alt={business.name} className="w-full h-full object-cover" />
                 ) : (
-                  '💇'
+                  <Scissors className="h-7 w-7 sm:h-10 sm:w-10 text-white" aria-hidden="true" />
                 )}
               </div>
 
@@ -327,8 +331,8 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                       )}
                       <div className="flex items-center gap-1">
                         <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                        <span className="font-medium text-foreground">{business.rating.toFixed(1)}</span>
-                        <span>({business.reviewCount} reviews)</span>
+                        <span className="font-medium text-foreground">{formatRating(business.rating)}</span>
+                        <span>({pluralize(business.reviewCount, 'review')})</span>
                       </div>
                     </div>
                   </div>
@@ -511,7 +515,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
               <GlassCard variant="default" className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
                   <div className="text-center shrink-0">
-                    <div className="text-4xl sm:text-5xl font-bold gradient-text">{business.rating.toFixed(1)}</div>
+                    <div className="text-4xl sm:text-5xl font-bold gradient-text">{formatRating(business.rating)}</div>
                     <div className="flex items-center justify-center gap-1 mt-2">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
@@ -525,7 +529,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                       ))}
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      {business.reviewCount} reviews
+                      {pluralize(business.reviewCount, 'review')}
                     </div>
                   </div>
                   <div className="flex-1">

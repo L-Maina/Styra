@@ -5,29 +5,42 @@ import { successResponse, errorResponse } from '@/lib/api-utils';
 import { env } from '@/lib/env';
 
 /**
+ * Accepts the secret as `Authorization: Bearer <secret>` (what Vercel Cron sends when the
+ * CRON_SECRET environment variable is set) or as `x-cron-secret`.
+ *
+ * Both sides are hashed first so the comparison is constant time and never throws on a
+ * length mismatch (timingSafeEqual throws when its inputs differ in length).
+ */
+function hasValidSecret(request: NextRequest, expected: string): boolean {
+  const authorization = request.headers.get('authorization');
+  const bearer = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null;
+  const provided = bearer ?? request.headers.get('x-cron-secret');
+  if (!provided) return false;
+
+  const a = crypto.createHash('sha256').update(provided).digest();
+  const b = crypto.createHash('sha256').update(expected).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+/**
  * GET /api/cron/release-escrow
  *
  * Cron endpoint for auto-releasing escrow funds.
- * Finds all COMPLETED bookings older than 24 hours that haven't been
- * verified by the customer, and auto-verifies them.
+ * Verifies COMPLETED bookings whose 24 hour window has passed without a confirmation or a
+ * dispute, releases their payment to the provider, and releases any payment that is still
+ * held for a booking that is already VERIFIED.
  *
- * Security: Requires CRON_SECRET header matching the environment variable.
- * This prevents unauthorized triggering of escrow releases.
+ * Scheduled in vercel.json. Security: requires the CRON_SECRET, so nobody else can trigger
+ * escrow releases.
  */
 export async function GET(request: NextRequest) {
-  // Verify cron secret
-  const cronSecret = request.headers.get('x-cron-secret');
   const expectedSecret = env.cronSecret || process.env.CRON_SECRET;
 
   if (!expectedSecret) {
     return errorResponse('CRON_SECRET not configured', 500);
   }
 
-  if (
-    !cronSecret ||
-    !expectedSecret ||
-    !crypto.timingSafeEqual(Buffer.from(cronSecret), Buffer.from(expectedSecret))
-  ) {
+  if (!hasValidSecret(request, expectedSecret)) {
     return errorResponse('Invalid cron secret', 401);
   }
 
@@ -38,6 +51,7 @@ export async function GET(request: NextRequest) {
       message: 'Escrow release cron completed',
       verifiedCount: result.verifiedCount,
       skippedCount: result.skippedCount,
+      repairedCount: result.repairedCount,
       errorCount: result.errors.length,
       errors: result.errors.length > 0 ? result.errors : undefined,
     });

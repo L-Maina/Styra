@@ -7,27 +7,29 @@
 /**
  * Brand asset paths — all served from /public/assets/branding/
  *
- * Asset mapping:
- *   logo-full.png    → Full logo (icon + "Styra" text) for headers, auth pages
- *   logo-icon.png    → Square icon for compact UI (mobile nav, loading, push notifications)
- *   logo-monogram.png → Monogram "S" for dashboards, sidebar, badges
- *   logo-wordmark.png → Text-only "Styra" for footers, inline branding
- *   favicon-source.png → High-res source for favicons
+ * Asset mapping (the UI uses the small `-sm` copies, 180 px tall, enough for 3x phone screens;
+ * the full-size originals stay as the source files):
+ *   logo-full-sm.png    → Full logo (icon + "Styra" text) for headers, auth pages
+ *   logo-icon-sm.png    → Square icon for compact UI (mobile nav, loading, push notifications)
+ *   logo-monogram-sm.png → Monogram "S" for dashboards, sidebar, badges
+ *   logo-wordmark-sm.png → Text-only "Styra" for footers, inline branding
+ *   favicon-source.png  → High-res source for favicons
+ * App icons live in /public/icons, the share image is /public/og-image.png.
  */
 
 export const BRAND = {
   // Primary logo — icon + wordmark combined
-  logoFull: '/assets/branding/logo-full.png',
+  logoFull: '/assets/branding/logo-full-sm.png',
   // Square icon (for mobile, notifications, loading states)
-  logoIcon: '/assets/branding/logo-icon.png',
+  logoIcon: '/assets/branding/logo-icon-sm.png',
   // Monogram "S" (for compact/dark contexts)
-  logoMonogram: '/assets/branding/logo-monogram.png',
+  logoMonogram: '/assets/branding/logo-monogram-sm.png',
   // Wordmark only (for footers, inline use)
-  logoWordmark: '/assets/branding/logo-wordmark.png',
+  logoWordmark: '/assets/branding/logo-wordmark-sm.png',
   // Favicon source
   favicon: '/assets/branding/favicon-source.png',
   // OG Image
-  ogImage: '/assets/branding/logo-full.png',
+  ogImage: '/og-image.png',
 } as const;
 
 /** Logo display sizes (in pixels) for different contexts */
@@ -52,3 +54,6 @@ export const LOGO_SIZES = {
 
 /** Brand name for alt text / aria labels */
 export const BRAND_NAME = 'Styra';
+
+/** The positioning line, used on the launch splash and the welcome screens. */
+export const BRAND_TAGLINE = 'Your style, on demand.';

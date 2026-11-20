@@ -22,12 +22,13 @@ import { BrandLogo } from '@/components/ui/brand-logo';
 import { useAuthStore } from '@/store';
 import api from '@/lib/api-client';
 import { toast } from 'sonner';
+import { EscrowPanel } from '@/components/admin/EscrowPanel';
 
 // ============================================
 // TYPE DEFINITIONS
 // ============================================
 
-type SectionId = 'overview' | 'revenue' | 'users' | 'businesses' | 'bookings' |
+type SectionId = 'overview' | 'revenue' | 'escrow' | 'users' | 'businesses' | 'bookings' |
   'listings' | 'disputes-reports' | 'claims-support' | 'content' | 'advertisements' | 'settings' | 'faq' | 'careers' | 'team' |
   'brand-kit' | 'monitoring' | 'webhooks';
 
@@ -282,7 +283,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>(null);
   const [disputeResponse, setDisputeResponse] = useState('');
-  const [resolutionType, setResolutionType] = useState('FULL_REFUND');
+  // No default: releasing or refunding money should be a deliberate choice.
+  const [resolutionType, setResolutionType] = useState('');
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [partialRefundAmount, setPartialRefundAmount] = useState(0);
 
@@ -617,23 +619,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         toast.success('Response sent');
       } else {
         const dispute = displayDisputes.find(d => d.id === selectedDisputeId);
-        const amount = resolutionType === 'PARTIAL_REFUND' ? partialRefundAmount : (dispute?.amount || 0);
-        await api.request('/admin/disputes', {
+        if (!resolutionType) { toast.error('Choose a decision first'); return; }
+        const isPartial = resolutionType === 'PARTIAL_REFUND';
+        const maxRefund = dispute?.amount || Infinity;
+        if (isPartial && !(partialRefundAmount > 0 && partialRefundAmount <= maxRefund)) {
+          toast.error('Enter a refund above zero and no more than the payment');
+          return;
+        }
+        if (resolutionNotes.trim().length < 10) {
+          toast.error('Add a short note (at least 10 characters) explaining the decision');
+          return;
+        }
+        // The server moves the money (release or refund) and closes the dispute in one step.
+        const res = await api.request<{ message?: string }>('/admin/disputes', {
           method: 'PUT',
           body: JSON.stringify({
-            disputeId: selectedDisputeId, status: 'RESOLVED',
-            resolution: { type: resolutionType, amount, notes: resolutionNotes },
+            disputeId: selectedDisputeId,
+            adminMessage: resolutionNotes.trim(),
+            resolution: { type: resolutionType, ...(isPartial ? { customerRefundAmount: partialRefundAmount } : {}) },
           }),
+          noRetry: true,
         });
-        setDisplayDisputes(prev => prev.map(d =>
-          d.id === selectedDisputeId ? { ...d, status: 'RESOLVED', resolution: { type: resolutionType, amount, notes: resolutionNotes } } : d
-        ));
-        toast.success('Dispute resolved');
+        toast.success(res.data?.message || 'Dispute resolved');
+        void fetchSectionData('disputes-reports');
       }
       setShowDisputeModal(false);
       setSelectedDisputeId(null);
       setDisputeResponse('');
       setResolutionNotes('');
+      setResolutionType('');
       setPartialRefundAmount(0);
     } catch (err) {
       console.error('Failed to process dispute:', err);
@@ -957,6 +971,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
         { id: 'businesses' as SectionId, label: 'Businesses', icon: Building2, count: overviewData?.pending.applications },
         { id: 'bookings' as SectionId, label: 'Bookings', icon: Calendar },
         { id: 'revenue' as SectionId, label: 'Revenue', icon: DollarSign },
+        { id: 'escrow' as SectionId, label: 'Escrow', icon: ShieldCheck },
       ],
     },
     {
@@ -1231,6 +1246,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
               <>
                 {activeSection === 'overview' && renderOverview()}
                 {activeSection === 'revenue' && renderRevenue()}
+                {activeSection === 'escrow' && <EscrowPanel onOpenDisputes={() => setActiveSection('disputes-reports')} />}
                 {activeSection === 'users' && renderUsers()}
                 {activeSection === 'businesses' && renderBusinesses()}
                 {activeSection === 'bookings' && renderBookings()}
@@ -2030,7 +2046,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
                                   setSelectedDisputeId(d.id);
                                   setResolutionNotes('');
                                   setPartialRefundAmount(d.amount);
-                                  setResolutionType('FULL_REFUND');
+                                  setResolutionType('');
                                   setShowDisputeModal(true);
                                 }} disabled={isProcessing}>
                                   <Check className="h-3 w-3" /> Resolve
@@ -3445,13 +3461,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
               onChange={(e) => setResolutionType(e.target.value)}
               className="w-full h-10 px-3 rounded-xl border border-border bg-background/50 text-sm text-foreground mb-3"
             >
-              <option value="FULL_REFUND">Full Refund</option>
-              <option value="PARTIAL_REFUND">Partial Refund</option>
-              <option value="NO_ACTION">No Action</option>
+              <option value="">Choose a decision</option>
+              <option value="RELEASE_TO_PROVIDER">Release payment to the provider</option>
+              <option value="FULL_REFUND">Full refund to the customer</option>
+              <option value="PARTIAL_REFUND">Partial refund</option>
             </select>
             {resolutionType === 'PARTIAL_REFUND' && (
               <div className="mb-3">
-                <label className="text-sm font-medium block mb-1.5">Refund Amount</label>
+                <label className="text-sm font-medium block mb-1.5">Refund amount for the customer</label>
                 <GlassInput
                   type="number"
                   value={partialRefundAmount}
@@ -3461,7 +3478,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             )}
             <textarea
               className="w-full h-16 rounded-xl border border-border bg-background/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
-              placeholder="Resolution notes..."
+              placeholder="Why you decided this (at least 10 characters)"
               value={resolutionNotes}
               onChange={(e) => setResolutionNotes(e.target.value)}
             />
@@ -3471,7 +3488,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'ov
             <GlassButton variant="outline" onClick={() => handleDisputeAction('respond')} disabled={isProcessing || !disputeResponse.trim()}>
               <Send className="h-3 w-3" /> Send Response
             </GlassButton>
-            <GlassButton variant="primary" onClick={() => handleDisputeAction('resolve')} disabled={isProcessing}>
+            <GlassButton variant="primary" onClick={() => handleDisputeAction('resolve')} disabled={isProcessing || !resolutionType}>
               <Check className="h-3 w-3" /> Resolve
             </GlassButton>
           </div>

@@ -51,18 +51,22 @@ import {
 } from '@/components/ui/custom/glass-components';
 import { PhoneInput } from '@/components/ui/custom/PhoneInput';
 import { LocationAutocomplete } from '@/components/ui/custom/LocationAutocomplete';
-import { useAuthStore } from '@/store';
+import { useAuthStore, useCurrencyStore } from '@/store';
 import { useBusinessServices, useBusinessStaff } from '@/hooks/use-business-data';
 import { cn } from '@/lib/utils';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { toast } from 'sonner';
 import api from '@/lib/api-client';
+import { BookingStatus, isDone, isStatus, isUpcoming, normalizeStatus, statusLabel } from '@/lib/booking-status';
+import { BookingStatusBadge, VerificationNotice } from '@/components/booking/BookingEscrowActions';
 import type { User, Service, Staff, Booking as ApiBooking } from '@/types';
 
 interface BusinessDashboardProps {
   user: User | null;
   onNavigate?: (page: string) => void;
   bookings?: ApiBooking[];
+  /** Called after a booking changed on the server, so the list can be refreshed in the background. */
+  onBookingsChanged?: () => void;
 }
 
 type DashboardTab = 'overview' | 'services' | 'staff' | 'bookings' | 'earnings' | 'portfolio' | 'marketing' | 'settings';
@@ -82,8 +86,10 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   user,
   onNavigate,
   bookings: apiBookings,
+  onBookingsChanged,
 }) => {
   const { isAuthenticated } = useAuthStore();
+  const { formatPrice } = useCurrencyStore();
 
   // ─── Fetch user's actual business from API ─────────────────────────
   const [resolvedBusinessId, setResolvedBusinessId] = useState<string | null>(null);
@@ -187,12 +193,19 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   const staff = apiStaff.length > 0 ? apiStaff : localStaff;
   // Loading state: apiBookings is undefined while still loading
   const bookingsLoading = apiBookings === undefined;
-  // Local status overrides for optimistic updates (e.g., confirm/cancel)
-  const [localStatusOverrides, setLocalStatusOverrides] = useState<Record<string, ApiBooking['status']>>({});
-  // Derive bookings from API data with local overrides applied
-  const bookings: ApiBooking[] = (apiBookings || []).map(b =>
-    localStatusOverrides[b.id] ? { ...b, status: localStatusOverrides[b.id] } : b
-  );
+  // Optimistic status changes. They belong to the list they were made against, so they drop
+  // away on their own when fresh data arrives from the server.
+  const [statusOverrides, setStatusOverrides] = useState<{
+    source: ApiBooking[] | undefined;
+    byId: Record<string, ApiBooking['status']>;
+  }>({ source: apiBookings, byId: {} });
+  const activeOverrides: Record<string, ApiBooking['status']> =
+    statusOverrides.source === apiBookings ? statusOverrides.byId : {};
+  // Statuses are normalised once here, so older lowercase rows behave like current ones.
+  const bookings: ApiBooking[] = (apiBookings || []).map(b => ({
+    ...b,
+    status: (activeOverrides[b.id] ?? normalizeStatus(b.status)) as ApiBooking['status'],
+  }));
   
   // Gallery state for portfolio (populated from API)
   const [gallery, setGallery] = useState<string[]>([]);
@@ -273,14 +286,22 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
 
   // Stats calculation
   const totalBookings = bookings.length;
-  const completedBookings = bookings.filter(b => b.status === 'COMPLETED').length;
-  const pendingBookings = bookings.filter(b => b.status === 'PENDING').length;
-  const totalRevenue = bookings.filter(b => b.status === 'COMPLETED').reduce((sum, b) => sum + b.totalAmount, 0);
+  const completedBookings = bookings.filter(b => isDone(b.status)).length;
+  const pendingBookings = bookings.filter(b => isStatus(b.status, BookingStatus.PENDING)).length;
+  // Revenue is money that has been released. Completed bookings still waiting for the customer
+  // to confirm are held in escrow, so they are counted separately.
+  const totalRevenue = bookings
+    .filter(b => isStatus(b.status, BookingStatus.VERIFIED))
+    .reduce((sum, b) => sum + b.totalAmount, 0);
+  const inEscrow = bookings
+    .filter(b => isStatus(b.status, BookingStatus.COMPLETED))
+    .reduce((sum, b) => sum + b.totalAmount, 0);
   // Get average rating from bookings or business data
   const averageRating = (() => {
-    const ratedBookings = bookings.filter(b => b.status === 'COMPLETED' && b.review?.rating);
+    const ratingOf = (b: ApiBooking) => b.review?.rating || b.reviews?.[0]?.rating || 0;
+    const ratedBookings = bookings.filter(b => isDone(b.status) && ratingOf(b) > 0);
     if (ratedBookings.length === 0) return 0;
-    const sum = ratedBookings.reduce((acc, b) => acc + (b.review?.rating || 0), 0);
+    const sum = ratedBookings.reduce((acc, b) => acc + ratingOf(b), 0);
     return Math.round((sum / ratedBookings.length) * 10) / 10;
   })();
 
@@ -536,10 +557,18 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
     setIsLoading(true);
     try {
       await api.updateBooking(bookingId, { status });
-      // Optimistic update: apply the new status locally for immediate feedback
-      setLocalStatusOverrides(prev => ({ ...prev, [bookingId]: status }));
-      toast.success(`Booking ${status.toLowerCase()}!`);
+      // Show the new status right away; the background refresh below brings the server's version.
+      setStatusOverrides(prev => ({
+        source: apiBookings,
+        byId: { ...(prev.source === apiBookings ? prev.byId : {}), [bookingId]: status },
+      }));
+      toast.success(
+        isStatus(status, BookingStatus.COMPLETED)
+          ? 'Marked as complete. The customer has 24 hours to confirm, then the payment is released to you.'
+          : `Booking ${statusLabel(status)}.`,
+      );
       setShowBookingModal(false);
+      onBookingsChanged?.();
     } catch {
       showSaveMessage('error', 'Failed to update booking status');
     } finally {
@@ -661,7 +690,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
   // Stats for overview — no fabricated change percentages, show real data only
   const stats = [
     { label: 'Total Bookings', value: totalBookings.toString(), change: undefined as string | undefined, icon: Calendar, color: 'from-blue-500 to-cyan-500' },
-    { label: 'Revenue', value: `$${totalRevenue.toLocaleString()}`, change: undefined as string | undefined, icon: DollarSign, color: 'from-green-500 to-emerald-500' },
+    { label: 'Revenue', value: formatPrice(totalRevenue), change: (inEscrow > 0 ? `${formatPrice(inEscrow)} in escrow` : undefined) as string | undefined, icon: DollarSign, color: 'from-green-500 to-emerald-500' },
     { label: 'Active Services', value: services.filter(s => s.isActive).length.toString(), change: undefined as string | undefined, icon: Scissors, color: 'from-purple-500 to-pink-500' },
     { label: 'Rating', value: averageRating.toString(), change: undefined as string | undefined, icon: Star, color: 'from-yellow-500 to-orange-500' },
   ];
@@ -861,7 +890,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                           <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
                             <stat.icon className="h-5 w-5 text-white" />
                           </div>
-                          {stat.change && <span className="text-xs text-green-600 font-medium">{stat.change}</span>}
+                          {stat.change && <span className="text-xs text-muted-foreground">{stat.change}</span>}
                         </div>
                         <div className="text-xl sm:text-2xl font-bold">{stat.value}</div>
                         <div className="text-xs sm:text-sm text-muted-foreground truncate">{stat.label}</div>
@@ -909,13 +938,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                           </div>
                           <div className="text-right shrink-0">
                             <div className="font-medium text-sm">{booking.startTime}</div>
-                            <GlassBadge variant={
-                              booking.status === 'CONFIRMED' ? 'success' :
-                              booking.status === 'PENDING' ? 'warning' :
-                              booking.status === 'COMPLETED' ? 'default' : 'destructive'
-                            }>
-                              {booking.status}
-                            </GlassBadge>
+                            <BookingStatusBadge status={booking.status} />
                           </div>
                         </div>
                       ))}
@@ -1020,7 +1043,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                             </div>
                           </div>
                           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                            <span className="text-lg sm:text-xl font-bold text-primary">${service.price}</span>
+                            <span className="text-lg sm:text-xl font-bold text-primary">{formatPrice(service.price)}</span>
                             <div className="flex items-center gap-1">
                               <GlassButton 
                                 variant="ghost" 
@@ -1154,7 +1177,9 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                         <option value="PENDING">Pending</option>
                         <option value="CONFIRMED">Confirmed</option>
                         <option value="IN_PROGRESS">In Progress</option>
-                        <option value="COMPLETED">Completed</option>
+                        <option value="COMPLETED">Awaiting confirmation</option>
+                        <option value="VERIFIED">Completed</option>
+                        <option value="DISPUTED">Under review</option>
                         <option value="CANCELLED">Cancelled</option>
                       </select>
                     </div>
@@ -1203,19 +1228,12 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                             </div>
                             <div className="flex items-center gap-3 sm:gap-4 shrink-0">
                               <div className="text-right">
-                                <div className="font-medium text-sm sm:text-base">${booking.totalAmount}</div>
+                                <div className="font-medium text-sm sm:text-base">{formatPrice(booking.totalAmount)}</div>
                                 <div className="text-xs sm:text-sm text-muted-foreground">
                                   {booking.date} • {booking.startTime}
                                 </div>
                               </div>
-                              <GlassBadge variant={
-                                booking.status === 'CONFIRMED' ? 'success' :
-                                booking.status === 'PENDING' ? 'warning' :
-                                booking.status === 'IN_PROGRESS' ? 'primary' :
-                                booking.status === 'COMPLETED' ? 'default' : 'destructive'
-                              }>
-                                {booking.status}
-                              </GlassBadge>
+                              <BookingStatusBadge status={booking.status} />
                             </div>
                           </div>
                         </GlassCard>
@@ -1267,7 +1285,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                   <GlassCard variant="default" className="p-6">
                     <h3 className="font-semibold mb-4">Recent Transactions</h3>
                     <div className="space-y-3">
-                      {bookings.filter(b => b.status === 'COMPLETED').slice(0, 5).map((booking) => (
+                      {bookings.filter(b => isDone(b.status)).slice(0, 5).map((booking) => (
                         <div key={booking.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -1279,7 +1297,13 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold text-green-600">+${booking.totalAmount}</p>
+                            {isStatus(booking.status, BookingStatus.VERIFIED) ? (
+                              <p className="font-semibold text-green-600">+{formatPrice(booking.totalAmount)}</p>
+                            ) : (
+                              <p className="font-semibold text-muted-foreground">
+                                {formatPrice(booking.totalAmount)} <span className="text-xs font-normal">in escrow</span>
+                              </p>
+                            )}
                             <p className="text-sm text-muted-foreground">{booking.date}</p>
                           </div>
                         </div>
@@ -2300,22 +2324,26 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Amount</p>
-                    <p className="font-medium text-primary">${selectedBooking.totalAmount}</p>
+                    <p className="font-medium text-primary">{formatPrice(selectedBooking.totalAmount)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Status</p>
-                    <GlassBadge variant={
-                      selectedBooking.status === 'CONFIRMED' ? 'success' :
-                      selectedBooking.status === 'PENDING' ? 'warning' :
-                      selectedBooking.status === 'IN_PROGRESS' ? 'primary' :
-                      selectedBooking.status === 'COMPLETED' ? 'default' : 'destructive'
-                    }>
-                      {selectedBooking.status}
-                    </GlassBadge>
+                    <BookingStatusBadge status={selectedBooking.status} />
                   </div>
                 </div>
                 
-                {selectedBooking.status !== 'COMPLETED' && selectedBooking.status !== 'CANCELLED' && (
+                <VerificationNotice
+                  booking={{
+                    id: selectedBooking.id,
+                    status: selectedBooking.status,
+                    amount: selectedBooking.totalAmount,
+                    completedAt: selectedBooking.completedAt,
+                    updatedAt: selectedBooking.updatedAt,
+                  }}
+                  audience="provider"
+                />
+
+                {isUpcoming(selectedBooking.status) && (
                   <div className="flex gap-2 pt-4 border-t border-border">
                     {selectedBooking.status === 'PENDING' && (
                       <GlassButton 
@@ -2344,7 +2372,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({
                         onClick={() => handleUpdateBookingStatus(selectedBooking.id, 'COMPLETED')}
                       >
                         <Check className="h-4 w-4 mr-1" />
-                        Complete
+                        Mark complete
                       </GlassButton>
                     )}
                     <GlassButton 

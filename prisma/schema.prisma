@@ -193,7 +193,7 @@ model Booking {
   date                String
   time                String
   endTime             String?
-  status              String    @default("pending")
+  status              String    @default("PENDING")
   notes               String?
   totalPrice          Float
   customerName        String?

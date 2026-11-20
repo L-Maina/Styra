@@ -45,6 +45,7 @@ import { ApiDocumentation } from '@/components/docs/ApiDocumentation';
 import { GlassButton, GlassCard } from '@/components/ui/custom/glass-components';
 import { HeroSectionSkeleton, CategoriesSectionSkeleton, CTASectionSkeleton } from '@/components/ui/custom/skeleton-presets';
 import { useAuthStore, useAdminStore } from '@/store';
+import { useFavoritesStore } from '@/store/favorites';
 import { api } from '@/lib/api-client';
 import { useBusinesses, useBookings, useApiNotifications, useConversations } from '@/hooks/use-business-data';
 import { useMinimumLoading } from '@/hooks/use-minimum-loading';
@@ -209,7 +210,7 @@ export default function HomePage() {
   const { data: businesses, isLoading: businessesLoading, error: businessesError, refetch: refetchBusinesses } = useBusinesses();
 
   // Fetch bookings for authenticated users
-  const { data: bookings, isLoading: bookingsLoading, refetch: refetchBookings } = useBookings(undefined, isAuthenticated);
+  const { data: bookings, isLoading: bookingsLoading, revalidate: revalidateBookings } = useBookings(undefined, isAuthenticated);
 
   // Fetch notifications for authenticated users
   const { data: notifications, refetch: refetchNotifications } = useApiNotifications(isAuthenticated);
@@ -217,11 +218,18 @@ export default function HomePage() {
   // Fetch conversations for authenticated users
   const { data: conversations, refetch: refetchConversations } = useConversations(isAuthenticated);
 
+  // Saved businesses: loaded once after sign-in and cleared on sign-out, so the next person starts empty
+  useEffect(() => {
+    if (isAuthenticated) void useFavoritesStore.getState().load();
+    else useFavoritesStore.getState().reset();
+  }, [isAuthenticated]);
+
   // ─── Minimum loading time for skeletons ──────────────────────────────
-  // Ensures skeleton UI shows for at least 1.2s so users can perceive it
-  const showBusinessesSkeleton = useMinimumLoading(businessesLoading, 2000);
-  const showBusinessDetailSkeleton = useMinimumLoading(businessDetailLoading, 1500);
-  const showBookingsSkeleton = useMinimumLoading(bookingsLoading, 1000);
+  // A skeleton that is up for only a blink looks like a glitch, so hold it for 0.4 s and no longer.
+  // (It used to be held for 1 to 2 s, which made every page open feel slow even when the data was ready.)
+  const showBusinessesSkeleton = useMinimumLoading(businessesLoading, 400);
+  const showBusinessDetailSkeleton = useMinimumLoading(businessDetailLoading, 400);
+  const showBookingsSkeleton = useMinimumLoading(bookingsLoading, 400);
 
   // Guest mode - if not authenticated, treat as CLIENT guest
   const isGuest = !isAuthenticated && !user;
@@ -832,6 +840,8 @@ export default function HomePage() {
             onNavigate={navigate}
             initialTab={dashboardTab as any}
             bookings={showBookingsSkeleton ? undefined : bookings}
+            onBookingsChanged={revalidateBookings}
+            onViewBusiness={handleSelectBusiness}
           />
         );
 
@@ -926,6 +936,7 @@ export default function HomePage() {
             user={user}
             onNavigate={navigate}
             bookings={showBookingsSkeleton ? undefined : bookings}
+            onBookingsChanged={revalidateBookings}
           />
         );
 
@@ -1358,7 +1369,8 @@ export default function HomePage() {
       {/* ─── Floating / Fixed Position Components ───────────────────────── */}
 
       {/* LanguageSwitcher — fixed bottom-right, above the accessibility toolbar */}
-      <div className="fixed bottom-20 right-6 z-50">
+      {/* On phones both floating buttons sit above the bottom tab bar instead of on top of it */}
+      <div className="fixed right-4 bottom-[calc(8.5rem+env(safe-area-inset-bottom,0px))] md:bottom-20 md:right-6 z-50">
         <LanguageSwitcher mode="compact" />
       </div>
 

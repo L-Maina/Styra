@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
+import { BookingStatus, statusVariants } from '@/lib/booking-status';
 import { requireAuth, requireAdmin } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { sanitizePayment } from '@/lib/response-sanitizer';
@@ -121,9 +122,10 @@ export async function PATCH(
 
       // Sync booking status with payment status
       if (newStatus === 'COMPLETED' && payment.booking) {
-        await tx.booking.update({
-          where: { id: payment.bookingId },
-          data: { status: 'CONFIRMED' },
+        // Only a pending booking is confirmed by a payment. A cancelled one stays cancelled.
+        await tx.booking.updateMany({
+          where: { id: payment.bookingId, status: { in: statusVariants(BookingStatus.PENDING) } },
+          data: { status: BookingStatus.CONFIRMED },
         });
 
         await tx.notification.create({

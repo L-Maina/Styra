@@ -172,7 +172,7 @@ export function AccessibilityToolbar() {
   }, [updateSetting]);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+    <div className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:bottom-6 md:right-6 z-50 flex flex-col items-end gap-2">
       {/* Expanded panel */}
       {isOpen && (
         <div

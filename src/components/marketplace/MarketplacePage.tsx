@@ -39,6 +39,7 @@ import { SearchAutocomplete } from '@/components/ui/custom/SearchAutocomplete';
 import { BusinessCard } from '@/components/home/FeaturedBusinesses';
 import type { Business } from '@/types';
 import { cn } from '@/lib/utils';
+import { pluralNoun } from '@/lib/format';
 
 interface MarketplacePageProps {
   businesses: Business[];
@@ -991,7 +992,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             <p className="text-sm sm:text-base text-muted-foreground">
               Showing{' '}
               <span className="font-semibold text-foreground">{filteredBusinesses.length}</span>
-              {' '}businesses
+              {' '}{pluralNoun(filteredBusinesses.length, 'business', 'businesses')}
               {locationText && (
                 <span>
                   {' '}within <span className="font-medium">{radius}km</span> of{' '}

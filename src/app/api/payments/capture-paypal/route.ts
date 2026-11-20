@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { BookingStatus, statusVariants } from '@/lib/booking-status';
 import { requireAuth, blockRole } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { capturePayPalOrder } from '@/lib/paypal';
@@ -116,9 +117,10 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      await tx.booking.update({
-        where: { id: payment.bookingId },
-        data: { status: 'CONFIRMED' },
+      // Only a pending booking is confirmed by a payment. A cancelled one stays cancelled.
+      await tx.booking.updateMany({
+        where: { id: payment.bookingId, status: { in: statusVariants(BookingStatus.PENDING) } },
+        data: { status: BookingStatus.CONFIRMED },
       });
 
       await tx.notification.create({

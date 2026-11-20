@@ -54,10 +54,19 @@ export async function GET(
       ? business
       : omitPrivateBusinessFields(business);
 
+    // Whether the signed-in user has saved this business (false for visitors)
+    const saved = session?.userId
+      ? await db.favorite.findUnique({
+          where: { userId_businessId: { userId: session.userId, businessId: id } },
+          select: { id: true },
+        })
+      : null;
+
     // Use boothPhotoUrl as fallback for coverImage
     const response = {
       ...visible,
       coverImage: business.coverImage || business.boothPhotoUrl || null,
+      isFavorite: !!saved,
     };
 
     return successResponse(response);

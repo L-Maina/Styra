@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Check, Star } from 'lucide-react';
 import { GlassButton, FadeIn, GradientText } from '@/components/ui/custom/glass-components';
+import { formatRating, pluralNoun } from '@/lib/format';
 
 interface CTASectionProps {
   onNavigate?: (page: string) => void;
@@ -115,10 +116,10 @@ export const CTASection: React.FC<CTASectionProps> = ({ onNavigate }) => {
               <div className="grid grid-cols-2 gap-4 sm:gap-6">
                 <StatItem
                   value={stats ? String(stats.total_providers) : '—'}
-                  label="Service Providers"
+                  label={pluralNoun(stats?.total_providers ?? 0, 'Service Provider', 'Service Providers')}
                 />
                 <StatItem
-                  value={stats && stats.average_rating > 0 ? `${stats.average_rating}★` : '—'}
+                  value={stats && stats.average_rating > 0 ? `${formatRating(stats.average_rating)}★` : '—'}
                   label="Average Rating"
                 />
               </div>

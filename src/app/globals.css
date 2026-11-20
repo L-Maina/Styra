@@ -33,13 +33,31 @@
   --radius-lg: 1.25rem;
   --radius-xl: 1.5rem;
 
-  /* Base Theme — Dark Premium */
-  --background: #0B0B0F;
-  --foreground: #FFFFFF;
-  --card: rgba(31, 41, 55, 0.6);
-  --card-foreground: #FFFFFF;
-  --popover: rgba(31, 41, 55, 0.8);
-  --popover-foreground: #FFFFFF;
+  /* Motion tokens. One set for web, the Flutter app and Figma; src/lib/motion.ts has the same values. */
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+  --duration-launch: 1200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --distance-rise: 12px;
+  --distance-slide: 16px;
+  --press-scale: 0.97;
+  --stagger-step: 60ms;
+  --shimmer-duration: 1400ms;
+
+  /* Skeletons: a quiet neutral shape and a soft sweep */
+  --skeleton-base: rgba(255, 255, 255, 0.07);
+  --skeleton-sweep: rgba(255, 255, 255, 0.09);
+
+  /* Base Theme — Graphite (dark, the default) */
+  --background: #101116;
+  --foreground: #F5F5F7;
+  --card: rgba(26, 27, 35, 0.7);
+  --card-foreground: #F5F5F7;
+  --popover: rgba(26, 27, 35, 0.92);
+  --popover-foreground: #F5F5F7;
   --primary-foreground: #ffffff;
   --secondary-foreground: #E5E7EB;
   --muted: rgba(255, 255, 255, 0.08);
@@ -49,9 +67,10 @@
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
   --border: rgba(255, 255, 255, 0.2);
-  --input: rgba(255, 255, 255, 0.25);
+  /* Control edges (text fields, outline buttons) need 3:1 against the page and cards. */
+  --input: rgba(255, 255, 255, 0.4);
   --ring: #6C4EFF;
-  --surface: #1F2937;
+  --surface: #1A1B23;
 
   /* Chart Colors */
   --chart-1: #6C4EFF;
@@ -61,7 +80,7 @@
   --chart-5: #EF4444;
 
   /* Sidebar */
-  --sidebar: rgba(11, 11, 15, 0.95);
+  --sidebar: rgba(16, 17, 22, 0.95);
   --sidebar-foreground: #E5E7EB;
   --sidebar-primary: #6C4EFF;
   --sidebar-primary-foreground: #FFFFFF;
@@ -71,39 +90,41 @@
   --sidebar-ring: #6C4EFF;
 }
 
-/* Light mode overrides */
+/* Light mode overrides — warm ivory */
 .light {
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-bg-hover: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(148, 163, 184, 0.25);
+  --glass-border: rgba(20, 21, 27, 0.12);
   --glass-border-hover: rgba(108, 78, 255, 0.3);
   --glass-shadow: 0 8px 32px rgba(108, 78, 255, 0.12), 0 0 20px rgba(58, 190, 255, 0.08);
   --glass-shadow-hover: 0 12px 40px rgba(108, 78, 255, 0.2), 0 0 30px rgba(58, 190, 255, 0.12);
 
-  --background: #F8FAFC;
-  --foreground: #0F172A;
+  --background: #F7F3EC;
+  --foreground: #14151B;
   --card: rgba(255, 255, 255, 0.8);
-  --card-foreground: #0F172A;
+  --card-foreground: #14151B;
   --popover: rgba(255, 255, 255, 0.95);
-  --popover-foreground: #0F172A;
+  --popover-foreground: #14151B;
   --primary-foreground: #FFFFFF;
-  --secondary-foreground: #0F172A;
-  --muted: rgba(241, 245, 249, 0.8);
-  --muted-foreground: #64748B;
+  --secondary-foreground: #14151B;
+  --muted: rgba(239, 233, 222, 0.8);
+  --muted-foreground: #5A5F6E;
   --accent: rgba(108, 78, 255, 0.08);
-  --accent-foreground: #0F172A;
-  --destructive: #EF4444;
+  --accent-foreground: #14151B;
+  --destructive: #C42B31;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(148, 163, 184, 0.35);
-  --input: rgba(148, 163, 184, 0.4);
+  --border: rgba(20, 21, 27, 0.14);
+  --input: rgba(20, 21, 27, 0.5);
   --ring: #6C4EFF;
-  --surface: #F1F5F9;
+  --surface: #EFEAE0;
+  --skeleton-base: rgba(20, 21, 27, 0.07);
+  --skeleton-sweep: rgba(255, 255, 255, 0.7);
 
   --sidebar: rgba(255, 255, 255, 0.9);
-  --sidebar-foreground: #0F172A;
+  --sidebar-foreground: #14151B;
   --sidebar-accent: rgba(108, 78, 255, 0.1);
   --sidebar-accent-foreground: #6C4EFF;
-  --sidebar-border: rgba(148, 163, 184, 0.15);
+  --sidebar-border: rgba(20, 21, 27, 0.08);
 }
 
 @theme inline {
@@ -218,20 +239,20 @@
 
 /* Navbar — premium sticky glass */
 .glass-nav {
-  background: rgba(11, 11, 15, 0.6);
+  background: rgba(16, 17, 22, 0.72);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .light .glass-nav {
-  background: rgba(248, 250, 252, 0.8);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(247, 243, 236, 0.82);
+  border-bottom: 1px solid rgba(20, 21, 27, 0.1);
 }
 
 /* Modal — heavy glass */
 .glass-modal {
-  background: rgba(31, 41, 55, 0.85);
+  background: rgba(26, 27, 35, 0.9);
   backdrop-filter: var(--glass-blur-heavy);
   -webkit-backdrop-filter: var(--glass-blur-heavy);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -261,7 +282,7 @@
 
 .light .glass-modal {
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  border: 1px solid rgba(20, 21, 27, 0.14);
   box-shadow:
     0 25px 50px rgba(0, 0, 0, 0.15),
     0 0 0 1px rgba(255, 255, 255, 0.3) inset,
@@ -316,7 +337,7 @@
 }
 
 .light .brand-logo .styra {
-  color: #0F172A;
+  color: #14151B;
 }
 
 /* ============================================
@@ -398,51 +419,28 @@
   animation: glow-pulse 3s ease-in-out infinite;
 }
 
-/* Skeleton Loader — premium shimmer with high visibility */
-.skeleton {
+/* Skeleton loader: a quiet neutral shape with a soft sweep every 1.4 s.
+   Static under reduced motion (the sweep ends off-screen). .shimmer adds only the sweep,
+   for the Skeleton component, which sets its own colour and radius. */
+.skeleton,
+.shimmer {
   position: relative;
   overflow: hidden;
-  background: rgba(108, 78, 255, 0.20);
+}
+
+.skeleton {
+  background: var(--skeleton-base);
   border-radius: var(--radius);
-  animation: skeleton-pulse 2s ease-in-out infinite;
 }
 
-.light .skeleton {
-  background: rgba(108, 78, 255, 0.18);
-}
-
-.skeleton::after {
+.skeleton::after,
+.shimmer::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(108, 78, 255, 0.30) 25%,
-    rgba(58, 190, 255, 0.24) 50%,
-    rgba(108, 78, 255, 0.30) 75%,
-    transparent 100%
-  );
-  animation: shimmer 1.5s ease-in-out infinite;
-}
-
-.light .skeleton::after {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(108, 78, 255, 0.22) 25%,
-    rgba(58, 190, 255, 0.18) 50%,
-    rgba(108, 78, 255, 0.22) 75%,
-    transparent 100%
-  );
-}
-
-@keyframes skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--skeleton-sweep) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: shimmer var(--shimmer-duration) linear infinite;
 }
 
 /* Shimmer animation utility class for image loading placeholders */
@@ -613,6 +611,12 @@ button[class*="rounded-full"]:not(:disabled):hover {
     @apply border-border outline-ring/50;
   }
 
+  /* Visible keyboard focus: 2px ring, 3px gap. Components that draw their own ring use outline-none. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
   }
@@ -691,4 +695,149 @@ button[class*="rounded-full"]:not(:disabled):hover {
   .hide-mobile-scrollbar::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Press feedback: a pressed control scales to --press-scale. Add the class to any tappable
+   element; it relies on the element's own transition (Button has transition-all). Off under
+   reduced motion, where a pressed control only changes colour. */
+.press:active {
+  transform: scale(var(--press-scale));
+}
+
+/* ============================================
+   LAUNCH SPLASH
+   One calm reveal per session, at most 1.2 s. Pure CSS, so it is on screen at first paint
+   and ends by itself. The reduced-motion rules below finish it instantly, which skips it.
+   ============================================ */
+
+.launch-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10000; /* above the navbar (z-[9999]) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+  pointer-events: none;
+  animation: launch-out var(--duration-launch) var(--ease-standard) forwards;
+}
+
+html[data-launched] .launch-splash {
+  display: none;
+}
+
+.launch-glow {
+  position: absolute;
+  width: 28rem;
+  height: 28rem;
+  max-width: 90vw;
+  max-height: 90vw;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgba(108, 78, 255, 0.35), rgba(42, 107, 255, 0.14) 55%, transparent);
+  filter: blur(40px);
+  opacity: 0;
+  animation: launch-glow 500ms var(--ease-standard) 100ms forwards;
+}
+
+.launch-lockup {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.launch-mark {
+  opacity: 0.25;
+  transform: scale(0.8);
+  animation: launch-mark var(--duration-slow) var(--ease-spring) forwards;
+}
+
+.launch-words {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0;
+  transform: translateY(var(--distance-rise));
+  animation: launch-words var(--duration-base) var(--ease-standard) 750ms forwards;
+}
+
+.launch-name {
+  font-family: var(--font-poppins), sans-serif;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.launch-tagline {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+@keyframes launch-mark {
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes launch-glow {
+  to { opacity: 1; }
+}
+
+@keyframes launch-words {
+  to { opacity: 1; transform: none; }
+}
+
+/* Fully visible until 1.0 s, then a 200 ms dissolve. */
+@keyframes launch-out {
+  0%, 83% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+/* ============================================
+   REDUCED MOTION
+   Movement becomes a short fade and loops stop. Follows the system setting, or the
+   override in the accessibility toolbar (MotionSettings sets <html data-motion>).
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) {
+    scroll-behavior: auto;
+  }
+
+  :root:not([data-motion='full']) .press:active {
+    transform: none !important;
+  }
+
+  :root:not([data-motion='full']) *,
+  :root:not([data-motion='full']) *::before,
+  :root:not([data-motion='full']) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-property: opacity, color, background-color, border-color, box-shadow, fill, stroke !important;
+    transition-duration: var(--duration-fast) !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root[data-motion='reduce'] {
+  scroll-behavior: auto;
+}
+
+:root[data-motion='reduce'] .press:active {
+  transform: none !important;
+}
+
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] *::before,
+:root[data-motion='reduce'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0s !important;
+  transition-property: opacity, color, background-color, border-color, box-shadow, fill, stroke !important;
+  transition-duration: var(--duration-fast) !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
 }

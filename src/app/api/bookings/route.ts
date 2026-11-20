@@ -5,6 +5,7 @@ import { createBookingSchema } from '@/lib/validations';
 import { successResponse, errorResponse, handleApiError, parsePagination, paginatedResponse } from '@/lib/api-utils';
 import { parseSort } from '@/lib/query-optimization';
 import { sanitizeResponse } from '@/lib/response-sanitizer';
+import { BookingStatus, statusVariants } from '@/lib/booking-status';
 import { omitPrivateBusinessFields } from '@/lib/business-public';
 
 // List bookings
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
             select: { id: true, name: true, avatar: true, email: true, phone: true },
           },
           business: {
-            select: { id: true, name: true, address: true },
+            select: { id: true, name: true, address: true, logo: true, coverImage: true },
           },
           service: {
             select: { id: true, name: true, price: true, duration: true },
@@ -145,7 +146,9 @@ export async function POST(request: NextRequest) {
         where: {
           serviceId: validated.serviceId,
           date: validated.date,
-          status: { in: ['pending', 'confirmed', 'in_progress'] },
+          status: {
+            in: statusVariants(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS),
+          },
           OR: [
             {
               time: { lt: validated.endTime },
@@ -170,7 +173,7 @@ export async function POST(request: NextRequest) {
           endTime: validated.endTime || null,
           notes: validated.notes || null,
           totalPrice: service.price,
-          status: 'pending',
+          status: BookingStatus.PENDING,
         },
         include: {
           business: true,

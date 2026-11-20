@@ -42,25 +42,35 @@ function useFetch<T>(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
-  const refetch = useCallback(() => {
-    setIsLoading(true);
+  // Loads the list again. A silent run keeps the current data on screen and does not flip
+  // isLoading, so a dashboard does not flash back to its skeleton after an action.
+  const run = useCallback((silent: boolean) => {
+    if (!silent) setIsLoading(true);
     setError(null);
     fetchFn()
       .then((result) => {
         setRawData(result || []);
         setError(null);
       })
-      .catch((err) => setError(err.message || 'Failed to load data'))
-      .finally(() => setIsLoading(false));
+      .catch((err) => {
+        if (!silent) setError(err.message || 'Failed to load data');
+      })
+      .finally(() => {
+        if (!silent) setIsLoading(false);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const refetch = useCallback(() => run(false), [run]);
+  /** Refresh in the background after the person changed something. */
+  const revalidate = useCallback(() => run(true), [run]);
 
   // When disabled, expose empty data to prevent stale data leakage
   const data = enabled ? rawData : [];
   const safeError = enabled ? error : null;
   const safeIsLoading = enabled ? isLoading : false;
 
-  return { data, isLoading: safeIsLoading, error: safeError, refetch };
+  return { data, isLoading: safeIsLoading, error: safeError, refetch, revalidate };
 }
 
 // ─── API helper ───────────────────────────────────────────────────────
@@ -152,9 +162,23 @@ export interface BookingsParams {
   toDate?: string;
 }
 
+/**
+ * The bookings API returns the database names `time` and `totalPrice`; the dashboards read
+ * `startTime` and `totalAmount`. Mapping once here keeps every screen reading real values.
+ */
+function withDashboardFields(row: Booking): Booking {
+  const raw = row as Booking & { time?: string; totalPrice?: number };
+  return {
+    ...row,
+    startTime: row.startTime || raw.time || '',
+    totalAmount: row.totalAmount ?? raw.totalPrice ?? 0,
+  };
+}
+
 export function useBookings(params?: BookingsParams, isAuthenticated = false) {
   const fetchFn = useCallback(async () => {
-    return apiGet<Booking>('/bookings', params as Record<string, string | number | boolean | undefined>);
+    const rows = await apiGet<Booking>('/bookings', params as Record<string, string | number | boolean | undefined>);
+    return rows ? rows.map(withDashboardFields) : rows;
   }, [params]);
 
   return useFetch<Booking>(fetchFn, [params, isAuthenticated], isAuthenticated);

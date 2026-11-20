@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
+import { AppError } from '@/lib/app-error';
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -56,6 +57,11 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
       { success: false, error: 'Authentication required' },
       { status: error.status, headers: { 'Content-Type': 'application/json' } }
     );
+  }
+
+  // Errors thrown on purpose with a message that is safe to show (wrong state, not allowed, ...)
+  if (error instanceof AppError) {
+    return errorResponse(error.message, error.status, undefined, error.code);
   }
 
   // Log error details — ALWAYS log, even in production
