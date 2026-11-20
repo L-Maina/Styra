@@ -17,6 +17,8 @@ export async function listBusinesses(db: Db, q: z.infer<typeof businessListQuery
     `select * from (
        select b.id, b.slug, b.name, b.category, b.city, b.address, b.rating_avg, b.rating_count, b.lat, b.lng,
               (select min(s.price_minor) from styra.services s where s.business_id = b.id and s.active) as from_price,
+              (select p.url from styra.business_photos p where p.business_id = b.id and p.kind = 'COVER') as cover_url,
+              (select p.url from styra.business_photos p where p.business_id = b.id and p.kind = 'LOGO') as logo_url,
               ${distance} as distance_km
          from styra.businesses b
         where b.status = 'ACTIVE'
@@ -40,6 +42,8 @@ export async function listBusinesses(db: Db, q: z.infer<typeof businessListQuery
     rating: rating(r as never),
     fromPriceMinor: r.from_price == null ? null : n(r.from_price),
     location: r.lat == null || r.lng == null ? null : { lat: n(r.lat), lng: n(r.lng) },
+    coverUrl: r.cover_url == null ? null : String(r.cover_url),
+    logoUrl: r.logo_url == null ? null : String(r.logo_url),
     distanceKm: r.distance_km == null ? null : Math.round(n(r.distance_km) * 10) / 10,
   }));
   return { items, nextCursor: rows.length > q.limit ? q.cursor + q.limit : null };
@@ -52,7 +56,7 @@ export async function getBusinessPage(db: Db, slug: string) {
     [slug],
   );
   if (!b) throw new AppError('NOT_FOUND', 'business not found', 404);
-  const [services, staff, rules, reviews] = await Promise.all([
+  const [services, staff, rules, reviews, photos] = await Promise.all([
     db.query<Record<string, unknown>>(
       `select id, name, category, description, duration_min, price_minor, currency from styra.services where business_id = $1 and active order by position, name`,
       [b.id],
@@ -70,6 +74,7 @@ export async function getBusinessPage(db: Db, slug: string) {
         where r.business_id = $1 order by r.created_at desc limit 10`,
       [b.id],
     ),
+    db.query<Record<string, unknown>>(`select id, kind, url, caption from styra.business_photos where business_id = $1 order by position, created_at`, [b.id]),
   ]);
   const str = (v: unknown) => (v == null ? null : String(v));
   return {
@@ -96,6 +101,9 @@ export async function getBusinessPage(db: Db, slug: string) {
     staff: staff.map((s) => ({ id: String(s.id), name: String(s.name) })),
     hours: rules.map((r) => ({ weekday: n(r.weekday), start: String(r.start), end: String(r.end) })),
     reviews: reviews.map((r) => ({ rating: n(r.rating), comment: str(r.comment), author: String(r.first_name), createdAt: iso(r.created_at) })),
+    logoUrl: str(photos.find((p) => p.kind === 'LOGO')?.url),
+    coverUrl: str(photos.find((p) => p.kind === 'COVER')?.url),
+    gallery: photos.filter((p) => p.kind === 'GALLERY').map((p) => ({ id: String(p.id), url: String(p.url), caption: str(p.caption) })),
   };
 }
 

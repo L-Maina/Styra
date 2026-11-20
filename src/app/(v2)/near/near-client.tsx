@@ -8,7 +8,7 @@ import { t } from '@/core/copy';
 import { formatMoney } from '@/core/money';
 import { formatRating } from '@/core/format';
 import { Glass } from '@/components/v2/glass';
-import { CoverAvatar } from '@/components/v2/cover';
+import { BusinessAvatar } from '@/components/v2/business-media';
 import { SnipLoader } from '@/components/v2/snip-loader';
 import { Button } from '@/components/v2/ui';
 import { api } from '@/lib/v2/api';
@@ -163,7 +163,7 @@ export function NearClient() {
                               selected === b.slug ? 'border-primary' : 'border-[var(--hairline)]',
                             )}
                           >
-                            <CoverAvatar name={b.name} category={b.category} className="size-16" />
+                            <BusinessAvatar name={b.name} category={b.category} logoUrl={b.logoUrl} className="size-16" />
                             <span className="min-w-0">
                               <span className="block truncate text-[17px] font-semibold">{b.name}</span>
                               <span className="flex items-center gap-1 text-[13px] tabular-nums">

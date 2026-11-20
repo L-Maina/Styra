@@ -15,6 +15,7 @@ export interface NearBusiness {
   fromPriceMinor: number | null;
   location: { lat: number; lng: number } | null;
   distanceKm: number | null;
+  logoUrl?: string | null;
 }
 
 // Esri's gray canvases: quiet basemaps that let the price pins carry the colour. No key needed; credit required.

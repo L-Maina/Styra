@@ -4,7 +4,7 @@ import { MapPin, Phone, Star } from 'lucide-react';
 import { t } from '@/core/copy';
 import { formatDuration, formatPhone, formatRating } from '@/core/format';
 import { AppError } from '@/core/errors';
-import { Cover } from '@/components/v2/cover';
+import { BusinessAvatar, BusinessCover } from '@/components/v2/business-media';
 import { FadeUp, ParallaxCover } from '@/components/v2/motion';
 import { Money, Section } from '@/components/v2/ui';
 import { currentUser } from '@/lib/v2/session';
@@ -12,6 +12,7 @@ import { getDb } from '@/server/db-pool';
 import { availableMethods } from '@/server/payments/provider';
 import { getBusinessPage } from '@/server/services/discovery';
 import { BookingFlow } from './booking-flow';
+import { Gallery } from './gallery';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,11 +44,12 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
     <div className="pb-28">
       <div className="relative -mx-4 -mt-24 md:mx-0 md:mt-0">
         <ParallaxCover className="h-[46dvh] min-h-[300px] w-full md:h-[400px] md:rounded-[32px]">
-          <Cover name={b.name} category={b.category} size="hero" className="h-full w-full" />
+          <BusinessCover name={b.name} category={b.category} coverUrl={b.coverUrl} size="hero" className="h-full w-full" sizes="100vw" priority />
         </ParallaxCover>
       </div>
       <FadeUp delay={0.1}>
-      <header className="space-y-2 pt-6">
+      <header className="relative space-y-2 pt-6">
+        <BusinessAvatar name={b.name} category={b.category} logoUrl={b.logoUrl} className="-mt-16 mb-2 size-20 rounded-3xl shadow-lg ring-4 ring-background" />
         <h1 className="font-[family-name:var(--font-syne)] text-[34px] font-bold uppercase leading-none tracking-[-0.015em] md:text-[48px]">{b.name}</h1>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px]">
           <span className="flex items-center gap-1 tabular-nums">
@@ -74,6 +76,11 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
             signedIn={Boolean(user)}
             methods={availableMethods()}
           />
+          {b.gallery.length > 0 && (
+            <Section title={t('business.gallery')}>
+              <Gallery photos={b.gallery} name={b.name} />
+            </Section>
+          )}
           <Section title={t('business.reviews')}>
             {b.reviews.length ? (
               <ul className="divide-y divide-[var(--hairline)] overflow-hidden rounded-3xl border border-[var(--hairline)] bg-[var(--surface-1)]">

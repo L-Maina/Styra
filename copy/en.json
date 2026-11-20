@@ -17,7 +17,8 @@
     "skipToContent": "Skip to content",
     "main": "Main",
     "tabs": "Tabs",
-    "near": "Near me"
+    "near": "Near me",
+    "photos": "Photos"
   },
   "actions": {
     "browse": "Browse businesses",
@@ -101,7 +102,11 @@
       "5": "Friday",
       "6": "Saturday"
     },
-    "noServices": "This business hasn't added services yet."
+    "noServices": "This business hasn't added services yet.",
+    "gallery": "Gallery",
+    "photoOf": "Photo {index} of {count}",
+    "logoAlt": "{name} logo",
+    "coverAlt": "Inside {name}"
   },
   "booking": {
     "sheet": {
@@ -245,7 +250,15 @@
       "PROCESSING": "Payout on its way",
       "PAID": "Paid out",
       "FAILED": "Payout failed, money returned"
-    }
+    },
+    "photosTitle": "Photos",
+    "photosLead": "Show your best work and your space. Clear, bright photos get more bookings.",
+    "logo": "Logo",
+    "cover": "Banner",
+    "addPhoto": "Add photo",
+    "replace": "Replace",
+    "deletePhoto": "Delete photo",
+    "photoHint": "JPEG, PNG or WebP, up to 5 MB."
   },
   "admin": {
     "title": "Admin",
@@ -312,7 +325,12 @@
     "phoneInvalid": "Enter a Kenyan phone number, like 0712 345 678.",
     "details": "Details: {ref}",
     "TOO_EARLY": "You can mark this once the appointment has started.",
-    "PHONE_INVALID": "Enter a Kenyan phone number, like 0712 345 678."
+    "PHONE_INVALID": "Enter a Kenyan phone number, like 0712 345 678.",
+    "FILE_TYPE": "That file isn't a photo. Use JPEG, PNG or WebP.",
+    "FILE_TOO_LARGE": "That photo is over 5 MB. Choose a smaller one.",
+    "GALLERY_FULL": "Your gallery is full. Delete a photo to add another.",
+    "STORAGE_UNAVAILABLE": "Photo uploads aren't available right now. Try again later.",
+    "STORAGE_FAILED": "The photo didn't upload. Try again."
   },
   "notify": {
     "smsConfirmed": "Booking confirmed: {business}, {time}. Payment is held until you confirm.",

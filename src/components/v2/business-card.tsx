@@ -3,7 +3,7 @@ import { Star } from 'lucide-react';
 import { t } from '@/core/copy';
 import { formatMoney } from '@/core/money';
 import { formatRating } from '@/core/format';
-import { Cover } from './cover';
+import { BusinessAvatar, BusinessCover } from './business-media';
 
 export interface BusinessCardData {
   slug: string;
@@ -13,6 +13,8 @@ export interface BusinessCardData {
   address: string | null;
   rating: { avg: number; count: number };
   fromPriceMinor: number | null;
+  coverUrl?: string | null;
+  logoUrl?: string | null;
 }
 
 /** Content layer: opaque, no glass. The whole card is one link with a clear accessible name. */
@@ -22,8 +24,9 @@ export function BusinessCard({ b }: { b: BusinessCardData }) {
       href={`/b/${b.slug}`}
       className="lift press group block overflow-hidden rounded-3xl border border-[var(--hairline)] bg-[var(--surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <div className="overflow-hidden">
-        <Cover name={b.name} category={b.category} className="lift-art aspect-[16/10] w-full" />
+      <div className="relative overflow-hidden">
+        <BusinessCover name={b.name} category={b.category} coverUrl={b.coverUrl} className="lift-art aspect-[16/10] w-full" />
+        {b.logoUrl && <BusinessAvatar name={b.name} category={b.category} logoUrl={b.logoUrl} className="absolute bottom-3 left-3 size-11 ring-2 ring-[var(--surface-1)]" />}
       </div>
       <div className="space-y-1 p-4">
         <div className="flex items-start justify-between gap-3">
