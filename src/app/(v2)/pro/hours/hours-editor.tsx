@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { t } from '@/core/copy';
-import { Button } from '@/components/v2/ui';
+import { FeedbackButton } from '@/components/v2/feedback-button';
 import { api, ApiFailure } from '@/lib/v2/api';
 
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
@@ -23,7 +23,6 @@ export function HoursEditor({ initial }: { initial: { weekday: number; start: st
       return [d, r ? { open: true, start: r.start, end: r.end } : { open: false, start: '09:00', end: '18:00' }];
     })),
   );
-  const [busy, setBusy] = useState(false);
   const set = (d: number, patch: Partial<Day>) => setDays((s) => ({ ...s, [d]: { ...s[d], ...patch } }));
   return (
     <div className="space-y-4">
@@ -50,23 +49,21 @@ export function HoursEditor({ initial }: { initial: { weekday: number; start: st
           </li>
         ))}
       </ul>
-      <Button
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
+      <FeedbackButton
+        onAction={async () => {
           try {
             await api('/pro/availability', { method: 'PUT', body: { rules: DAYS.filter((d) => days[d].open).map((d) => ({ weekday: d, start: days[d].start, end: days[d].end })) } });
             toast(t('toast.saved'));
-            router.refresh();
+            setTimeout(() => router.refresh(), 700);
+            return true;
           } catch (e) {
             toast((e as ApiFailure).message);
-          } finally {
-            setBusy(false);
+            return false;
           }
         }}
       >
         {t('actions.saveHours')}
-      </Button>
+      </FeedbackButton>
     </div>
   );
 }

@@ -67,3 +67,6 @@ server.log
 # mobile app
 /apps/mobile/node_modules
 /apps/mobile/.expo
+
+# local v2 photo uploads (development only)
+/public/dev-uploads/

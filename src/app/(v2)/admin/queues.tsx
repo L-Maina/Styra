@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { t } from '@/core/copy';
 import { Button, Money } from '@/components/v2/ui';
+import { FeedbackButton } from '@/components/v2/feedback-button';
 import { api, ApiFailure } from '@/lib/v2/api';
 
 const field = 'h-11 w-full min-w-0 rounded-xl border border-input bg-[var(--surface-1)] px-3 text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -13,14 +14,16 @@ function useAction() {
   const [busy, setBusy] = useState(false);
   return {
     busy,
-    async run(path: string, body: unknown) {
+    async run(path: string, body: unknown): Promise<boolean> {
       setBusy(true);
       try {
         await api(path, { body });
         toast(t('toast.saved'));
-        router.refresh();
+        setTimeout(() => router.refresh(), 700);
+        return true;
       } catch (e) {
         toast((e as ApiFailure).message);
+        return false;
       } finally {
         setBusy(false);
       }
@@ -45,7 +48,7 @@ export function RefundRow({ r }: { r: { id: string; bookingCode: string; amountM
       {r.status === 'PENDING' || r.status === 'SUBMITTED' ? (
         <div className="flex gap-2">
           <input aria-label={t('admin.reference')} placeholder={t('admin.reference')} value={ref} onChange={(e) => setRef(e.target.value)} className={field} />
-          <Button disabled={busy || !ref} onClick={() => run(`/admin/refunds/${r.id}/paid`, { providerRef: ref })}>{t('admin.markRefunded')}</Button>
+          <FeedbackButton disabled={!ref} onAction={() => run(`/admin/refunds/${r.id}/paid`, { providerRef: ref })}>{t('admin.markRefunded')}</FeedbackButton>
         </div>
       ) : (
         <p className="text-[15px]">{t(`admin.refundStatus.${r.status}` as never)}</p>
@@ -70,8 +73,8 @@ export function PayoutRow({ p }: { p: { id: string; amountMinor: number; status:
       {open ? (
         <div className="flex flex-wrap gap-2">
           <input aria-label={t('admin.reference')} placeholder={t('admin.reference')} value={ref} onChange={(e) => setRef(e.target.value)} className={`${field} flex-1`} />
-          <Button disabled={busy || !ref} onClick={() => run(`/admin/payouts/${p.id}/paid`, { providerRef: ref })}>{t('admin.markPaidOut')}</Button>
-          <Button tone="danger" disabled={busy} onClick={() => run(`/admin/payouts/${p.id}/failed`, { reason: ref || undefined })}>{t('admin.markFailed')}</Button>
+          <FeedbackButton disabled={!ref} onAction={() => run(`/admin/payouts/${p.id}/paid`, { providerRef: ref })}>{t('admin.markPaidOut')}</FeedbackButton>
+          <FeedbackButton tone="danger" onAction={() => run(`/admin/payouts/${p.id}/failed`, { reason: ref || undefined })}>{t('admin.markFailed')}</FeedbackButton>
         </div>
       ) : (
         <p className="text-[15px]">{t(`pro.payoutStatus.${p.status}` as never)}</p>
@@ -109,12 +112,12 @@ export function DisputeRow({ d }: { d: { id: string; status: string; reason: str
             </label>
           )}
           <input aria-label={t('admin.resolutionNote')} placeholder={t('admin.resolutionNote')} value={note} onChange={(e) => setNote(e.target.value)} className={field} />
-          <Button
-            disabled={busy || note.trim().length < 2}
-            onClick={() => run(`/admin/disputes/${d.id}/resolve`, { outcome, refundBps: outcome === 'SPLIT' ? Math.round(Number(share) * 100) : undefined, note })}
+          <FeedbackButton
+            disabled={note.trim().length < 2}
+            onAction={() => run(`/admin/disputes/${d.id}/resolve`, { outcome, refundBps: outcome === 'SPLIT' ? Math.round(Number(share) * 100) : undefined, note })}
           >
             {t('actions.resolve')}
-          </Button>
+          </FeedbackButton>
         </div>
       )}
     </li>

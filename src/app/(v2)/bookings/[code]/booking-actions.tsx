@@ -10,6 +10,7 @@ import { formatMoney } from '@/core/money';
 import { customerRefundBps, DEFAULT_SETTINGS } from '@/core/policy';
 import { Glass } from '@/components/v2/glass';
 import { Button } from '@/components/v2/ui';
+import { FeedbackButton } from '@/components/v2/feedback-button';
 import { api, ApiFailure } from '@/lib/v2/api';
 import { duration, ease } from '@/lib/motion';
 import { cn } from '@/lib/utils';
@@ -34,16 +35,20 @@ export function BookingActions({ booking }: { booking: BookingDto }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [panel]);
 
-  async function run(path: string, body: unknown, done: string) {
+  async function run(path: string, body: unknown, done: string): Promise<boolean> {
     setBusy(true);
     setError(null);
     try {
       await api(`/bookings/${booking.code}/${path}`, { body, idempotencyKey: path === 'pay' ? booking.id : undefined });
-      setPanel(null);
       toast(done);
-      router.refresh();
+      setTimeout(() => {
+        setPanel(null);
+        router.refresh();
+      }, 700);
+      return true;
     } catch (e) {
       setError((e as ApiFailure).message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -71,14 +76,10 @@ export function BookingActions({ booking }: { booking: BookingDto }) {
           )}
           {a.has('review') && <Button onClick={() => setPanel('review')}>{t('actions.leaveReview')}</Button>}
           {a.has('confirm') && (
-            <Button disabled={busy} onClick={() => run('confirm', {}, t('toast.serviceConfirmed'))}>
-              {t('actions.confirmService')}
-            </Button>
+            <FeedbackButton onAction={() => run('confirm', {}, t('toast.serviceConfirmed'))}>{t('actions.confirmService')}</FeedbackButton>
           )}
           {a.has('pay') && (
-            <Button disabled={busy} onClick={() => run('pay', { method: 'FAKE' }, t('booking.confirmed.title'))}>
-              {t('actions.payTest')}
-            </Button>
+            <FeedbackButton onAction={() => run('pay', { method: 'FAKE' }, t('booking.confirmed.title'))}>{t('actions.payTest')}</FeedbackButton>
           )}
         </Glass>
       </div>
@@ -123,9 +124,9 @@ export function BookingActions({ booking }: { booking: BookingDto }) {
                         </p>
                       )}
                       <div className="flex flex-col gap-2">
-                        <Button tone="danger" disabled={busy} onClick={() => run('cancel', {}, t('toast.bookingCancelled'))} className="w-full">
+                        <FeedbackButton tone="danger" onAction={() => run('cancel', {}, t('toast.bookingCancelled'))} className="w-full">
                           {t('actions.cancelBooking')}
-                        </Button>
+                        </FeedbackButton>
                         <Button tone="secondary" onClick={() => setPanel(null)} className="w-full">
                           {t('actions.keepBooking')}
                         </Button>
@@ -157,9 +158,9 @@ export function BookingActions({ booking }: { booking: BookingDto }) {
                           {t('detail.reportHint')}
                         </span>
                       </label>
-                      <Button type="submit" disabled={busy} className="w-full">
+                      <FeedbackButton type="submit" state={busy ? 'busy' : 'idle'} className="w-full">
                         {t('actions.sendReport')}
-                      </Button>
+                      </FeedbackButton>
                     </form>
                   )}
 
@@ -184,9 +185,9 @@ export function BookingActions({ booking }: { booking: BookingDto }) {
                         <span className="text-[15px] font-semibold">{t('detail.reviewComment')}</span>
                         <textarea name="comment" rows={3} maxLength={1000} className="mt-1 block w-full rounded-2xl border border-input bg-[var(--surface-1)] p-4 text-[17px] outline-none focus-visible:ring-2 focus-visible:ring-ring" />
                       </label>
-                      <Button type="submit" disabled={busy} className="w-full">
+                      <FeedbackButton type="submit" state={busy ? 'busy' : 'idle'} className="w-full">
                         {t('actions.postReview')}
-                      </Button>
+                      </FeedbackButton>
                     </form>
                   )}
                 </Glass>

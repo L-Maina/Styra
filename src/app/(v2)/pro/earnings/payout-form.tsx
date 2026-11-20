@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { t } from '@/core/copy';
 import { parseMoney } from '@/core/money';
-import { Button } from '@/components/v2/ui';
+import { FeedbackButton } from '@/components/v2/feedback-button';
 import { api, ApiFailure } from '@/lib/v2/api';
 
 const field = 'mt-1 block h-12 w-full rounded-2xl border border-input bg-[var(--surface-1)] px-4 text-[17px] outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -43,7 +43,7 @@ export function PayoutForm({ availableMinor }: { availableMinor: number }) {
         {t('pro.payoutNumber')}
         <input name="phone" type="tel" inputMode="tel" autoComplete="tel" required className={field} />
       </label>
-      <Button type="submit" disabled={busy || availableMinor <= 0}>{t('actions.requestPayout')}</Button>
+      <FeedbackButton type="submit" state={busy ? 'busy' : 'idle'} disabled={availableMinor <= 0}>{t('actions.requestPayout')}</FeedbackButton>
     </form>
   );
 }

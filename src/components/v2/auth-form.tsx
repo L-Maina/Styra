@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { t } from '@/core/copy';
-import { Button } from './ui';
+import { FeedbackButton } from './feedback-button';
 import { api, ApiFailure } from '@/lib/v2/api';
 
 const field =
@@ -75,9 +75,9 @@ export function AuthForm({ mode, next }: { mode: 'signin' | 'signup'; next: stri
           <input name="phone" type="tel" inputMode="tel" autoComplete="tel" className={field} />
         </label>
       )}
-      <Button type="submit" disabled={busy} className="w-full min-h-[52px] text-[17px]">
+      <FeedbackButton type="submit" state={busy ? 'busy' : 'idle'} className="w-full min-h-[52px] text-[17px]">
         {mode === 'signin' ? t('actions.signIn') : t('actions.createAccount')}
-      </Button>
+      </FeedbackButton>
       <p className="text-center text-[15px]">
         <Link href={`${mode === 'signin' ? '/signup' : '/signin'}?next=${encodeURIComponent(next)}`} className="font-semibold underline underline-offset-4">
           {mode === 'signin' ? t('auth.noAccount') : t('auth.haveAccount')}

@@ -10,6 +10,7 @@ import { currentUser } from '@/lib/v2/session';
 import { getDb } from '@/server/db-pool';
 import { getBooking } from '@/server/services/bookings';
 import { BookingActions } from './booking-actions';
+import { MessageBusinessButton } from '@/components/v2/message-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,7 @@ export default async function BookingDetail({ params }: { params: Promise<{ code
         )}
       </dl>
       <p className="text-[13px] text-muted-foreground">{t('money.paymentProtection')}</p>
+      {b.customer.id === user.id && <MessageBusinessButton slug={b.business.slug} signedIn bookingCode={b.code} className="w-full" />}
 
       <BookingActions booking={b} />
     </div>

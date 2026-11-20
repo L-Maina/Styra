@@ -4,6 +4,7 @@ import { t } from '@/core/copy';
 import { formatDateTime } from '@/core/format';
 import type { BookingStatus as Status } from '@/core/statuses';
 import { BookingStatus } from '@/components/v2/booking-bits';
+import { Reveal, ROW_STEP } from '@/components/v2/motion';
 import { ButtonLink, EmptyState, Money, Section } from '@/components/v2/ui';
 import { currentUser } from '@/lib/v2/session';
 import { getDb } from '@/server/db-pool';
@@ -16,8 +17,8 @@ const ACTIVE = new Set(['PENDING', 'CONFIRMED', 'COMPLETED', 'NO_SHOW', 'DISPUTE
 function BookingList({ list }: { list: BookingDto[] }) {
   return (
     <ul className="space-y-3">
-      {list.map((b) => (
-        <li key={b.code}>
+      {list.map((b, i) => (
+        <Reveal as="li" key={b.code} index={i} step={ROW_STEP}>
           <Link href={`/bookings/${b.code}`} className="press block rounded-3xl border border-[var(--hairline)] bg-[var(--surface-1)] p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -31,7 +32,7 @@ function BookingList({ list }: { list: BookingDto[] }) {
               <BookingStatus status={b.status as Status} />
             </div>
           </Link>
-        </li>
+        </Reveal>
       ))}
     </ul>
   );

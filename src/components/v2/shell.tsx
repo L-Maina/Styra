@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Compass, Home, UserRound } from 'lucide-react';
+import { CalendarDays, Compass, Home, MapPin, MessageCircle, UserRound } from 'lucide-react';
 import { BrandLogo } from '@/components/ui/brand-logo';
 import { t } from '@/core/copy';
 import { cn } from '@/lib/utils';
@@ -10,11 +10,13 @@ import { Glass } from './glass';
 interface ShellUser {
   name: string;
   role: 'CUSTOMER' | 'PROVIDER' | 'ADMIN';
+  unread?: number;
 }
 
 const TABS = [
   { href: '/', label: t('nav.home'), icon: Home },
   { href: '/explore', label: t('nav.explore'), icon: Compass },
+  { href: '/near', label: t('nav.near'), icon: MapPin },
   { href: '/bookings', label: t('nav.bookings'), icon: CalendarDays },
 ];
 
@@ -50,17 +52,29 @@ export function Shell({ user, children }: { user: ShellUser | null; children: Re
               </Link>
             ))}
           </div>
+          <div className="flex items-center">
+          {user && (
+            <Link href="/messages" aria-label={user.unread ? `${t('nav.messages')}, ${t('messages.unread', { count: user.unread })}` : t('nav.messages')} className="relative grid size-11 place-items-center rounded-full hover:bg-foreground/[0.06]">
+              <MessageCircle aria-hidden className="size-5" />
+              {Boolean(user.unread) && (
+                <span aria-hidden className="absolute right-1.5 top-1.5 grid min-w-[18px] place-items-center rounded-full bg-primary px-1 text-[11px] font-semibold leading-[18px] text-primary-foreground tabular-nums">
+                  {user.unread! > 9 ? '9+' : user.unread}
+                </span>
+              )}
+            </Link>
+          )}
           <Link href={account.href} className="flex min-h-11 items-center gap-2 rounded-full px-4 text-[15px] font-semibold hover:bg-foreground/[0.06]">
             <UserRound aria-hidden className="size-5" />
             <span>{user ? user.name.split(' ')[0] : account.label}</span>
           </Link>
+          </div>
         </Glass>
       </header>
       <main id="content" className="mx-auto w-full max-w-5xl px-4 pb-32 pt-24 md:pb-16">
         {children}
       </main>
       <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-4 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <Glass as="nav" aria-label={t('nav.tabs')} className="grid h-16 w-full max-w-md grid-cols-4 rounded-full px-2">
+        <Glass as="nav" aria-label={t('nav.tabs')} className="grid h-16 w-full max-w-md grid-cols-5 rounded-full px-2">
           {[...TABS, { href: account.href, label: account.label, icon: UserRound }].map((tab) => {
             const active = isActive(path, tab.href);
             return (

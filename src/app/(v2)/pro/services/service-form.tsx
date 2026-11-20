@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { t } from '@/core/copy';
 import { parseMoney } from '@/core/money';
-import { Button } from '@/components/v2/ui';
+import { FeedbackButton } from '@/components/v2/feedback-button';
 import { api, ApiFailure } from '@/lib/v2/api';
 
 const field = 'mt-1 block h-12 w-full rounded-2xl border border-input bg-[var(--surface-1)] px-4 text-[17px] outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -47,9 +47,9 @@ export function ServiceForm() {
         {t('pro.price')}
         <input name="price" inputMode="decimal" required pattern="[0-9,]+(\.[0-9]{1,2})?" className={field} />
       </label>
-      <Button type="submit" disabled={busy} className="sm:col-span-3">
+      <FeedbackButton type="submit" state={busy ? 'busy' : 'idle'} className="sm:col-span-3">
         {t('actions.addService')}
-      </Button>
+      </FeedbackButton>
     </form>
   );
 }
