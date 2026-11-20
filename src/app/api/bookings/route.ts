@@ -6,6 +6,7 @@ import { successResponse, errorResponse, handleApiError, parsePagination, pagina
 import { parseSort } from '@/lib/query-optimization';
 import { sanitizeResponse } from '@/lib/response-sanitizer';
 import { BookingStatus, statusVariants } from '@/lib/booking-status';
+import { omitPrivateBusinessFields } from '@/lib/business-public';
 
 // List bookings
 export async function GET(request: NextRequest) {
@@ -194,7 +195,11 @@ export async function POST(request: NextRequest) {
       return newBooking;
     });
 
-    return successResponse(sanitizeResponse(booking), 201);
+    // The customer gets the booking, not the provider's payout or ID details
+    return successResponse(
+      sanitizeResponse({ ...booking, business: omitPrivateBusinessFields(booking.business) }),
+      201
+    );
   } catch (error) {
     if (error instanceof Response) return error as NextResponse;
     if (error instanceof Error && error.message === 'TIME_SLOT_UNAVAILABLE') {

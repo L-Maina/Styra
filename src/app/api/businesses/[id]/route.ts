@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, getSession } from '@/lib/auth';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 import { updateBusinessSchema } from '@/lib/validations';
+import { canSeePrivateBusinessFields, omitPrivateBusinessFields } from '@/lib/business-public';
 
 // Get business by ID
 export async function GET(
@@ -47,9 +48,15 @@ export async function GET(
       return errorResponse('Business not found', 404);
     }
 
+    // ID verification and payout columns are for the owner and admins only
+    const session = await getSession().catch(() => null);
+    const visible = canSeePrivateBusinessFields(session, business.ownerId)
+      ? business
+      : omitPrivateBusinessFields(business);
+
     // Use boothPhotoUrl as fallback for coverImage
     const response = {
-      ...business,
+      ...visible,
       coverImage: business.coverImage || business.boothPhotoUrl || null,
     };
 
