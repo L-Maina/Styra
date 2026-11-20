@@ -45,7 +45,7 @@ export default async function Bookings() {
   const past = items.filter((b) => !ACTIVE.has(b.status));
   return (
     <div className="space-y-10">
-      <h1 className="text-[28px] font-bold font-sans normal-case tracking-[-0.01em]">{t('nav.bookings')}</h1>
+      <h1 className="text-[28px] font-semibold font-sans normal-case tracking-[-0.01em]">{t('nav.bookings')}</h1>
       {items.length === 0 ? (
         <EmptyState title={t('empty.bookingsTitle')} body={t('empty.bookingsBody')} action={<ButtonLink href="/explore">{t('actions.browse')}</ButtonLink>} />
       ) : (

@@ -102,7 +102,7 @@ export function BookingActions({ booking }: { booking: BookingDto }) {
               >
                 <Glass ref={sheetRef} role="dialog" aria-modal="true" aria-labelledby="action-title" className="rounded-t-[28px] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:rounded-[28px]">
                   <div className="flex items-start justify-between gap-3">
-                    <h2 id="action-title" tabIndex={-1} data-autofocus className="text-[22px] font-bold outline-none">
+                    <h2 id="action-title" tabIndex={-1} data-autofocus className="text-[22px] font-semibold outline-none">
                       {panel === 'cancel' ? t('detail.cancelPrompt') : panel === 'dispute' ? t('detail.reportLabel') : t('detail.reviewLabel')}
                     </h2>
                     <button type="button" onClick={() => setPanel(null)} aria-label={t('actions.close')} className="-mr-2 grid size-11 place-items-center rounded-full hover:bg-foreground/10">

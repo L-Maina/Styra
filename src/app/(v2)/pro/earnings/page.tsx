@@ -18,7 +18,7 @@ export default async function ProEarnings() {
   return (
     <div className="space-y-8">
       <div className="space-y-3">
-        <h1 className="font-sans text-[28px] font-bold normal-case">{t('pro.earningsTitle')}</h1>
+        <h1 className="font-sans text-[28px] font-semibold normal-case">{t('pro.earningsTitle')}</h1>
         <ProNav active="earnings" />
       </div>
       <p className="max-w-2xl text-[15px] text-muted-foreground">{t('pro.earningsLead')}</p>

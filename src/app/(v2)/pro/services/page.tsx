@@ -18,7 +18,7 @@ export default async function ProServices() {
   return (
     <div className="space-y-8">
       <div className="space-y-3">
-        <h1 className="font-sans text-[28px] font-bold normal-case">{t('pro.servicesTitle')}</h1>
+        <h1 className="font-sans text-[28px] font-semibold normal-case">{t('pro.servicesTitle')}</h1>
         <ProNav active="services" />
       </div>
       {services.length > 0 && (

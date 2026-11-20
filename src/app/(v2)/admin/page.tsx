@@ -22,7 +22,7 @@ export default async function Admin() {
   const openPayouts = payouts.filter((p) => p.status === 'REQUESTED' || p.status === 'PROCESSING');
   return (
     <div className="space-y-10">
-      <h1 className="font-sans text-[28px] font-bold normal-case">{t('admin.title')}</h1>
+      <h1 className="font-sans text-[28px] font-semibold normal-case">{t('admin.title')}</h1>
       <Section title={t('admin.pendingBusinesses')}>
         {pending.length ? (
           <ul className="space-y-3">

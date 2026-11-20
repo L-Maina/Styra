@@ -321,5 +321,13 @@
     "notFoundBody": "Your Style, On Demand. Let's find you something that is.",
     "loading": "Loading",
     "offline": "You're offline"
+  },
+  "progress": {
+    "checkingTime": "Checking your time",
+    "holdingSlot": "Holding your slot",
+    "preparingPayment": "Preparing payment",
+    "sendingPrompt": "Sending the M-Pesa prompt",
+    "confirmingPayment": "Confirming your payment",
+    "openingCard": "Opening the card page"
   }
 }

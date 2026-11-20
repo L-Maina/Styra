@@ -9,6 +9,7 @@ import { DISPLAY_TIME_ZONE, formatDuration, formatTime } from '@/core/format';
 import { formatMoney } from '@/core/money';
 import { Glass } from '@/components/v2/glass';
 import { Button, ButtonLink, Money, Section } from '@/components/v2/ui';
+import { ProgressSteps, type StepState } from '@/components/v2/snip-loader';
 import { api, ApiFailure } from '@/lib/v2/api';
 import { duration, ease } from '@/lib/motion';
 import { cn } from '@/lib/utils';
@@ -50,6 +51,27 @@ function useCountdown(until: string | null) {
   return `${Math.floor(left / 60000)}:${String(Math.floor((left % 60000) / 1000)).padStart(2, '0')}`;
 }
 
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Runs `work` while the steps advance, so each step is readable (at least `min` ms) but never slower than the work. */
+async function stepped<T>(labels: string[], set: (s: { label: string; state: StepState }[] | null) => void, work: () => Promise<T>, min = 450): Promise<T> {
+  const mk = (active: number) => labels.map((label, i) => ({ label, state: (i < active ? 'done' : i === active ? 'active' : 'todo') as StepState }));
+  set(mk(0));
+  const job = work();
+  for (let i = 1; i < labels.length; i++) {
+    await sleep(min);
+    set(mk(i));
+  }
+  try {
+    const out = await Promise.all([job, sleep(min)]).then(([v]) => v);
+    set(mk(labels.length));
+    await sleep(320);
+    return out;
+  } finally {
+    set(null);
+  }
+}
+
 const haptic = (ms: number) => {
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate?.(ms);
 };
@@ -76,6 +98,7 @@ export function BookingFlow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const [progress, setProgress] = useState<{ label: string; state: StepState }[] | null>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const service = services.find((s) => s.id === serviceId) ?? null;
   const held = useCountdown(step === 'pay' ? booking?.expiresAt ?? null : null);
@@ -136,7 +159,9 @@ export function BookingFlow({
     setError(null);
     haptic(10);
     try {
-      const { booking: b } = await api<{ booking: BookingDto }>('/bookings', { body: { serviceId: service.id, startAt: slot.startAt, staffId: slot.staffId } });
+      const { booking: b } = await stepped([t('progress.checkingTime'), t('progress.holdingSlot')], setProgress, () =>
+        api<{ booking: BookingDto }>('/bookings', { body: { serviceId: service.id, startAt: slot.startAt, staffId: slot.staffId } }),
+      );
       setBooking(b);
       setStep('pay');
     } catch (e) {
@@ -199,10 +224,14 @@ export function BookingFlow({
     setSlow(false);
     haptic(10);
     try {
-      const res = await api<{ booking: BookingDto; next: { kind: 'DONE' } | { kind: 'WAIT_FOR_PHONE' } | { kind: 'REDIRECT'; url: string } }>(`/bookings/${booking.code}/pay`, {
-        body: { method, phone: method === 'MPESA' ? phone : undefined },
-        idempotencyKey: `${booking.id}:${method}:${Date.now()}`,
-      });
+      const labels =
+        method === 'MPESA' ? [t('progress.sendingPrompt')] : method === 'PAYSTACK' ? [t('progress.openingCard')] : [t('progress.preparingPayment'), t('progress.confirmingPayment')];
+      const res = await stepped(labels, setProgress, () =>
+        api<{ booking: BookingDto; next: { kind: 'DONE' } | { kind: 'WAIT_FOR_PHONE' } | { kind: 'REDIRECT'; url: string } }>(`/bookings/${booking.code}/pay`, {
+          body: { method, phone: method === 'MPESA' ? phone : undefined },
+          idempotencyKey: `${booking.id}:${method}:${Date.now()}`,
+        }),
+      );
       setBooking(res.booking);
       if (res.next.kind === 'DONE') {
         setStep('done');
@@ -320,7 +349,7 @@ export function BookingFlow({
                     <span aria-hidden className="h-1.5 w-10 rounded-full bg-foreground/35" />
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <h2 id="sheet-title" tabIndex={-1} data-autofocus className="text-[22px] font-bold leading-tight outline-none">
+                    <h2 id="sheet-title" tabIndex={-1} data-autofocus className="text-[22px] font-semibold leading-tight outline-none">
                       {step === 'done' ? t('booking.confirmed.title') : t('booking.sheet.title', { service: service.name })}
                     </h2>
                     <button type="button" onClick={close} aria-label={t('actions.close')} className="-mr-2 grid size-11 shrink-0 place-items-center rounded-full hover:bg-foreground/10">
@@ -336,7 +365,7 @@ export function BookingFlow({
                         <span className="block font-semibold">{`${new Date(booking.startAt).toLocaleDateString('en-GB', { timeZone: DISPLAY_TIME_ZONE, weekday: 'short', day: 'numeric', month: 'short' })}, ${formatTime(new Date(booking.startAt))}`}</span>
                       )}
                     </span>
-                    <Money minor={service.priceMinor} className="text-[19px] font-bold" />
+                    <Money minor={service.priceMinor} className="text-[19px] font-semibold" />
                   </div>
 
                   {error && (
@@ -396,7 +425,9 @@ export function BookingFlow({
                           <p className="rounded-2xl bg-[var(--surface-1)] px-4 py-3 text-[15px]">{t('booking.sheet.noTimes')}</p>
                         )}
                       </fieldset>
-                      {signedIn ? (
+                      {progress ? (
+                        <ProgressSteps steps={progress} />
+                      ) : signedIn ? (
                         <Button onClick={bookAndPay} disabled={!slot || busy} className="w-full min-h-[52px] text-[17px]">
                           {t('actions.bookAndPay')}
                         </Button>
@@ -418,10 +449,13 @@ export function BookingFlow({
                         {t('checkout.payNow', { amount: formatMoney(BigInt(booking.priceMinor)) })}
                       </p>
                       {held && <p className="text-[15px] tabular-nums">{t('booking.holdTimer', { time: held })}</p>}
-                      {waiting ? (
-                        <p role="status" className="rounded-2xl bg-[var(--surface-1)] px-4 py-3 text-[17px]">
-                          {t('checkout.sentPrompt', { phone })} {t('checkout.waiting')}
-                        </p>
+                      {progress ? (
+                        <ProgressSteps steps={progress} />
+                      ) : waiting ? (
+                        <div className="space-y-3">
+                          <ProgressSteps steps={[{ label: t('progress.sendingPrompt'), state: 'done' }, { label: t('progress.confirmingPayment'), state: 'active' }]} />
+                          <p className="text-[15px]">{t('checkout.sentPrompt', { phone })} {t('checkout.waiting')}</p>
+                        </div>
                       ) : (
                         <>
                           {slow && held && <p className="rounded-2xl bg-[var(--surface-1)] px-4 py-3 text-[15px]">{t('checkout.mpesaTimeout', { time: held })}</p>}
@@ -481,7 +515,9 @@ export function BookingFlow({
                         transition={{ duration: duration.slow, ease: ease.spring }}
                         className="mx-auto grid size-16 place-items-center rounded-full bg-[var(--surface-1)]"
                       >
-                        <Check aria-hidden className="size-8 text-[var(--success)]" strokeWidth={3} />
+                        <svg aria-hidden viewBox="0 0 24 24" className="size-9 text-[var(--success)]" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+                          <motion.path d="M5 12.5l4.2 4.2L19 7" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: duration.slow, ease: ease.standard, delay: 0.15 }} />
+                        </svg>
                       </motion.div>
                       <p className="text-[17px]">{t('booking.confirmed.body')}</p>
                       <ButtonLink href={`/bookings/${booking.code}`} className="w-full min-h-[52px] text-[17px]">

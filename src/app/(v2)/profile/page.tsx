@@ -11,7 +11,7 @@ export default async function Profile() {
   if (!user) redirect('/signin?next=/profile');
   return (
     <div className="mx-auto max-w-xl space-y-6 pt-4">
-      <h1 className="font-sans text-[28px] font-bold normal-case">{user.name}</h1>
+      <h1 className="font-sans text-[28px] font-semibold normal-case">{user.name}</h1>
       <p className="text-[17px]">{user.email}</p>
       <div className="flex flex-col gap-2">
         <ButtonLink href="/bookings" tone="secondary">{t('nav.bookings')}</ButtonLink>

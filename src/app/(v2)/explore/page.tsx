@@ -3,6 +3,7 @@ import { businessListQuery } from '@/contracts/booking';
 import { BusinessCard } from '@/components/v2/business-card';
 import { CategoryRail } from '@/components/v2/category-rail';
 import { SearchCapsule } from '@/components/v2/search-capsule';
+import { Reveal } from '@/components/v2/motion';
 import { ButtonLink, EmptyState } from '@/components/v2/ui';
 import { getDb } from '@/server/db-pool';
 import { listBusinesses } from '@/server/services/discovery';
@@ -23,10 +24,10 @@ export default async function Explore({ searchParams }: { searchParams: Promise<
       </p>
       {items.length ? (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((b) => (
-            <li key={b.slug}>
+          {items.map((b, i) => (
+            <Reveal as="li" key={b.slug} index={i}>
               <BusinessCard b={b as never} />
-            </li>
+            </Reveal>
           ))}
         </ul>
       ) : (
