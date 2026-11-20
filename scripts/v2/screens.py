@@ -22,8 +22,8 @@ def login(email):
 
 SCREENS = [
     ('home', '/', None), ('explore', '/explore?category=BARBER', None), ('business', '/b/kinyozi-pro', None),
-    ('signin', '/signin', None), ('bookings', '/bookings', 'amina@example.test'), ('pro', '/pro', 'brian@kinyozi.test'),
-    ('pro-hours', '/pro/hours', 'brian@kinyozi.test'), ('admin', '/admin', 'admin@styra.test'), ('not-found', '/b/no-such-place', None),
+    ('signin', '/signin', None), ('bookings', '/bookings', 'amina@example.test'), ('pro', '/pro', 'brian@demo.styra.test'),
+    ('pro-hours', '/pro/hours', 'brian@demo.styra.test'), ('admin', '/admin', 'admin@styra.test'), ('not-found', '/b/no-such-place', None),
 ]
 SIZES = [('390', (390, 844), True), ('1440', (1440, 900), False)]
 
