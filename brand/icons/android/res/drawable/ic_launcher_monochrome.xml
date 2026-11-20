@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Styra symbol (monochrome), from brand/logo/symbol.svg -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+  <group android:translateX="27.000" android:translateY="27.000" android:scaleX="0.5400" android:scaleY="0.5400">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M71 69C71 80.598 61.598 90 50 90C38.402 90 29 80.598 29 69C29 68.175 29.048 67.36 29.14 66.56C30.144 73.869 36.415 79.5 44 79.5C52.284 79.5 59 72.784 59 64.5C59 61.438 58.083 58.59 56.508 56.217C58.047 54.606 58.995 52.424 59 50.021C66.095 53.391 71 60.623 71 69ZM71 31C71 31.825 70.952 32.64 70.86 33.44C69.856 26.131 63.585 20.5 56 20.5C47.716 20.5 41 27.216 41 35.5C41 38.562 41.917 41.41 43.492 43.783C41.991 45.354 41.053 47.467 41.002 49.8C40.915 49.817 40.829 49.836 40.743 49.855C33.787 46.433 29 39.276 29 31C29 19.402 38.402 10 50 10C61.598 10 71 19.402 71 31Z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M55.5 50C55.5 53.038 53.038 55.5 50 55.5C46.962 55.5 44.5 53.038 44.5 50C44.5 46.962 46.962 44.5 50 44.5C53.038 44.5 55.5 46.962 55.5 50Z"/>
+  </group>
+</vector>
