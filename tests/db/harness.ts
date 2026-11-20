@@ -78,3 +78,14 @@ export function fixtures(sql: SQL) {
     },
   };
 }
+
+import type { Db, Tx } from '../../src/server/db';
+
+/** Test-only adapter: the engine's Db interface on top of Bun.SQL. */
+export function bunDb(sql: SQL): Db {
+  const wrap = (q: SQL): Tx => ({ query: (text, params = []) => q.unsafe(text, params as unknown[]) as never });
+  return {
+    ...wrap(sql),
+    transaction: (fn) => sql.begin((tx) => fn(wrap(tx as unknown as SQL))) as never,
+  };
+}

@@ -219,3 +219,8 @@ Provider interface: `initiate({paymentId, amountMinor, currency, payer, referenc
 (Code: record changes to the design here, with the reason.)
 
 - 2026-11-20, web/backend chat: added `docs/v2/design-language.md` at the user's request (Liquid Glass at Apple level on web and mobile, the skills to use, wording, tone and motto). Decided for the user, who left design decisions to us: English first with Swahili as the first extra locale, `KSh` for display, 12-hour times in Nairobi time, "Styra fee" instead of "commission" in the UI, Android as the performance baseline.
+- 2026-11-20, Code: a late payment on an EXPIRED or CANCELLED booking settles under the key `settle:<booking_id>:<payment_id>` (not `settle:<booking_id>`), so a second late payment for the same booking can still be captured and refunded. Ordinary settlements keep `settle:<booking_id>`.
+- 2026-11-20, Code: payout steps have their own keys: `payout-request:<id>`, `payout-paid:<id>`, `payout-failed:<id>`.
+- 2026-11-20, Code: a captured amount or currency that differs from the booking is parked on the payment (`failure_reason`, audit row) and answered `PAYMENT_MISMATCH`; nothing posts. An admin decides.
+- 2026-11-20, Code: R5 locks the ledger account row inside the deferred check, so two transactions that would together overdraw a balance check one after the other. Only ESCROW lines carry `booking_id` (enforced by a trigger).
+- 2026-11-20, Code: `tsconfig` target raised from ES2017 to ES2020 for BigInt literals (money is `bigint`).
