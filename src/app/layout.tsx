@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ReducedMotionProvider } from "@/components/ui/reduced-motion-provider";
 import { MotionSettings } from "@/components/theme/MotionSettings";
+import { LaunchSplash } from "@/components/brand/LaunchSplash";
+import { launchGuardScript } from "@/lib/launch";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -75,9 +77,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Hides the launch splash before first paint when this session has already seen it. */}
+        <script dangerouslySetInnerHTML={{ __html: launchGuardScript }} />
+      </head>
       <body
         className={`${poppins.variable} ${inter.variable} font-sans antialiased bg-background text-foreground`}
       >
+        <LaunchSplash />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

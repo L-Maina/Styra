@@ -54,3 +54,6 @@ export const LOGO_SIZES = {
 
 /** Brand name for alt text / aria labels */
 export const BRAND_NAME = 'Styra';
+
+/** The positioning line, used on the launch splash and the welcome screens. */
+export const BRAND_TAGLINE = 'Your style, on demand.';

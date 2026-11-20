@@ -698,6 +698,96 @@ button[class*="rounded-full"]:not(:disabled):hover {
 }
 
 /* ============================================
+   LAUNCH SPLASH
+   One calm reveal per session, at most 1.2 s. Pure CSS, so it is on screen at first paint
+   and ends by itself. The reduced-motion rules below finish it instantly, which skips it.
+   ============================================ */
+
+.launch-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+  pointer-events: none;
+  animation: launch-out var(--duration-launch) var(--ease-standard) forwards;
+}
+
+html[data-launched] .launch-splash {
+  display: none;
+}
+
+.launch-glow {
+  position: absolute;
+  width: 28rem;
+  height: 28rem;
+  max-width: 90vw;
+  max-height: 90vw;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgba(108, 78, 255, 0.35), rgba(42, 107, 255, 0.14) 55%, transparent);
+  filter: blur(40px);
+  opacity: 0;
+  animation: launch-glow 500ms var(--ease-standard) 100ms forwards;
+}
+
+.launch-lockup {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.launch-mark {
+  opacity: 0.25;
+  transform: scale(0.8);
+  animation: launch-mark var(--duration-slow) var(--ease-spring) forwards;
+}
+
+.launch-words {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0;
+  transform: translateY(var(--distance-rise));
+  animation: launch-words var(--duration-base) var(--ease-standard) 750ms forwards;
+}
+
+.launch-name {
+  font-family: var(--font-poppins), sans-serif;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.launch-tagline {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+@keyframes launch-mark {
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes launch-glow {
+  to { opacity: 1; }
+}
+
+@keyframes launch-words {
+  to { opacity: 1; transform: none; }
+}
+
+/* Fully visible until 1.0 s, then a 200 ms dissolve. */
+@keyframes launch-out {
+  0%, 83% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+/* ============================================
    REDUCED MOTION
    Movement becomes a short fade and loops stop. Follows the system setting, or the
    override in the accessibility toolbar (MotionSettings sets <html data-motion>).
