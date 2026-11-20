@@ -95,3 +95,6 @@ export const resolveDisputeInput = z.object({
   refundBps: z.number().int().min(0).max(10000).optional(),
   note: z.string().trim().min(2).max(2000),
 });
+
+export const startConversationInput = z.object({ businessSlug: z.string().trim().min(1).max(80), bookingCode: z.string().trim().max(20).optional() });
+export const sendMessageInput = z.object({ body: z.string().trim().min(1).max(2000) });

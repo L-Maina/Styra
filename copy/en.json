@@ -18,7 +18,8 @@
     "main": "Main",
     "tabs": "Tabs",
     "near": "Near me",
-    "photos": "Photos"
+    "photos": "Photos",
+    "messages": "Messages"
   },
   "actions": {
     "browse": "Browse businesses",
@@ -59,7 +60,9 @@
     "requestPayout": "Request payout",
     "resolve": "Save decision",
     "shareLocation": "Share my location",
-    "notNow": "Not now"
+    "notNow": "Not now",
+    "messageBusiness": "Message business",
+    "send": "Send"
   },
   "welcome": {
     "lead": "Book grooming near you. Your payment is held until the job is done.",
@@ -363,5 +366,17 @@
     "all": "All",
     "mapLabel": "Map of businesses near you",
     "recenter": "Back to my location"
+  },
+  "messages": {
+    "title": "Messages",
+    "emptyTitle": "No messages yet.",
+    "emptyBody": "Ask a business a question before you book.",
+    "placeholder": "Message {name}",
+    "you": "You: {text}",
+    "sending": "Sending",
+    "failed": "Not sent. Tap to try again.",
+    "unread": "{count, plural, one {# unread message} other {# unread messages}}",
+    "threadLabel": "Conversation with {name}",
+    "viewBusiness": "View business"
   }
 }

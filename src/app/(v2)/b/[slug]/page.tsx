@@ -13,6 +13,7 @@ import { availableMethods } from '@/server/payments/provider';
 import { getBusinessPage } from '@/server/services/discovery';
 import { BookingFlow } from './booking-flow';
 import { Gallery } from './gallery';
+import { MessageBusinessButton } from '@/components/v2/message-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,6 +111,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
               ))}
             </dl>
           </Section>
+          <MessageBusinessButton slug={b.slug} signedIn={Boolean(user)} className="w-full" />
           {b.phone && (
             <a href={`tel:${b.phone}`} className="press flex min-h-11 items-center gap-2 rounded-full border border-input px-5 text-[15px] font-semibold">
               <Phone aria-hidden className="size-4" />
