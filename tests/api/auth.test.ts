@@ -26,12 +26,12 @@ describe.skipIf(!reachable)('auth API (real Postgres)', () => {
       logout: await import('../../src/app/api/v2/auth/logout/route'),
       me: await import('../../src/app/api/v2/me/route'),
     };
-  });
+  }, 30_000);
   afterAll(async () => {
     const { closeDb } = await import('../../src/server/db-pool');
     await closeDb();
     if (db) await db.drop();
-  });
+  }, 30_000);
 
   const creds = { email: 'Amina@Example.test', password: 'correct horse 42', name: 'Amina Wanjiru' };
 

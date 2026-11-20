@@ -21,12 +21,12 @@ export async function listBusinesses(db: Db, q: z.infer<typeof businessListQuery
     [q.q || null, q.category || null, q.city || null, q.limit + 1, q.cursor],
   );
   const items = rows.slice(0, q.limit).map((r) => ({
-    id: r.id,
-    slug: r.slug,
-    name: r.name,
-    category: r.category,
-    city: r.city,
-    address: r.address,
+    id: String(r.id),
+    slug: String(r.slug),
+    name: String(r.name),
+    category: String(r.category),
+    city: r.city == null ? null : String(r.city),
+    address: r.address == null ? null : String(r.address),
     rating: rating(r as never),
     fromPriceMinor: r.from_price == null ? null : n(r.from_price),
   }));
@@ -59,22 +59,31 @@ export async function getBusinessPage(db: Db, slug: string) {
       [b.id],
     ),
   ]);
+  const str = (v: unknown) => (v == null ? null : String(v));
   return {
-    id: b.id,
-    slug: b.slug,
-    name: b.name,
-    category: b.category,
-    city: b.city,
-    address: b.address,
-    phone: b.phone,
-    description: b.description,
-    timeZone: b.timezone,
+    id: String(b.id),
+    slug: String(b.slug),
+    name: String(b.name),
+    category: String(b.category),
+    city: str(b.city),
+    address: str(b.address),
+    phone: str(b.phone),
+    description: str(b.description),
+    timeZone: String(b.timezone),
     location: b.lat == null ? null : { lat: n(b.lat), lng: n(b.lng) },
     rating: rating(b as never),
-    services: services.map((s) => ({ id: s.id, name: s.name, category: s.category, description: s.description, durationMin: n(s.duration_min), priceMinor: n(s.price_minor), currency: String(s.currency).trim() })),
-    staff: staff.map((s) => ({ id: s.id, name: s.name })),
-    hours: rules.map((r) => ({ weekday: n(r.weekday), start: r.start, end: r.end })),
-    reviews: reviews.map((r) => ({ rating: n(r.rating), comment: r.comment, author: r.first_name, createdAt: iso(r.created_at) })),
+    services: services.map((s) => ({
+      id: String(s.id),
+      name: String(s.name),
+      category: String(s.category),
+      description: str(s.description),
+      durationMin: n(s.duration_min),
+      priceMinor: n(s.price_minor),
+      currency: String(s.currency).trim(),
+    })),
+    staff: staff.map((s) => ({ id: String(s.id), name: String(s.name) })),
+    hours: rules.map((r) => ({ weekday: n(r.weekday), start: String(r.start), end: String(r.end) })),
+    reviews: reviews.map((r) => ({ rating: n(r.rating), comment: str(r.comment), author: String(r.first_name), createdAt: iso(r.created_at) })),
   };
 }
 

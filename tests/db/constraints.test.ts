@@ -18,8 +18,8 @@ describe.skipIf(!reachable)('database money rules (real Postgres)', () => {
     const owner = await f.user('PROVIDER');
     const biz = await f.business(owner);
     ctx = { customer: await f.user(), biz, service: await f.service(biz.id) };
-  });
-  afterAll(async () => db && (await db.drop()));
+  }, 30_000);
+  afterAll(async () => db && (await db.drop()), 30_000);
 
   let hour = 0;
   const nextStart = () => new Date(Date.UTC(2027, 0, 1, 6 + hour++)).toISOString();

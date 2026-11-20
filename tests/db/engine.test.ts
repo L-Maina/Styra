@@ -26,8 +26,8 @@ describe.skipIf(!reachable)('booking engine (real Postgres)', () => {
     const owner = await f.user('PROVIDER');
     const biz = await f.business(owner);
     ctx = { customer: await f.user(), owner, admin: await f.user('ADMIN'), biz, service: await f.service(biz.id, 150000n) };
-  });
-  afterAll(async () => db && (await db.drop()));
+  }, 30_000);
+  afterAll(async () => db && (await db.drop()), 30_000);
 
   const book = (startAt = futureStart(), at = now) =>
     engine.createBooking({ customerId: ctx.customer, serviceId: ctx.service, staffId: ctx.biz.staffId, startAt }, at);
@@ -75,7 +75,7 @@ describe.skipIf(!reachable)('booking engine (real Postgres)', () => {
     const b = await book();
     await pay(b.id);
     expect(await row(b.id)).toEqual({ status: 'CONFIRMED', escrow_state: 'HELD' });
-    await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, now);
+    await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, b.startAt);
     expect((await row(b.id)).status).toBe('COMPLETED');
     await engine.act(b.id, { type: 'CUSTOMER_CONFIRMED' }, now);
     expect(await row(b.id)).toEqual({ status: 'VERIFIED', escrow_state: 'SETTLED' });
@@ -84,12 +84,21 @@ describe.skipIf(!reachable)('booking engine (real Postgres)', () => {
     await bookBalanced();
   });
 
+  test('done and no-show are refused before the appointment starts', async () => {
+    const b = await book();
+    await pay(b.id);
+    await expect(engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, now)).rejects.toMatchObject({ code: 'TOO_EARLY' });
+    await expect(engine.act(b.id, { type: 'PROVIDER_NO_SHOW' }, now)).rejects.toMatchObject({ code: 'TOO_EARLY' });
+    await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, b.startAt);
+    expect((await row(b.id)).status).toBe('COMPLETED');
+  });
+
   test('auto-release: the tick verifies bookings after the 24 h window', async () => {
     const b = await book();
     await pay(b.id);
-    await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, now);
-    expect((await engine.tick(new Date(now.getTime() + 23 * HOUR))).verified).not.toContain(b.id);
-    const r = await engine.tick(new Date(now.getTime() + 24 * HOUR + 1));
+    await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, b.startAt);
+    expect((await engine.tick(new Date(b.startAt.getTime() + 23 * HOUR))).verified).not.toContain(b.id);
+    const r = await engine.tick(new Date(b.startAt.getTime() + 24 * HOUR + 1));
     expect(r.verified).toContain(b.id);
     expect((await row(b.id)).status).toBe('VERIFIED');
   });
@@ -97,8 +106,8 @@ describe.skipIf(!reachable)('booking engine (real Postgres)', () => {
   test('no-show also auto-verifies after the window', async () => {
     const b = await book();
     await pay(b.id);
-    await engine.act(b.id, { type: 'PROVIDER_NO_SHOW' }, now);
-    await engine.tick(new Date(now.getTime() + 25 * HOUR));
+    await engine.act(b.id, { type: 'PROVIDER_NO_SHOW' }, b.startAt);
+    await engine.tick(new Date(b.startAt.getTime() + 25 * HOUR));
     expect((await row(b.id)).status).toBe('VERIFIED');
   });
 
@@ -161,11 +170,11 @@ describe.skipIf(!reachable)('booking engine (real Postgres)', () => {
     test(`dispute resolved with ${outcome}`, async () => {
       const b = await book();
       await pay(b.id);
-      await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, now);
+      await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, b.startAt);
       await engine.openDispute(b.id, { openedBy: ctx.customer, reason: 'The cut was uneven on one side.' }, now);
       expect((await row(b.id)).status).toBe('DISPUTED');
       // the window does not release a disputed booking
-      await engine.tick(new Date(now.getTime() + 48 * HOUR));
+      await engine.tick(new Date(b.startAt.getTime() + 48 * HOUR));
       expect((await row(b.id)).status).toBe('DISPUTED');
       const refBefore = await balance('REFUND_PENDING');
       await engine.resolveDispute(b.id, { outcome, refundBps, adminId: ctx.admin, note: 'Reviewed photos from both sides.' }, now);
@@ -199,7 +208,7 @@ describe.skipIf(!reachable)('booking engine (real Postgres)', () => {
   test('replayed settlement does nothing; invalid repeats are refused', async () => {
     const b = await book();
     await pay(b.id);
-    await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, now);
+    await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, b.startAt);
     await engine.act(b.id, { type: 'CUSTOMER_CONFIRMED' }, now);
     const [{ n: before }] = await sql`select count(*)::int as n from styra.journals`;
     await expect(engine.act(b.id, { type: 'CUSTOMER_CONFIRMED' }, now)).rejects.toBeInstanceOf(AppError);
@@ -210,11 +219,11 @@ describe.skipIf(!reachable)('booking engine (real Postgres)', () => {
   test('two racing settlements post once', async () => {
     const b = await book();
     await pay(b.id);
-    await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, now);
+    await engine.act(b.id, { type: 'PROVIDER_COMPLETED' }, b.startAt);
     const results = await Promise.allSettled([
       engine.act(b.id, { type: 'CUSTOMER_CONFIRMED' }, now),
       engine.act(b.id, { type: 'CUSTOMER_CONFIRMED' }, now),
-      engine.tick(new Date(now.getTime() + 30 * HOUR)),
+      engine.tick(new Date(b.startAt.getTime() + 30 * HOUR)),
     ]);
     expect(results.filter((r) => r.status === 'fulfilled').length).toBeGreaterThanOrEqual(1);
     const [{ n }] = await sql`select count(*)::int as n from styra.journals where idempotency_key = ${`settle:${b.id}`}`;

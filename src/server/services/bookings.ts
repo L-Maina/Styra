@@ -24,7 +24,7 @@ const SELECT = `
     join styra.staff st on st.id = b.staff_id
     join styra.users u on u.id = b.customer_id`;
 
-function actionsFor(viewer: Viewer, status: string, hasReview: boolean): BookingAction[] {
+function actionsFor(viewer: Viewer, status: string, hasReview: boolean, started: boolean): BookingAction[] {
   if (viewer === 'CUSTOMER') {
     if (status === 'PENDING') return ['pay', 'cancel'];
     if (status === 'CONFIRMED') return ['cancel'];
@@ -32,7 +32,7 @@ function actionsFor(viewer: Viewer, status: string, hasReview: boolean): Booking
     if (status === 'VERIFIED' && !hasReview) return ['review'];
     return [];
   }
-  if (viewer === 'PROVIDER' && status === 'CONFIRMED') return ['complete', 'no-show', 'decline'];
+  if (viewer === 'PROVIDER' && status === 'CONFIRMED') return started ? ['complete', 'no-show'] : ['decline'];
   return [];
 }
 
@@ -59,7 +59,7 @@ function toDto(r: Record<string, any>, viewer: Viewer): BookingDto {
     customer: { id: r.customer_id, name: r.customer_name },
     refund: r.refund_amount == null ? null : { amountMinor: n(r.refund_amount), status: r.refund_status },
     hasReview: Boolean(r.has_review),
-    actions: actionsFor(viewer, r.status, Boolean(r.has_review)),
+    actions: actionsFor(viewer, r.status, Boolean(r.has_review), new Date(r.start_at).getTime() <= Date.now()),
   };
 }
 
