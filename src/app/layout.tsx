@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ReducedMotionProvider } from "@/components/ui/reduced-motion-provider";
+import { MotionSettings } from "@/components/theme/MotionSettings";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -84,8 +85,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ReducedMotionProvider>
-            {children}
-            <Toaster />
+            <MotionSettings>
+              {children}
+              <Toaster />
+            </MotionSettings>
           </ReducedMotionProvider>
         </ThemeProvider>
       </body>
