@@ -12,6 +12,7 @@ import {
 import { SearchAutocomplete } from '@/components/ui/custom/SearchAutocomplete';
 import { LocationAutocomplete } from '@/components/ui/custom/LocationAutocomplete';
 import type { Business } from '@/types';
+import { formatRating, pluralNoun } from '@/lib/format';
 
 interface HeroSectionProps {
   onNavigate?: (page: string) => void;
@@ -136,13 +137,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           const d = json.data;
           const built: { value: string; label: string }[] = [];
           if (d.total_providers > 0)
-            built.push({ value: String(d.total_providers), label: 'Service Providers' });
+            built.push({ value: String(d.total_providers), label: pluralNoun(d.total_providers, 'Service Provider', 'Service Providers') });
           if (d.total_customers > 0)
-            built.push({ value: String(d.total_customers), label: 'Happy Customers' });
+            built.push({ value: String(d.total_customers), label: pluralNoun(d.total_customers, 'Happy Customer', 'Happy Customers') });
           if (d.total_bookings > 0)
-            built.push({ value: String(d.total_bookings), label: 'Bookings Made' });
+            built.push({ value: String(d.total_bookings), label: pluralNoun(d.total_bookings, 'Booking Made', 'Bookings Made') });
           if (d.average_rating > 0)
-            built.push({ value: String(d.average_rating), label: 'Average Rating' });
+            built.push({ value: formatRating(d.average_rating), label: 'Average Rating' });
           setStats(built);
         }
       })

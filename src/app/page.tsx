@@ -225,10 +225,11 @@ export default function HomePage() {
   }, [isAuthenticated]);
 
   // ─── Minimum loading time for skeletons ──────────────────────────────
-  // Ensures skeleton UI shows for at least 1.2s so users can perceive it
-  const showBusinessesSkeleton = useMinimumLoading(businessesLoading, 2000);
-  const showBusinessDetailSkeleton = useMinimumLoading(businessDetailLoading, 1500);
-  const showBookingsSkeleton = useMinimumLoading(bookingsLoading, 1000);
+  // A skeleton that is up for only a blink looks like a glitch, so hold it for 0.4 s and no longer.
+  // (It used to be held for 1 to 2 s, which made every page open feel slow even when the data was ready.)
+  const showBusinessesSkeleton = useMinimumLoading(businessesLoading, 400);
+  const showBusinessDetailSkeleton = useMinimumLoading(businessDetailLoading, 400);
+  const showBookingsSkeleton = useMinimumLoading(bookingsLoading, 400);
 
   // Guest mode - if not authenticated, treat as CLIENT guest
   const isGuest = !isAuthenticated && !user;
@@ -1368,7 +1369,8 @@ export default function HomePage() {
       {/* ─── Floating / Fixed Position Components ───────────────────────── */}
 
       {/* LanguageSwitcher — fixed bottom-right, above the accessibility toolbar */}
-      <div className="fixed bottom-20 right-6 z-50">
+      {/* On phones both floating buttons sit above the bottom tab bar instead of on top of it */}
+      <div className="fixed right-4 bottom-[calc(8.5rem+env(safe-area-inset-bottom,0px))] md:bottom-20 md:right-6 z-50">
         <LanguageSwitcher mode="compact" />
       </div>
 

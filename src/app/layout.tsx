@@ -40,8 +40,13 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_APP_URL || "https://styra-silk.vercel.app"
   ),
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/favicon.png", type: "image/png", sizes: "256x256" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
+  manifest: "/manifest.json",
   openGraph: {
     title: "Styra - Global Grooming Marketplace",
     description:
@@ -49,12 +54,16 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Styra",
     url: process.env.NEXT_PUBLIC_APP_URL || "https://styra-silk.vercel.app",
+    images: [
+      { url: "/og-image.png", width: 1200, height: 630, alt: "Styra: Your Style, On Demand" },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Styra - Global Grooming Marketplace",
     description:
       "Discover and book premium grooming services near you.",
+    images: ["/og-image.png"],
   },
 };
 

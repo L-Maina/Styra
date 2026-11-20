@@ -42,6 +42,7 @@ import { useAuthStore } from '@/store';
 import { useFavoritesStore, useIsFavorite } from '@/store/favorites';
 import { cn } from '@/lib/utils';
 import type { Business, Service, Staff, Review, User } from '@/types';
+import { formatRating, pluralize } from '@/lib/format';
 
 interface BusinessProfilePageProps {
   business: Business;
@@ -276,7 +277,8 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
         </div>
 
         {/* Badges */}
-        <div className="absolute bottom-4 left-4 flex gap-2">
+        {/* The header card below overlaps the bottom 4rem of the cover, so the badges sit above it */}
+        <div className="absolute bottom-20 left-4 flex gap-2">
           {business.subscriptionPlan === 'FEATURED' && (
             <GlassBadge variant="primary">Featured</GlassBadge>
           )}
@@ -305,7 +307,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                 {business.logo ? (
                   <img src={business.logo} alt={business.name} className="w-full h-full object-cover" />
                 ) : (
-                  '💇'
+                  <Scissors className="h-7 w-7 sm:h-10 sm:w-10 text-white" aria-hidden="true" />
                 )}
               </div>
 
@@ -329,8 +331,8 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                       )}
                       <div className="flex items-center gap-1">
                         <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                        <span className="font-medium text-foreground">{business.rating.toFixed(1)}</span>
-                        <span>({business.reviewCount} reviews)</span>
+                        <span className="font-medium text-foreground">{formatRating(business.rating)}</span>
+                        <span>({pluralize(business.reviewCount, 'review')})</span>
                       </div>
                     </div>
                   </div>
@@ -513,7 +515,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
               <GlassCard variant="default" className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
                   <div className="text-center shrink-0">
-                    <div className="text-4xl sm:text-5xl font-bold gradient-text">{business.rating.toFixed(1)}</div>
+                    <div className="text-4xl sm:text-5xl font-bold gradient-text">{formatRating(business.rating)}</div>
                     <div className="flex items-center justify-center gap-1 mt-2">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
@@ -527,7 +529,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                       ))}
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      {business.reviewCount} reviews
+                      {pluralize(business.reviewCount, 'review')}
                     </div>
                   </div>
                   <div className="flex-1">

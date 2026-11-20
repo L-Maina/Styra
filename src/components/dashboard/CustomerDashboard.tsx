@@ -53,6 +53,7 @@ import {
   CustomerEscrowActions,
   VerificationNotice,
 } from '@/components/booking/BookingEscrowActions';
+import { pluralize } from '@/lib/format';
 
 interface CustomerDashboardProps {
   user: User | null;
@@ -652,7 +653,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             <span className="text-sm font-medium">{Number(business.rating).toFixed(1)}</span>
                           </div>
                           <span className="text-xs text-muted-foreground">
-                            ({business.reviewCount} reviews)
+                            ({pluralize(business.reviewCount, 'review')})
                           </span>
                         </div>
                       </div>
