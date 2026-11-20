@@ -86,7 +86,7 @@ export const GlassButton: React.FC<GlassButtonProps & React.RefAttributes<HTMLBu
         'text-foreground'
       ),
       primary: cn(
-        'gradient-bg text-white shadow-glow-sm',
+        'gradient-bg text-primary-foreground shadow-glow-sm',
         'relative overflow-hidden',
       ),
       secondary: cn(

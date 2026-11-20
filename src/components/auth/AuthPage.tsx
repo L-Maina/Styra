@@ -985,7 +985,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     className="w-16 h-16 rounded-full gradient-bg flex items-center justify-center mx-auto mb-4 shadow-glow"
                     aria-hidden="true"
                   >
-                    <Phone className="h-8 w-8 text-white" />
+                    <Phone className="h-8 w-8 text-primary-foreground" />
                   </motion.div>
                   <h3 className="font-semibold mb-2 text-lg">Verify Phone Number</h3>
                   <p className="text-sm text-muted-foreground">

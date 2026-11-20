@@ -427,7 +427,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
                           isSelected && 'border-primary bg-primary'
                         )}
                       >
-                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                        {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
                       </div>
                     </button>
                   );
@@ -638,7 +638,7 @@ export const PremiumFeatures: React.FC<PremiumFeaturesProps> = ({
           <TabsTrigger value="active">
             Active Listings
             {activeListings.length > 0 && (
-              <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-primary text-white">
+              <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-primary text-primary-foreground">
                 {activeListings.length}
               </span>
             )}
@@ -665,7 +665,7 @@ export const PremiumFeatures: React.FC<PremiumFeaturesProps> = ({
                   )}
                 >
                   {tier.popular && (
-                    <div className="absolute top-0 left-0 right-0 bg-primary text-white text-center text-xs py-1 font-medium">
+                    <div className="absolute top-0 left-0 right-0 bg-primary text-primary-foreground text-center text-xs py-1 font-medium">
                       Most Popular
                     </div>
                   )}

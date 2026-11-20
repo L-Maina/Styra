@@ -208,7 +208,7 @@ export const PressPage: React.FC<PressPageProps> = ({ onNavigate }) => {
             whileHover={{ scale: 1.05, rotate: 3 }}
             transition={{ duration: 0.3 }}
           >
-            <Newspaper className="h-10 w-10 text-white" />
+            <Newspaper className="h-10 w-10 text-primary-foreground" />
           </motion.div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             Press & <GradientText>Media</GradientText>

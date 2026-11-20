@@ -688,7 +688,7 @@ export default function HomePage() {
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={() => navigate('login')}
-                    className="px-6 py-3 rounded-lg gradient-bg text-white font-medium"
+                    className="px-6 py-3 rounded-lg gradient-bg text-primary-foreground font-medium"
                   >
                     Sign In
                   </button>
@@ -727,7 +727,7 @@ export default function HomePage() {
                         switchMode('CLIENT');
                         navigate('home');
                       }}
-                      className="px-6 py-3 rounded-lg gradient-bg text-white font-medium"
+                      className="px-6 py-3 rounded-lg gradient-bg text-primary-foreground font-medium"
                     >
                       Switch to Client Mode
                     </button>
@@ -809,7 +809,7 @@ export default function HomePage() {
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={() => navigate('login')}
-                    className="px-6 py-3 rounded-lg gradient-bg text-white font-medium"
+                    className="px-6 py-3 rounded-lg gradient-bg text-primary-foreground font-medium"
                   >
                     Sign In
                   </button>
@@ -865,7 +865,7 @@ export default function HomePage() {
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={() => navigate('login')}
-                    className="px-6 py-3 rounded-lg gradient-bg text-white font-medium"
+                    className="px-6 py-3 rounded-lg gradient-bg text-primary-foreground font-medium"
                   >
                     Sign In
                   </button>
@@ -914,7 +914,7 @@ export default function HomePage() {
                   {!application && (
                     <button
                       onClick={() => navigate('onboarding')}
-                      className="px-6 py-3 rounded-lg gradient-bg text-white font-medium"
+                      className="px-6 py-3 rounded-lg gradient-bg text-primary-foreground font-medium"
                     >
                       Complete Onboarding
                     </button>
@@ -960,7 +960,7 @@ export default function HomePage() {
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={() => navigate('register')}
-                    className="px-6 py-3 rounded-lg gradient-bg text-white font-medium"
+                    className="px-6 py-3 rounded-lg gradient-bg text-primary-foreground font-medium"
                   >
                     Create Account
                   </button>
@@ -996,7 +996,7 @@ export default function HomePage() {
                 </p>
                 <button
                   onClick={() => navigate('business-dashboard')}
-                  className="px-6 py-3 rounded-lg gradient-bg text-white font-medium"
+                  className="px-6 py-3 rounded-lg gradient-bg text-primary-foreground font-medium"
                 >
                   Go to Dashboard
                 </button>
@@ -1040,7 +1040,7 @@ export default function HomePage() {
                 <div className="text-center py-16">
                   <h2 className="text-xl font-semibold mb-2">Select a Business</h2>
                   <p className="text-muted-foreground mb-4">Choose a business to view their calendar.</p>
-                  <button onClick={() => navigate('marketplace')} className="px-4 py-2 rounded-lg gradient-bg text-white">
+                  <button onClick={() => navigate('marketplace')} className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground">
                     Browse Businesses
                   </button>
                 </div>
@@ -1262,7 +1262,7 @@ export default function HomePage() {
               </div>
               <button
                 onClick={() => navigate('home')}
-                className="mt-8 px-6 py-3 rounded-lg gradient-bg text-white font-medium"
+                className="mt-8 px-6 py-3 rounded-lg gradient-bg text-primary-foreground font-medium"
               >
                 Back to Home
               </button>

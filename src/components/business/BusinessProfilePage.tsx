@@ -307,7 +307,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                 {business.logo ? (
                   <img src={business.logo} alt={business.name} className="w-full h-full object-cover" />
                 ) : (
-                  <Scissors className="h-7 w-7 sm:h-10 sm:w-10 text-white" aria-hidden="true" />
+                  <Scissors className="h-7 w-7 sm:h-10 sm:w-10 text-primary-foreground" aria-hidden="true" />
                 )}
               </div>
 
@@ -409,14 +409,14 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
                 onClick={() => setSelectedTab(tab.id as typeof selectedTab)}
                 className={`px-3 sm:px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedTab === tab.id
-                    ? 'gradient-bg text-white'
+                    ? 'gradient-bg text-primary-foreground'
                     : 'bg-muted/50 hover:bg-muted text-muted-foreground'
                 }`}
               >
                 {tab.label}
                 {(tab.count ?? 0) > 0 && (
                   <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
-                    selectedTab === tab.id ? 'bg-white/20' : 'bg-muted'
+                    selectedTab === tab.id ? 'bg-primary-foreground/20' : 'bg-muted'
                   }`}>
                     {tab.count}
                   </span>
@@ -555,7 +555,7 @@ export const BusinessProfilePage: React.FC<BusinessProfilePageProps> = ({
               {reviews.map((review) => (
                 <GlassCard key={review.id} variant="default" className="p-4">
                   <div className="flex items-start gap-3 sm:gap-4 min-w-0">
-                    <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-medium shrink-0">
+                    <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-medium shrink-0">
                       {review.customer?.name?.[0] || review.customerId?.[0] || 'U'}
                     </div>
                     <div className="flex-1 min-w-0">

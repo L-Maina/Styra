@@ -448,7 +448,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                      <Search className="h-5 w-5 text-white" />
+                      <Search className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <div>
                       <p className="font-medium">Find Services</p>
@@ -909,7 +909,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               <GlassCard variant="elevated" className="p-4 sm:p-6 border-primary/30">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-lg gradient-bg flex items-center justify-center shrink-0">
-                    <Building2 className="h-6 w-6 text-white" />
+                    <Building2 className="h-6 w-6 text-primary-foreground" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold mb-1">Become a Service Provider</h3>
@@ -987,7 +987,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         <FadeIn delay={0.1}>
           <div className="mb-6 p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center">
-              <Star className="h-4 w-4 text-white" />
+              <Star className="h-4 w-4 text-primary-foreground" />
             </div>
             <div className="flex-1">
               <span className="font-medium">Client Mode</span>
@@ -1040,7 +1040,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       className={cn(
                         'w-full flex items-center justify-between px-4 py-3 rounded-lg text-left transition-colors group',
                         activeSection === item.id
-                          ? 'gradient-bg text-white'
+                          ? 'gradient-bg text-primary-foreground'
                           : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
                       )}
                     >
@@ -1050,7 +1050,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           <span className="font-medium">{item.label}</span>
                           <p className={cn(
                             "text-xs",
-                            activeSection === item.id ? "text-white/70" : "text-muted-foreground"
+                            activeSection === item.id ? "text-primary-foreground/70" : "text-muted-foreground"
                           )}>
                             {item.description}
                           </p>
@@ -1060,7 +1060,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         <span className={cn(
                           "px-2 py-0.5 rounded-full text-xs font-medium",
                           activeSection === item.id 
-                            ? "bg-white/20 text-white" 
+                            ? "bg-primary-foreground/20 text-primary-foreground" 
                             : "bg-primary/10 text-primary"
                         )}>
                           {item.count}

@@ -473,7 +473,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
             whileHover={{ scale: 1.05, rotate: 5 }}
             transition={{ type: 'spring', stiffness: 300 }}
           >
-            <Megaphone className="h-10 w-10 text-white" />
+            <Megaphone className="h-10 w-10 text-primary-foreground" />
           </motion.div>
           <h1 className="text-4xl font-bold mb-4">
             Advertise with <GradientText>{companyName}</GradientText>
@@ -594,7 +594,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
                 >
                   {option.popular && (
                     <div className="absolute top-0 right-0 z-20">
-                      <div className="gradient-bg text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl flex items-center gap-1.5 shadow-glow-sm">
+                      <div className="gradient-bg text-primary-foreground text-xs font-bold px-4 py-1.5 rounded-bl-xl flex items-center gap-1.5 shadow-glow-sm">
                         <Crown className="h-3 w-3" />
                         MOST POPULAR
                       </div>
@@ -1036,7 +1036,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
                     <div className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                       paymentMethod === type ? 'border-primary bg-primary' : 'border-muted-foreground'
                     }`}>
-                      {paymentMethod === type && <CheckCircle className="h-3 w-3 text-white" />}
+                      {paymentMethod === type && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
                     </div>
                   </button>
                 ))}
@@ -1157,7 +1157,7 @@ export const AdvertisePage: React.FC<AdvertisePageProps> = ({ onBack, onNavigate
             transition={{ type: 'spring', stiffness: 200, damping: 15 }}
             className="w-20 h-20 rounded-full gradient-bg flex items-center justify-center mx-auto mb-4 shadow-glow"
           >
-            <CheckCircle className="h-10 w-10 text-white" />
+            <CheckCircle className="h-10 w-10 text-primary-foreground" />
           </motion.div>
 
           <h2 className="text-xl font-semibold mb-2">Payment Successful!</h2>

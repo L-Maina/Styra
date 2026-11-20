@@ -279,7 +279,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                   <div
                     className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px] rounded-full text-sm font-medium transition-colors ${
                       index <= currentStepIndex
-                        ? 'gradient-bg text-white'
+                        ? 'gradient-bg text-primary-foreground'
                         : 'bg-muted text-muted-foreground'
                     }`}
                   >
@@ -433,7 +433,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                       onClick={() => setSelectedDate(date)}
                       className={`flex-shrink-0 p-2.5 sm:p-3 min-h-[44px] min-w-[44px] rounded-xl text-center transition-all ${
                         selectedDate === date
-                          ? 'gradient-bg text-white'
+                          ? 'gradient-bg text-primary-foreground'
                           : 'bg-muted/50 hover:bg-muted'
                       }`}
                     >
@@ -457,7 +457,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                       onClick={() => setSelectedTime(time)}
                       className={`p-2 min-h-[44px] rounded-lg text-sm transition-all ${
                         selectedTime === time
-                          ? 'gradient-bg text-white'
+                          ? 'gradient-bg text-primary-foreground'
                           : 'bg-muted/50 hover:bg-muted'
                       }`}
                     >
@@ -590,7 +590,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
               className="text-center py-16"
             >
               <div className="w-20 h-20 rounded-full gradient-bg flex items-center justify-center mx-auto mb-6">
-                <Check className="h-10 w-10 text-white" />
+                <Check className="h-10 w-10 text-primary-foreground" />
               </div>
               <h2 className="text-xl sm:text-2xl font-bold mb-2">Booking Confirmed!</h2>
               <p className="text-sm sm:text-base text-muted-foreground mb-6">

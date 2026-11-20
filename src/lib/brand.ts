@@ -1,55 +1,59 @@
 // ============================================
-// STYRA BRAND ASSET CONFIGURATION
+// STYRA BRAND CONFIGURATION
 // ============================================
-// Central source of truth for all brand asset paths.
-// All components should import from here to ensure consistency.
+// The identity kit (concept A, "Signature") is the source of truth: brand/ on the brand/identity-kit branch.
+// The web copies of the logos are in public/brand/logo, colours are in src/app/globals.css and the fonts
+// (Syne for display, Manrope for text) are loaded in src/app/layout.tsx.
 
-/**
- * Brand asset paths — all served from /public/assets/branding/
- *
- * Asset mapping (the UI uses the small `-sm` copies, 180 px tall, enough for 3x phone screens;
- * the full-size originals stay as the source files):
- *   logo-full-sm.png    → Full logo (icon + "Styra" text) for headers, auth pages
- *   logo-icon-sm.png    → Square icon for compact UI (mobile nav, loading, push notifications)
- *   logo-monogram-sm.png → Monogram "S" for dashboards, sidebar, badges
- *   logo-wordmark-sm.png → Text-only "Styra" for footers, inline branding
- *   favicon-source.png  → High-res source for favicons
- * App icons live in /public/icons, the share image is /public/og-image.png.
- */
+export type LogoVariant = 'full' | 'stacked' | 'icon' | 'monogram' | 'wordmark';
+export type LogoTheme = 'light' | 'dark';
+
+/** The kit lockup each variant uses. */
+export const LOGO_FILES: Record<LogoVariant, string> = {
+  full: 'horizontal', // symbol + wordmark, the primary logo: headers, auth, footers
+  stacked: 'stacked', // symbol above the wordmark, for square and narrow spaces
+  icon: 'symbol', // the mark alone, where the name is already nearby
+  monogram: 'monogram', // heavier drawing of the mark for 16 to 48 px
+  wordmark: 'wordmark', // STYRA alone
+};
+
+/** Width divided by height of each logo, from its SVG viewBox. A test keeps these equal to the files. */
+export const LOGO_ASPECT: Record<LogoVariant, number> = {
+  full: 729.411 / 125,
+  stacked: 601.286 / 442.164,
+  icon: 1,
+  monogram: 1,
+  wordmark: 601.286 / 104.173,
+};
+
+/** Path of a logo file. 'light' is drawn for an ivory ground and 'dark' for a graphite ground. */
+export function logoSrc(variant: LogoVariant, theme: LogoTheme): string {
+  return `/brand/logo/styra-${LOGO_FILES[variant]}-${theme}.svg`;
+}
 
 export const BRAND = {
-  // Primary logo — icon + wordmark combined
-  logoFull: '/assets/branding/logo-full-sm.png',
-  // Square icon (for mobile, notifications, loading states)
-  logoIcon: '/assets/branding/logo-icon-sm.png',
-  // Monogram "S" (for compact/dark contexts)
-  logoMonogram: '/assets/branding/logo-monogram-sm.png',
-  // Wordmark only (for footers, inline use)
-  logoWordmark: '/assets/branding/logo-wordmark-sm.png',
-  // Favicon source
-  favicon: '/assets/branding/favicon-source.png',
-  // OG Image
+  favicon: '/favicon.svg',
   ogImage: '/og-image.png',
 } as const;
 
-/** Logo display sizes (in pixels) for different contexts */
+/** Logo heights in pixels for different contexts. The horizontal lockup must stay at least 24 px high. */
 export const LOGO_SIZES = {
   /** Navbar desktop */
-  navbarDesktop: { height: 36, width: 'auto' as const },
+  navbarDesktop: { height: 28 },
   /** Navbar mobile */
-  navbarMobile: { height: 28, width: 'auto' as const },
+  navbarMobile: { height: 24 },
   /** Auth page (login/register) */
-  authPage: { height: 56, width: 'auto' as const },
+  authPage: { height: 40 },
   /** Dashboard sidebar compact */
-  dashboardCompact: { height: 28, width: 'auto' as const },
+  dashboardCompact: { height: 24 },
   /** Dashboard expanded */
-  dashboardExpanded: { height: 36, width: 'auto' as const },
-  /** Loading state */
-  loading: { height: 48, width: 48 },
+  dashboardExpanded: { height: 28 },
+  /** Loading state (the mark alone) */
+  loading: { height: 48 },
   /** Footer */
-  footer: { height: 32, width: 'auto' as const },
+  footer: { height: 28 },
   /** Push notification icon */
-  notification: { height: 192, width: 192 },
+  notification: { height: 192 },
 } as const;
 
 /** Brand name for alt text / aria labels */

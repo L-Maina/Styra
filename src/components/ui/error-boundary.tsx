@@ -70,7 +70,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               </button>
               <button
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 rounded-lg gradient-bg text-white text-sm font-medium"
+                className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-sm font-medium"
               >
                 Refresh Page
               </button>

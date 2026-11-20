@@ -4,8 +4,8 @@
   "description": "Your Style, On Demand — Premium grooming marketplace",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#6C4EFF",
+  "background_color": "#121318",
+  "theme_color": "#121318",
   "orientation": "portrait-primary",
   "icons": [
     {

@@ -203,7 +203,7 @@ export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
             whileHover={{ scale: 1.05, rotate: 5 }}
             transition={{ duration: 0.3 }}
           >
-            <Newspaper className="h-10 w-10 text-white" />
+            <Newspaper className="h-10 w-10 text-primary-foreground" />
           </motion.div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             <GradientText>Styra</GradientText> Blog
@@ -226,7 +226,7 @@ export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
                     className={cn(
                       'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300',
                       selectedCategory === cat
-                        ? 'gradient-bg text-white shadow-glow-sm'
+                        ? 'gradient-bg text-primary-foreground shadow-glow-sm'
                         : 'bg-surface/50 backdrop-blur-sm border border-border/20 hover:bg-surface/70',
                     )}
                     whileHover={{ scale: 1.02 }}
@@ -376,7 +376,7 @@ export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
                           className={cn(
                             'absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all',
                             savedArticles.includes(post.id)
-                              ? 'bg-primary text-white'
+                              ? 'bg-primary text-primary-foreground'
                               : 'bg-white/50 backdrop-blur-sm text-foreground',
                           )}
                         >
@@ -485,7 +485,7 @@ export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
                         />
                       ) : (
                         <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center">
-                          <User className="h-5 w-5 text-white" />
+                          <User className="h-5 w-5 text-primary-foreground" />
                         </div>
                       )}
                       <div>
@@ -511,7 +511,7 @@ export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
                       className={cn(
                         'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
                         savedArticles.includes(selectedArticle.id)
-                          ? 'bg-primary text-white'
+                          ? 'bg-primary text-primary-foreground'
                           : 'bg-muted/50 hover:bg-muted text-foreground',
                       )}
                     >

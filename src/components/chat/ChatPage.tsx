@@ -459,7 +459,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate, initialCon
               )}
             >
               <div className="relative">
-                <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-white">
+                <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-primary-foreground">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 border-2 border-background" />
@@ -551,12 +551,12 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate, initialCon
                       className="w-12 h-12 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-white font-bold">
+                    <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-bold">
                       {conversation.otherUser?.name?.[0] || '?'}
                     </div>
                   )}
                   {conversation.unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-white text-xs flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
                       {conversation.unreadCount}
                     </span>
                   )}
@@ -590,7 +590,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate, initialCon
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
-              <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white">
+              <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-primary-foreground">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
@@ -610,7 +610,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate, initialCon
               {aiMessages.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12">
                   <div className="w-16 h-16 rounded-full gradient-bg flex items-center justify-center mb-4">
-                    <Bot className="h-8 w-8 text-white" />
+                    <Bot className="h-8 w-8 text-primary-foreground" />
                   </div>
                   <h3 className="font-semibold mb-2">Hi, I'm Styra AI!</h3>
                   <p className="text-muted-foreground text-sm text-center max-w-sm">
@@ -629,7 +629,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate, initialCon
                   <div
                     className={`max-w-[85%] sm:max-w-[75%] px-3 sm:px-4 py-2 rounded-2xl break-words ${
                       msg.role === 'user'
-                        ? 'gradient-bg text-white rounded-br-md'
+                        ? 'gradient-bg text-primary-foreground rounded-br-md'
                         : 'bg-muted rounded-bl-md'
                     }`}
                   >
@@ -715,7 +715,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate, initialCon
                     className="w-10 h-10 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-bold">
+                  <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-primary-foreground font-bold">
                     {selectedConv.otherUser?.name?.[0] || '?'}
                   </div>
                 )}
@@ -819,14 +819,14 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate, initialCon
                     <div
                       className={`max-w-[85%] sm:max-w-[75%] px-3 sm:px-4 py-2 rounded-2xl break-words ${
                         isFromMe
-                          ? 'gradient-bg text-white rounded-br-md'
+                          ? 'gradient-bg text-primary-foreground rounded-br-md'
                           : 'bg-muted rounded-bl-md'
                       }`}
                     >
                       <p className="break-words">{msg.content}</p>
                       <p
                         className={`text-xs mt-1 flex items-center gap-1 ${
-                          isFromMe ? 'text-white/70 justify-end' : 'text-muted-foreground'
+                          isFromMe ? 'text-primary-foreground/70 justify-end' : 'text-muted-foreground'
                         }`}
                       >
                         {formatTime(msg.createdAt)}
@@ -1002,7 +1002,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onNavigate, initialCon
               className="glass-modal rounded-2xl p-8 text-center max-w-sm w-full mx-4"
             >
               {/* Avatar */}
-              <div className="w-24 h-24 rounded-full gradient-bg flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
+              <div className="w-24 h-24 rounded-full gradient-bg flex items-center justify-center text-primary-foreground text-3xl font-bold mx-auto mb-4">
                 {selectedConv?.otherUser?.name?.[0] || '?'}
               </div>
               

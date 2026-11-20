@@ -61,7 +61,7 @@ export default function TermsPage() {
         {/* Hero */}
         <FadeIn className="text-center mb-12">
           <div className="w-16 h-16 rounded-full gradient-bg flex items-center justify-center mx-auto mb-6">
-            <Scale className="h-8 w-8 text-white" />
+            <Scale className="h-8 w-8 text-primary-foreground" />
           </div>
           <h1 className="text-4xl font-bold mb-4">
             <GradientText>Terms of Service</GradientText>

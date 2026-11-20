@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { BrandLogo } from '@/components/ui/brand-logo';
-import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
+import { BRAND_TAGLINE } from '@/lib/brand';
 import { LAUNCH_MS, LAUNCH_SEEN_KEY } from '@/lib/launch';
 
 /**
@@ -45,7 +45,7 @@ export function LaunchSplash() {
       <div className="launch-lockup">
         <BrandLogo variant="icon" size={88} alt="" className="launch-mark" />
         <div className="launch-words">
-          <span className="launch-name">{BRAND_NAME}</span>
+          <BrandLogo variant="wordmark" size={26} alt="" />
           <span className="launch-tagline">{BRAND_TAGLINE}</span>
         </div>
       </div>

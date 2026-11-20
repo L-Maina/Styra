@@ -193,7 +193,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({ onBack, onNavigate }) => {
         {/* Hero */}
         <FadeIn className="text-center mb-12">
           <div className="w-16 h-16 rounded-full gradient-bg flex items-center justify-center mx-auto mb-6">
-            <Scale className="h-8 w-8 text-white" />
+            <Scale className="h-8 w-8 text-primary-foreground" />
           </div>
           <h1 className="text-4xl font-bold mb-4">
             <GradientText>Terms of Service</GradientText>
@@ -252,7 +252,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({ onBack, onNavigate }) => {
             <GlassCard className="mb-6">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-lg gradient-bg flex items-center justify-center flex-shrink-0">
-                  <section.icon className="h-6 w-6 text-white" />
+                  <section.icon className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <div className="flex-1">
                   <h2 className="text-xl font-semibold mb-3">{section.title}</h2>

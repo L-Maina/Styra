@@ -268,7 +268,7 @@ export const Footer: React.FC<FooterProps> = ({
               <div className="col-span-2 sm:col-span-3 md:col-span-2">
                 <Link href="/" className="inline-block cursor-pointer">
                   <div className="mb-3">
-                    <BrandLogo variant="wordmark" size="footer" />
+                    <BrandLogo variant="full" size="footer" />
                   </div>
                 </Link>
 

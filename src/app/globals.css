@@ -8,22 +8,23 @@
    Signature Liquid Glass Identity
    ============================================ */
 :root {
-  /* Brand Colors */
-  --primary: #6C4EFF;
-  --secondary: #3ABEFF;
-  --primary-light: #7A6CFF;
-  --secondary-light: #6FE3FF;
+  /* Brand colours. Source of truth: the identity kit (brand/tokens/tokens.css on brand/identity-kit,
+     concept A "Signature"). Change a value in the kit first. Dark (graphite) is the default theme. */
+  --primary: #8780FD;
+  --primary-light: #9C9BFD;
+  --secondary: #2F7BFF;
+  --secondary-light: #659DFD;
 
-  /* Signature Gradient (matches logo EXACTLY) */
-  --styra-gradient: linear-gradient(135deg, #6C4EFF 0%, #7A6CFF 25%, #3ABEFF 60%, #6FE3FF 100%);
+  /* Signature gradient: violet to electric blue. Primary actions and highlights only, never the logo. */
+  --styra-gradient: linear-gradient(135deg, #8780FD 0%, #2F7BFF 100%);
 
   /* Liquid Glass Variables */
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-bg-hover: rgba(255, 255, 255, 0.08);
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-border-hover: rgba(255, 255, 255, 0.2);
-  --glass-shadow: 0 0 12px rgba(108, 78, 255, 0.12), 0 0 24px rgba(58, 190, 255, 0.08);
-  --glass-shadow-hover: 0 0 18px rgba(108, 78, 255, 0.2), 0 0 36px rgba(58, 190, 255, 0.12);
+  --glass-shadow: 0 0 12px rgba(135, 128, 253, 0.12), 0 0 24px rgba(47, 123, 255, 0.08);
+  --glass-shadow-hover: 0 0 18px rgba(135, 128, 253, 0.2), 0 0 36px rgba(47, 123, 255, 0.12);
   --glass-blur: blur(16px);
   --glass-blur-heavy: blur(24px);
 
@@ -51,87 +52,108 @@
   --skeleton-base: rgba(255, 255, 255, 0.07);
   --skeleton-sweep: rgba(255, 255, 255, 0.09);
 
-  /* Base Theme — Graphite (dark, the default) */
-  --background: #101116;
-  --foreground: #F5F5F7;
-  --card: rgba(26, 27, 35, 0.7);
-  --card-foreground: #F5F5F7;
-  --popover: rgba(26, 27, 35, 0.92);
-  --popover-foreground: #F5F5F7;
-  --primary-foreground: #ffffff;
-  --secondary-foreground: #E5E7EB;
+  /* Base theme: graphite (dark, the default). Values from the identity kit. */
+  --background: #121318;
+  --foreground: #F2F3F5;
+  --card: rgba(23, 28, 38, 0.7);
+  --card-foreground: #F2F3F5;
+  --popover: rgba(23, 28, 38, 0.92);
+  --popover-foreground: #F2F3F5;
+  --primary-foreground: #0B0F18;
+  --secondary-foreground: #0B0F18;
   --muted: rgba(255, 255, 255, 0.08);
-  --muted-foreground: #94A3B8;
-  --accent: rgba(108, 78, 255, 0.15);
-  --accent-foreground: #FFFFFF;
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
+  --muted-foreground: #9DA2AA;
+  --accent: rgba(135, 128, 253, 0.15);
+  --accent-foreground: #F2F3F5;
+  --destructive: #FE8477;
+  --destructive-foreground: #0B0F18;
+  --success: #3FC6A0;
+  --warning: #E59B37;
+  --info: #66B2FD;
+  --link: #8780FD;
   --border: rgba(255, 255, 255, 0.2);
   /* Control edges (text fields, outline buttons) need 3:1 against the page and cards. */
   --input: rgba(255, 255, 255, 0.4);
-  --ring: #6C4EFF;
-  --surface: #1A1B23;
+  --ring: #8780FD;
+  --surface: #171C26;
 
-  /* Chart Colors */
-  --chart-1: #6C4EFF;
-  --chart-2: #3ABEFF;
-  --chart-3: #10B981;
-  --chart-4: #F59E0B;
-  --chart-5: #EF4444;
+  /* Chart colours: violet, electric blue, then the status colours */
+  --chart-1: #8780FD;
+  --chart-2: #2F7BFF;
+  --chart-3: #3FC6A0;
+  --chart-4: #E59B37;
+  --chart-5: #FE8477;
 
   /* Sidebar */
-  --sidebar: rgba(16, 17, 22, 0.95);
-  --sidebar-foreground: #E5E7EB;
-  --sidebar-primary: #6C4EFF;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: rgba(108, 78, 255, 0.15);
-  --sidebar-accent-foreground: #A78BFA;
+  --sidebar: rgba(18, 19, 24, 0.95);
+  --sidebar-foreground: #F2F3F5;
+  --sidebar-primary: #8780FD;
+  --sidebar-primary-foreground: #0B0F18;
+  --sidebar-accent: rgba(135, 128, 253, 0.15);
+  --sidebar-accent-foreground: #BCBEFE;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #6C4EFF;
+  --sidebar-ring: #8780FD;
 }
 
-/* Light mode overrides — warm ivory */
+/* Light mode: warm ivory. Values from the identity kit. */
 .light {
+  --primary: #6C4EFF;
+  --primary-light: #8780FD;
+  --secondary-light: #659DFD;
+  --primary-foreground: #FFFFFF;
+  --secondary-foreground: #0B0F18;
+  --styra-gradient: linear-gradient(135deg, #6C4EFF 0%, #2F7BFF 100%);
+
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-bg-hover: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(20, 21, 27, 0.12);
+  --glass-border: rgba(23, 28, 38, 0.12);
   --glass-border-hover: rgba(108, 78, 255, 0.3);
-  --glass-shadow: 0 8px 32px rgba(108, 78, 255, 0.12), 0 0 20px rgba(58, 190, 255, 0.08);
-  --glass-shadow-hover: 0 12px 40px rgba(108, 78, 255, 0.2), 0 0 30px rgba(58, 190, 255, 0.12);
+  --glass-shadow: 0 8px 32px rgba(108, 78, 255, 0.12), 0 0 20px rgba(47, 123, 255, 0.08);
+  --glass-shadow-hover: 0 12px 40px rgba(108, 78, 255, 0.2), 0 0 30px rgba(47, 123, 255, 0.12);
 
-  --background: #F7F3EC;
-  --foreground: #14151B;
+  --background: #F5F0E8;
+  --foreground: #171C26;
   --card: rgba(255, 255, 255, 0.8);
-  --card-foreground: #14151B;
+  --card-foreground: #171C26;
   --popover: rgba(255, 255, 255, 0.95);
-  --popover-foreground: #14151B;
-  --primary-foreground: #FFFFFF;
-  --secondary-foreground: #14151B;
-  --muted: rgba(239, 233, 222, 0.8);
-  --muted-foreground: #5A5F6E;
+  --popover-foreground: #171C26;
+  --muted: rgba(235, 230, 222, 0.8);
+  --muted-foreground: #505561;
   --accent: rgba(108, 78, 255, 0.08);
-  --accent-foreground: #14151B;
-  --destructive: #C42B31;
+  --accent-foreground: #171C26;
+  --destructive: #B4312B;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(20, 21, 27, 0.14);
-  --input: rgba(20, 21, 27, 0.5);
+  --success: #08795E;
+  --warning: #8F5A06;
+  --info: #196AAF;
+  --link: #5C1DF5;
+  --border: rgba(23, 28, 38, 0.14);
+  --input: rgba(23, 28, 38, 0.5);
   --ring: #6C4EFF;
-  --surface: #EFEAE0;
-  --skeleton-base: rgba(20, 21, 27, 0.07);
+  --surface: #FFFFFF;
+  --skeleton-base: rgba(23, 28, 38, 0.07);
   --skeleton-sweep: rgba(255, 255, 255, 0.7);
 
+  --chart-1: #6C4EFF;
+  --chart-3: #08795E;
+  --chart-4: #8F5A06;
+  --chart-5: #B4312B;
+
   --sidebar: rgba(255, 255, 255, 0.9);
-  --sidebar-foreground: #14151B;
+  --sidebar-foreground: #171C26;
+  --sidebar-primary: #6C4EFF;
+  --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: rgba(108, 78, 255, 0.1);
   --sidebar-accent-foreground: #6C4EFF;
-  --sidebar-border: rgba(20, 21, 27, 0.08);
+  --sidebar-border: rgba(23, 28, 38, 0.08);
+  --sidebar-ring: #6C4EFF;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
-  --font-heading: var(--font-poppins);
+  --font-sans: var(--font-manrope);
+  --font-heading: var(--font-syne);
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -158,6 +180,10 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-link: var(--link);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -239,20 +265,20 @@
 
 /* Navbar — premium sticky glass */
 .glass-nav {
-  background: rgba(16, 17, 22, 0.72);
+  background: rgba(18, 19, 24, 0.72);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .light .glass-nav {
-  background: rgba(247, 243, 236, 0.82);
-  border-bottom: 1px solid rgba(20, 21, 27, 0.1);
+  background: rgba(245, 240, 232, 0.82);
+  border-bottom: 1px solid rgba(23, 28, 38, 0.1);
 }
 
 /* Modal — heavy glass */
 .glass-modal {
-  background: rgba(26, 27, 35, 0.9);
+  background: rgba(23, 28, 38, 0.9);
   backdrop-filter: var(--glass-blur-heavy);
   -webkit-backdrop-filter: var(--glass-blur-heavy);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -282,7 +308,7 @@
 
 .light .glass-modal {
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(20, 21, 27, 0.14);
+  border: 1px solid rgba(23, 28, 38, 0.14);
   box-shadow:
     0 25px 50px rgba(0, 0, 0, 0.15),
     0 0 0 1px rgba(255, 255, 255, 0.3) inset,
@@ -327,17 +353,24 @@
 }
 
 /* ============================================
-   BRAND LOGO STYLING
+   BRAND LOGO
+   The kit draws every logo for an ivory ground and for a graphite ground. BrandLogo renders both and
+   this shows the one that matches the theme. Dark is the default, like :root, so a missing theme
+   class still shows a logo that can be read.
    ============================================ */
 
-.brand-logo .styra {
-  color: #FFFFFF;
-  font-weight: 700;
-  font-family: "Poppins", sans-serif;
-}
+.brand-logo__img--light { display: none; }
+.light .brand-logo__img--light { display: block; }
+.light .brand-logo__img--dark { display: none; }
 
-.light .brand-logo .styra {
-  color: #14151B;
+/* Display type: Syne 700, uppercase, tracked. For hero lines and brand moments. Utilities still win. */
+@layer components {
+  .text-display {
+    font-family: var(--font-heading), var(--font-sans), sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }
 
 /* ============================================
@@ -625,9 +658,15 @@ button[class*="rounded-full"]:not(:disabled):hover {
     scroll-behavior: smooth;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-poppins), sans-serif;
-    letter-spacing: -0.01em;
+  /* Identity kit type scale: Syne for the two display levels, Manrope below. */
+  h1, h2 {
+    font-family: var(--font-heading), var(--font-sans), sans-serif;
+    letter-spacing: 0.02em;
+  }
+
+  h3, h4, h5, h6 {
+    font-family: var(--font-sans), sans-serif;
+    letter-spacing: 0;
   }
 }
 
@@ -761,14 +800,6 @@ html[data-launched] .launch-splash {
   opacity: 0;
   transform: translateY(var(--distance-rise));
   animation: launch-words var(--duration-base) var(--ease-standard) 750ms forwards;
-}
-
-.launch-name {
-  font-family: var(--font-poppins), sans-serif;
-  font-size: 2rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--foreground);
 }
 
 .launch-tagline {

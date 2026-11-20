@@ -630,7 +630,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               >
                 Filters
                 {activeFilterCount > 0 && (
-                  <span className="ml-1 w-5 h-5 rounded-full gradient-bg text-white text-xs flex items-center justify-center">
+                  <span className="ml-1 w-5 h-5 rounded-full gradient-bg text-primary-foreground text-xs flex items-center justify-center">
                     {activeFilterCount}
                   </span>
                 )}
@@ -1137,7 +1137,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                             'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium',
                             'border transition-all duration-200',
                             isSelected
-                              ? 'gradient-bg text-white border-transparent'
+                              ? 'gradient-bg text-primary-foreground border-transparent'
                               : 'bg-background border-border hover:border-primary/50'
                           )}
                         >
@@ -1219,7 +1219,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                         className={cn(
                           'px-3 py-2 rounded-lg text-sm transition-colors',
                           minRating === option.value
-                            ? 'gradient-bg text-white'
+                            ? 'gradient-bg text-primary-foreground'
                             : 'bg-muted/50 hover:bg-muted'
                         )}
                       >

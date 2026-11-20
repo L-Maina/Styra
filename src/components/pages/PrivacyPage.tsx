@@ -285,7 +285,7 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack, onNavigate }) 
         {/* Hero */}
         <FadeIn className="text-center mb-12">
           <div className="w-16 h-16 rounded-full gradient-bg flex items-center justify-center mx-auto mb-6">
-            <Shield className="h-8 w-8 text-white" />
+            <Shield className="h-8 w-8 text-primary-foreground" />
           </div>
           <h1 className="text-4xl font-bold mb-4">
             <GradientText>Privacy Policy</GradientText>
@@ -345,7 +345,7 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack, onNavigate }) 
             <GlassCard className="mb-6">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-lg gradient-bg flex items-center justify-center flex-shrink-0">
-                  <section.icon className="h-6 w-6 text-white" />
+                  <section.icon className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <div className="flex-1">
                   <h2 className="text-xl font-semibold mb-4">{section.title}</h2>
@@ -475,7 +475,7 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack, onNavigate }) 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center">
-                      <Cookie className="h-5 w-5 text-white" />
+                      <Cookie className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold">Cookie Preferences</h2>

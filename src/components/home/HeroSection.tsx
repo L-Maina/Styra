@@ -299,7 +299,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 <FadeIn key={feature.title} delay={0.5 + index * 0.1}>
                   <GlassCard variant="default" className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4">
                     <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl gradient-bg flex items-center justify-center flex-shrink-0">
-                      <feature.icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                      <feature.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-sm sm:text-base mb-1">{feature.title}</h3>

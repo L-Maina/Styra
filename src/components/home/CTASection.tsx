@@ -76,7 +76,7 @@ export const CTASection: React.FC<CTASectionProps> = ({ onNavigate }) => {
                   className="flex items-center gap-2 min-w-0"
                 >
                   <div className="h-5 w-5 rounded-full gradient-bg flex items-center justify-center flex-shrink-0">
-                    <Check className="h-3 w-3 text-white" />
+                    <Check className="h-3 w-3 text-primary-foreground" />
                   </div>
                   <span className="text-xs sm:text-sm truncate">{benefit}</span>
                 </motion.div>

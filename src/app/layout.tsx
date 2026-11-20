@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { Poppins, Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Syne, Manrope } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -8,15 +8,16 @@ import { MotionSettings } from "@/components/theme/MotionSettings";
 import { LaunchSplash } from "@/components/brand/LaunchSplash";
 import { launchGuardScript } from "@/lib/launch";
 
-const poppins = Poppins({
-  variable: "--font-poppins",
+// Identity kit type: Syne for display, Manrope for text and UI. Both are OFL fonts from Google Fonts.
+const syne = Syne({
+  variable: "--font-syne",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["700"],
   display: "swap",
 });
 
-const inter = Inter({
-  variable: "--font-inter",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
   display: "swap",
 });
@@ -44,8 +45,8 @@ export const metadata: Metadata = {
   ),
   icons: {
     icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon.ico", sizes: "48x48" },
-      { url: "/favicon.png", type: "image/png", sizes: "256x256" },
     ],
     apple: "/apple-touch-icon.png",
   },
@@ -70,6 +71,14 @@ export const metadata: Metadata = {
   },
 };
 
+// Browser chrome follows the kit's ground colours: ivory for light, graphite for dark.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5F0E8" },
+    { media: "(prefers-color-scheme: dark)", color: "#121318" },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -82,7 +91,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: launchGuardScript }} />
       </head>
       <body
-        className={`${poppins.variable} ${inter.variable} font-sans antialiased bg-background text-foreground`}
+        className={`${syne.variable} ${manrope.variable} font-sans antialiased bg-background text-foreground`}
       >
         <LaunchSplash />
         <ThemeProvider
